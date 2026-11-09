@@ -67,25 +67,12 @@ class StreamStudioState:
         INPUTS_DIR.mkdir(parents=True, exist_ok=True)
 
         # Seleccionar motor óptimo automáticamente según la GPU detectada
-        vram_gb = float(self.gpu.get("vram_gb", 0.0)) if self.gpu.get("found") else 0.0
-        if vram_gb >= 12.0:
-            self.active_engine = "sdv2_flux_hq"        # RTX 4090 / 3090 / 4080 -> Flux.2 Klein 4B + Full VAE + Motion-Aware
-            self.default_width = 768
-            self.default_height = 768
-            self.default_steps = 4
-            self.use_tiny_vae = False
-        elif vram_gb >= 6.0:
-            self.active_engine = "sdv2_sd15_hq"        # 6-10GB -> DreamShaper 8 + Hyper-SD + Full VAE (4 steps)
-            self.default_width = 512
-            self.default_height = 512
-            self.default_steps = 4
-            self.use_tiny_vae = False
-        else:
-            self.active_engine = "comfy_sd_node"       # <6GB -> ComfyUI_StreamDiffusion node / Fast LCM
-            self.default_width = 512
-            self.default_height = 512
-            self.default_steps = 2
-            self.use_tiny_vae = True
+        # Priorizamos comfy_sd_node (jesenzhang/ComfyUI_StreamDiffusion) como motor principal
+        self.active_engine = "comfy_sd_node"
+        self.default_width = 512
+        self.default_height = 512
+        self.default_steps = 3
+        self.use_tiny_vae = True
 
         self.state = "READY"
         self.generation_id = 0
@@ -278,34 +265,38 @@ class StreamStudioState:
         Construye el grafo para el nodo personalizado `jesenzhang/ComfyUI_StreamDiffusion`:
         `StreamDiffusion_Loader` -> `StreamDiffusion_Sampler` -> `SaveImage`.
         """
-        t_list = "32, 40, 45" if steps >= 3 else ("32, 45" if steps == 2 else "40")
+        t_list = "32,40,45" if steps >= 3 else ("32,45" if steps == 2 else "40")
         wf: Dict[str, Any] = {
             "1": {
                 "class_type": "StreamDiffusion_Loader",
                 "inputs": {
                     "ckpt_name": ckpt_name,
-                    "t_index_list": t_list,
-                    "width": width,
-                    "height": height,
-                    "mode": "img2img" if uploaded_img_name else "txt2img",
-                    "use_lcm_lora": True,
+                    "vae_name": "Baked VAE",
+                    "lcm_lora": "None",
+                    "acceleration": "none",
                     "use_tiny_vae": bool(use_tiny_vae),
-                    "cfg_type": "self" if cfg > 1.05 else "none",
-                    " seed": int(seed if seed >= 0 else 424242),
+                    "use_lcm_lora": True,
                 },
             },
             "2": {
                 "class_type": "StreamDiffusion_Sampler",
                 "inputs": {
-                    "stream_PK": ["1", 0],
-                    "prompt": prompt,
-                    "negative_prompt": negative_prompt,
-                    "batch_size": 1,
-                    "guidance_scale": float(max(1.0, cfg)),
+                    "model": ["1", 0],
+                    "positive": prompt,
+                    "negative": negative_prompt,
+                    "seed": int(seed if seed >= 0 else 424242),
+                    "steps": int(steps),
+                    "cfg": float(cfg if cfg > 0.1 else 1.2),
                     "delta": 1.0,
-                    "similar_image_filter_threshold": 0.96,
-                    "similar_image_filter_max_skip_frame": 8,
-                    "enable_similar_image_filter": True,
+                    "width": int(width),
+                    "height": int(height),
+                    "batch_size": 1,
+                    "index_list": t_list,
+                    "cfg_type": "self" if cfg > 1.05 else "none",
+                    "add_noise": True,
+                    "use_denoising_batch": True,
+                    "enable_similar_image_filter": False,
+                    "use_safety_checker": False,
                 },
             },
             "3": {
@@ -321,7 +312,7 @@ class StreamStudioState:
                 "class_type": "LoadImage",
                 "inputs": {"image": uploaded_img_name},
             }
-            wf["2"]["inputs"]["image_input"] = ["4", 0]
+            wf["2"]["inputs"]["image"] = ["4", 0]
         return wf
 
     def process_stream_frame(self, job: Dict[str, Any]) -> Dict[str, Any]:
@@ -570,25 +561,31 @@ class StreamStudioHandler(BaseHTTPRequestHandler):
         return
 
     def _send_json(self, data: Dict[str, Any], status: int = 200) -> None:
-        raw = json.dumps(data, ensure_ascii=False).encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(raw)))
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Cache-Control", "no-store")
-        self.send_header("Connection", "close")
-        self.end_headers()
-        self.wfile.write(raw)
+        try:
+            raw = json.dumps(data, ensure_ascii=False).encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(raw)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.wfile.write(raw)
+        except (ConnectionAbortedError, BrokenPipeError, ConnectionResetError):
+            pass
 
     def _send_bytes(self, raw: bytes, content_type: str = "image/png") -> None:
-        self.send_response(200)
-        self.send_header("Content-Type", content_type)
-        self.send_header("Content-Length", str(len(raw)))
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Cache-Control", "no-store")
-        self.send_header("Connection", "close")
-        self.end_headers()
-        self.wfile.write(raw)
+        try:
+            self.send_response(200)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(raw)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.wfile.write(raw)
+        except (ConnectionAbortedError, BrokenPipeError, ConnectionResetError):
+            pass
 
     def do_OPTIONS(self) -> None:
         self.send_response(204)
