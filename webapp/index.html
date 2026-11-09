@@ -347,6 +347,302 @@
       margin: 0;
     }
     .compat-card li { margin-bottom: 3px; }
+
+    /* Miniatura con botón de expandir y reproductor Realtime en grilla */
+    .hist-thumb-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      background: #090b10;
+      overflow: hidden;
+    }
+    .hist-thumb-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .expand-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 30px;
+      height: 30px;
+      border-radius: 7px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      background: rgba(9, 13, 22, 0.78);
+      color: #f8fafc;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
+      transition: all 0.15s ease;
+      z-index: 4;
+    }
+    .expand-btn:hover {
+      background: var(--accent);
+      color: #060911;
+      border-color: var(--accent);
+      transform: scale(1.08);
+    }
+    .mode-pill {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      padding: 3px 7px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      background: rgba(9, 13, 22, 0.82);
+      color: #e2e8f0;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      backdrop-filter: blur(4px);
+      z-index: 3;
+    }
+    .hist-item.rt-player-card {
+      border: 1.5px solid var(--accent);
+      box-shadow: 0 0 18px rgba(56, 189, 248, 0.18);
+      background: linear-gradient(180deg, rgba(14, 26, 46, 0.95), rgba(11, 16, 27, 0.98));
+    }
+    .rt-live-pill {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 800;
+      background: rgba(220, 38, 38, 0.88);
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      box-shadow: 0 2px 8px rgba(220, 38, 38, 0.45);
+      z-index: 3;
+    }
+    .rt-live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #fff;
+      animation: pulseLive 1s infinite alternate;
+    }
+    @keyframes pulseLive {
+      from { opacity: 0.35; transform: scale(0.85); }
+      to { opacity: 1; transform: scale(1.15); }
+    }
+    .rt-player-controls {
+      position: absolute;
+      bottom: 8px;
+      left: 8px;
+      right: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+      z-index: 3;
+    }
+    .rt-fps-badge {
+      padding: 2px 7px;
+      border-radius: 5px;
+      font-size: 10px;
+      font-weight: 700;
+      background: rgba(9, 13, 22, 0.82);
+      color: var(--accent);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+    }
+    .rt-play-toggle {
+      pointer-events: auto;
+      padding: 3px 8px;
+      border-radius: 5px;
+      font-size: 10px;
+      font-weight: 700;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      background: rgba(9, 13, 22, 0.85);
+      color: #fff;
+      cursor: pointer;
+    }
+    .rt-play-toggle:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Lightbox Modal Pantalla Completa + Flechas + Carrusel Inferior */
+    .lightbox-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(4, 7, 13, 0.92);
+      backdrop-filter: blur(10px);
+      z-index: 9999;
+      display: none;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 16px 24px;
+      user-select: none;
+    }
+    .lightbox-backdrop.open {
+      display: flex;
+    }
+    .lightbox-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .lightbox-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      font-size: 13px;
+    }
+    .lightbox-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .lightbox-close {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg-2);
+      color: var(--text);
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .lightbox-close:hover {
+      background: var(--red);
+      color: #fff;
+      border-color: var(--red);
+    }
+    .lightbox-stage {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      min-height: 0;
+      padding: 12px 60px;
+    }
+    .lightbox-img-box {
+      max-height: 100%;
+      max-width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .lightbox-img-box img {
+      max-height: calc(100vh - 245px);
+      max-width: calc(100vw - 180px);
+      object-fit: contain;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 16px 50px rgba(0, 0, 0, 0.65);
+      background: #080b11;
+    }
+    .lightbox-caption {
+      max-width: 780px;
+      text-align: center;
+      font-size: 13px;
+      color: #cbd5e1;
+      line-height: 1.4;
+      background: rgba(15, 23, 42, 0.75);
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .lightbox-arrow {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      background: rgba(15, 23, 42, 0.85);
+      color: #fff;
+      font-size: 22px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+      z-index: 5;
+    }
+    .lightbox-arrow:hover {
+      background: var(--accent);
+      color: #060911;
+      border-color: var(--accent);
+      transform: translateY(-50%) scale(1.08);
+    }
+    .lightbox-arrow.left { left: 10px; }
+    .lightbox-arrow.right { right: 10px; }
+    .lightbox-carousel-wrap {
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .lightbox-carousel {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      overflow-x: auto;
+      padding: 4px 6px 8px 6px;
+      scroll-behavior: smooth;
+    }
+    .carousel-thumb {
+      position: relative;
+      width: 68px;
+      height: 68px;
+      flex: 0 0 68px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 2px solid transparent;
+      cursor: pointer;
+      opacity: 0.55;
+      transition: all 0.15s ease;
+      background: #090d16;
+    }
+    .carousel-thumb:hover {
+      opacity: 0.9;
+    }
+    .carousel-thumb.active {
+      border-color: var(--accent);
+      opacity: 1;
+      transform: translateY(-2px);
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.45);
+    }
+    .carousel-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .carousel-thumb-tag {
+      position: absolute;
+      bottom: 2px;
+      left: 2px;
+      right: 2px;
+      font-size: 9px;
+      font-weight: 800;
+      text-align: center;
+      background: rgba(6, 9, 17, 0.82);
+      color: #fff;
+      border-radius: 4px;
+      padding: 1px 2px;
+    }
   </style>
 </head>
 <body>
@@ -521,6 +817,7 @@
             </div>
             <div class="viewport-img-wrap">
               <img id="latestImg" src="/api/latest.png" alt="Última generación" />
+              <button class="expand-btn" title="Ver en tamaño grande" onclick="openLightbox(0)">⛶</button>
             </div>
           </div>
 
@@ -538,13 +835,43 @@
 
       <section class="panel" style="flex:1;">
         <div class="panel-title">
-          <span>Historial de Generaciones (Click para reutilizar Prompt y Seed)</span>
-          <button class="btn btn-secondary" style="padding:4px 10px; font-size:11px;" onclick="loadHistory()">↻ Actualizar</button>
+          <span>Reproductor StreamDiffusion RT (1 Cuadro en Vivo) + Historial (Txt2Img / Img2Img)</span>
+          <button class="btn btn-secondary" style="padding:4px 10px; font-size:11px;" onclick="loadHistory(true)">↻ Actualizar</button>
         </div>
         <div id="historyGrid" class="history-grid"></div>
       </section>
     </div>
   </main>
+
+  <!-- MODAL LIGHTBOX PANTALLA COMPLETA CON FLECHAS Y CARRUSEL INFERIOR -->
+  <div id="lightboxModal" class="lightbox-backdrop" onclick="if(event.target===this) closeLightbox()">
+    <div class="lightbox-top">
+      <div class="lightbox-info">
+        <span id="lbModeBadge" class="badge">MODO</span>
+        <strong id="lbTitleText" style="color:var(--text);">Generación #0</strong>
+        <span id="lbMetaText" style="color:var(--muted);">512×512 • 0 ms</span>
+      </div>
+      <div class="lightbox-actions">
+        <button class="btn btn-secondary" style="padding:6px 12px; font-size:12px;" onclick="useCurrentLightboxItem()">
+          ⚡ Reutilizar este Prompt y Seed
+        </button>
+        <button class="lightbox-close" title="Cerrar (Esc)" onclick="closeLightbox()">✕</button>
+      </div>
+    </div>
+
+    <div class="lightbox-stage">
+      <button class="lightbox-arrow left" title="Anterior (←)" onclick="stepLightbox(-1)">❮</button>
+      <div class="lightbox-img-box">
+        <img id="lightboxImg" src="/api/latest.png" alt="Vista ampliada" />
+        <div id="lightboxCaption" class="lightbox-caption">--</div>
+      </div>
+      <button class="lightbox-arrow right" title="Siguiente (→)" onclick="stepLightbox(1)">❯</button>
+    </div>
+
+    <div class="lightbox-carousel-wrap">
+      <div id="lightboxCarousel" class="lightbox-carousel"></div>
+    </div>
+  </div>
 
   <script>
     let currentGenId = -1;
@@ -552,6 +879,159 @@
     let tiersMeta = {};
     let knownModels = [];
     let webRtLoopActive = false;
+
+    // Estado del Reproductor Realtime Único y del Historial (solo txt2img e img2img)
+    let rtStreamData = null;
+    let staticHistoryItems = [];
+    let lastStaticHistorySig = '';
+    let rtPlayerPlaying = true;
+    let rtPlaybackIdx = 0;
+    let lastLiveFrameTs = 0;
+
+    // Estado del Lightbox Modal (índice 0 = Reproductor Realtime si existe, luego staticHistoryItems)
+    let lightboxOpen = false;
+    let lightboxIdx = 0;
+
+    function getGalleryList() {
+      const list = [];
+      const rtCard = rtStreamData || {
+        id: currentGenId > 0 ? currentGenId : 1,
+        isRealtimePlayer: true,
+        mode: 'streamdiffusion_rt',
+        prompt: document.getElementById('promptInput')?.value || 'StreamDiffusion Realtime Stream',
+        negative_prompt: document.getElementById('negInput')?.value || '',
+        width: 512,
+        height: 512,
+        steps: 1,
+        cfg: 1.0,
+        seed: 424242,
+        latency_ms: 210,
+        fps: 4.5,
+        frame_count: currentGenId > 0 ? currentGenId : 1,
+        url: `/api/latest.png?v=${currentGenId}`,
+        frames: [`/api/latest.png?v=${currentGenId}`],
+        source: 'realtime'
+      };
+      rtCard.isRealtimePlayer = true;
+      list.push(rtCard);
+      for (const it of staticHistoryItems) {
+        list.push(it);
+      }
+      return list;
+    }
+
+    function toggleRtCardPlay(ev) {
+      if (ev) ev.stopPropagation();
+      rtPlayerPlaying = !rtPlayerPlaying;
+      const btn = document.getElementById('rtPlayToggleBtn');
+      if (btn) {
+        btn.textContent = rtPlayerPlaying ? '⏸ Vivo' : '▶ Pausa';
+      }
+    }
+
+    // Bucle de animación del Reproductor Realtime (anima dentro del único cuadrado en la grilla y en el Lightbox si está en índice 0)
+    setInterval(() => {
+      if (!rtPlayerPlaying) return;
+      const frames = rtStreamData?.frames || [];
+      if (frames.length > 1 && (Date.now() - lastLiveFrameTs > 450)) {
+        rtPlaybackIdx = (rtPlaybackIdx + 1) % frames.length;
+        const frameUrl = frames[rtPlaybackIdx];
+        const cardImg = document.getElementById('rtCardImg');
+        if (cardImg) cardImg.src = frameUrl;
+        if (lightboxOpen && lightboxIdx === 0) {
+          const lbImg = document.getElementById('lightboxImg');
+          if (lbImg) lbImg.src = frameUrl;
+        }
+      }
+    }, 210);
+
+    function openLightbox(idx, ev) {
+      if (ev) ev.stopPropagation();
+      const list = getGalleryList();
+      if (list.length === 0) return;
+      lightboxIdx = Math.max(0, Math.min(list.length - 1, idx));
+      lightboxOpen = true;
+      document.getElementById('lightboxModal').classList.add('open');
+      renderLightboxView();
+    }
+
+    function closeLightbox() {
+      lightboxOpen = false;
+      document.getElementById('lightboxModal').classList.remove('open');
+    }
+
+    function stepLightbox(delta, ev) {
+      if (ev) ev.stopPropagation();
+      const list = getGalleryList();
+      if (list.length === 0) return;
+      lightboxIdx = (lightboxIdx + delta + list.length) % list.length;
+      renderLightboxView();
+    }
+
+    function useCurrentLightboxItem() {
+      const list = getGalleryList();
+      const item = list[lightboxIdx];
+      if (item) {
+        applyHistoryItem(item);
+        closeLightbox();
+      }
+    }
+
+    function renderLightboxView() {
+      if (!lightboxOpen) return;
+      const list = getGalleryList();
+      if (list.length === 0) return;
+      if (lightboxIdx >= list.length) lightboxIdx = 0;
+      const item = list[lightboxIdx];
+
+      const badge = document.getElementById('lbModeBadge');
+      const title = document.getElementById('lbTitleText');
+      const meta = document.getElementById('lbMetaText');
+      const img = document.getElementById('lightboxImg');
+      const cap = document.getElementById('lightboxCaption');
+
+      if (item.isRealtimePlayer || item.mode === 'streamdiffusion_rt') {
+        badge.textContent = '🔴 STREAMDIFFUSION RT (VIDEO EN VIVO)';
+        badge.style.background = 'rgba(220, 38, 38, 0.25)';
+        badge.style.color = '#fca5a5';
+        title.textContent = `Reproductor Realtime • Frame #${item.frame_count || item.id || 0}`;
+        meta.textContent = `${item.width || 512}×${item.height || 512} • ${item.fps || 4.5} FPS (${item.latency_ms || 0} ms) • Seed ${item.seed ?? 424242}`;
+      } else {
+        badge.textContent = (item.mode || 'TXT2IMG').toUpperCase();
+        badge.style.background = 'rgba(56, 189, 248, 0.15)';
+        badge.style.color = 'var(--accent)';
+        title.textContent = `Generación #${item.id} (${(item.source || 'webapp').toUpperCase()})`;
+        meta.textContent = `${item.width || 512}×${item.height || 512} • ${item.steps || 6} pasos • ${item.latency_ms || 0} ms • Seed ${item.seed ?? -1}`;
+      }
+
+      img.src = item.url;
+      cap.textContent = item.prompt || '';
+
+      // Renderizar carrusel inferior de miniaturas
+      const car = document.getElementById('lightboxCarousel');
+      car.innerHTML = list.map((it, idx) => {
+        const isRt = it.isRealtimePlayer || it.mode === 'streamdiffusion_rt';
+        const tag = isRt ? '🔴 LIVE RT' : `#${it.id}`;
+        return `
+          <div id="lb-thumb-${idx}" class="carousel-thumb ${idx === lightboxIdx ? 'active' : ''}" onclick="openLightbox(${idx}, event)">
+            <img src="${it.url}" alt="${tag}" />
+            <span class="carousel-thumb-tag" style="${isRt ? 'background:rgba(220,38,38,0.88);' : ''}">${tag}</span>
+          </div>
+        `;
+      }).join('');
+
+      const activeThumb = document.getElementById(`lb-thumb-${lightboxIdx}`);
+      if (activeThumb) {
+        activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }
+
+    window.addEventListener('keydown', (ev) => {
+      if (!lightboxOpen) return;
+      if (ev.key === 'Escape') closeLightbox();
+      else if (ev.key === 'ArrowLeft') stepLightbox(-1);
+      else if (ev.key === 'ArrowRight') stepLightbox(1);
+    });
 
     function toggleWebRealtimeLoop() {
       webRtLoopActive = !webRtLoopActive;
@@ -668,27 +1148,113 @@
       document.getElementById('inputImg').src = `/api/input.png?t=${Date.now()}`;
     }
 
-    async function loadHistory() {
-      try {
-        const res = await fetch('/api/history');
-        const data = await res.json();
-        const grid = document.getElementById('historyGrid');
-        if (!data.items || data.items.length === 0) {
-          grid.innerHTML = '<div style="color:var(--muted); font-size:13px;">Aún no hay generaciones registradas.</div>';
-          return;
-        }
-        grid.innerHTML = data.items.map(item => `
+    function updateRealtimeCardInPlace(rt) {
+      if (!rt) return;
+      rtStreamData = rt;
+      lastLiveFrameTs = Date.now();
+      const cardImg = document.getElementById('rtCardImg');
+      if (!cardImg) {
+        renderHistoryGridDom();
+        return;
+      }
+      if (rtPlayerPlaying && rt.url) {
+        cardImg.src = rt.url;
+      }
+      const fpsEl = document.getElementById('rtCardFpsBadge');
+      if (fpsEl) {
+        fpsEl.textContent = `${rt.fps || 4.5} FPS • ${rt.latency_ms || 0} ms`;
+      }
+      const promptEl = document.getElementById('rtCardPrompt');
+      if (promptEl) {
+        promptEl.textContent = rt.prompt || '';
+      }
+      const subEl = document.getElementById('rtCardSub');
+      if (subEl) {
+        subEl.innerHTML = `<span>🎬 Frame #${rt.frame_count || rt.id} • ${(rt.source || 'TD').toUpperCase()}</span><span>1 Cuadro Realtime</span>`;
+      }
+      if (lightboxOpen && lightboxIdx === 0 && rtPlayerPlaying) {
+        const lbImg = document.getElementById('lightboxImg');
+        if (lbImg) lbImg.src = rt.url;
+        const lbTitle = document.getElementById('lbTitleText');
+        if (lbTitle) lbTitle.textContent = `Reproductor Realtime • Frame #${rt.frame_count || rt.id || 0}`;
+        const lbMeta = document.getElementById('lbMetaText');
+        if (lbMeta) lbMeta.textContent = `${rt.width || 512}×${rt.height || 512} • ${rt.fps || 4.5} FPS (${rt.latency_ms || 0} ms) • Seed ${rt.seed ?? 424242}`;
+      }
+    }
+
+    function renderHistoryGridDom() {
+      const grid = document.getElementById('historyGrid');
+      const list = getGalleryList();
+      const rt = list[0];
+
+      // 1. Único cuadrado Reproductor StreamDiffusion Realtime al principio de la grilla
+      const rtHtml = `
+        <div id="rtPlayerCard" class="hist-item rt-player-card" onclick='applyHistoryItem(${JSON.stringify(rt).replace(/'/g, "&#39;")})'>
+          <div class="hist-thumb-wrap">
+            <img id="rtCardImg" src="${rt.url || '/api/latest.png'}" alt="Reproductor StreamDiffusion Realtime" />
+            <div class="rt-live-pill">
+              <span class="rt-live-dot"></span>
+              <span>STREAMDIFFUSION RT</span>
+            </div>
+            <button class="expand-btn" title="Ver Reproductor Realtime en tamaño grande" onclick="openLightbox(0, event)">⛶</button>
+            <div class="rt-player-controls">
+              <span id="rtCardFpsBadge" class="rt-fps-badge">${rt.fps || 4.5} FPS • ${rt.latency_ms || 0} ms</span>
+              <button id="rtPlayToggleBtn" class="rt-play-toggle" onclick="toggleRtCardPlay(event)">${rtPlayerPlaying ? '⏸ Vivo' : '▶ Pausa'}</button>
+            </div>
+          </div>
+          <div class="hist-meta">
+            <div id="rtCardPrompt" class="hist-prompt">${rt.prompt || 'StreamDiffusion Realtime Video Stream'}</div>
+            <div id="rtCardSub" class="hist-sub" style="color:var(--accent);">
+              <span>🎬 Frame #${rt.frame_count || rt.id || 1} • ${(rt.source || 'TD').toUpperCase()}</span>
+              <span>1 Cuadro Realtime</span>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // 2. Solo imágenes estáticas generadas con Text-to-Image (txt2img) o Image-to-Image (img2img)
+      const staticHtml = staticHistoryItems.map((item, idx) => {
+        const galleryIdx = idx + 1;
+        const modeLabel = (item.mode || 'txt2img').toUpperCase();
+        return `
           <div class="hist-item" onclick='applyHistoryItem(${JSON.stringify(item).replace(/'/g, "&#39;")})'>
-            <img src="${item.url}" loading="lazy" alt="Gen #${item.id}" />
+            <div class="hist-thumb-wrap">
+              <img src="${item.url}" loading="lazy" alt="Gen #${item.id}" />
+              <span class="mode-pill">${modeLabel}</span>
+              <button class="expand-btn" title="Ver imagen en tamaño grande" onclick="openLightbox(${galleryIdx}, event)">⛶</button>
+            </div>
             <div class="hist-meta">
               <div class="hist-prompt">${item.prompt}</div>
               <div class="hist-sub">
-                <span>#${item.id} • ${item.source.toUpperCase()}</span>
+                <span>#${item.id} • ${(item.source || 'webapp').toUpperCase()}</span>
                 <span>${item.latency_ms} ms</span>
               </div>
             </div>
           </div>
-        `).join('');
+        `;
+      }).join('');
+
+      grid.innerHTML = rtHtml + staticHtml;
+    }
+
+    async function loadHistory(forceRender = false) {
+      try {
+        const res = await fetch('/api/history');
+        const data = await res.json();
+        if (data.rt_stream) {
+          rtStreamData = data.rt_stream;
+        }
+        // Filtrar estrictamente para que el historial solo muestre txt2img e img2img
+        const filtered = (data.items || []).filter(it => it.mode === 'txt2img' || it.mode === 'img2img');
+        const sig = filtered.map(it => it.id).join(',');
+        if (forceRender || sig !== lastStaticHistorySig || !document.getElementById('rtPlayerCard')) {
+          staticHistoryItems = filtered;
+          lastStaticHistorySig = sig;
+          renderHistoryGridDom();
+          if (lightboxOpen) renderLightboxView();
+        } else if (data.rt_stream) {
+          updateRealtimeCardInPlace(data.rt_stream);
+        }
       } catch (e) {}
     }
 
@@ -807,7 +1373,7 @@
           document.getElementById('logBox').textContent = `[OK] Servidor Puente Activo en 127.0.0.1:8080 | Nivel: ${currentTier.toUpperCase()} | Esperando pedidos desde TouchDesigner o WebApp...`;
         }
 
-        // Si cambió el generation_id, recargar imagen e historial
+        // Si cambió el generation_id, recargar imagen y actualizar reproductor Realtime o historial estático
         if (st.generation_id !== currentGenId) {
           currentGenId = st.generation_id;
           document.getElementById('latestImg').src = `/api/latest.png?v=${currentGenId}&t=${Date.now()}`;
@@ -815,8 +1381,12 @@
           if (st.latest) {
             document.getElementById('latestBackendLabel').textContent = st.latest.backend || '';
           }
-          if (currentGenId % 4 === 0 || !webRtLoopActive) {
-            loadHistory();
+          if (st.rt_stream) {
+            updateRealtimeCardInPlace(st.rt_stream);
+          }
+          // Si la última generación fue txt2img o img2img, refrescar el historial estático inmediatamente
+          if (st.latest && (st.latest.mode === 'txt2img' || st.latest.mode === 'img2img')) {
+            loadHistory(true);
           }
         }
         if (webRtLoopActive && (st.state === 'READY' || st.state === 'IDLE')) {

@@ -82,21 +82,36 @@ class BridgeState:
         self.online_cache_ts: float = 0.0
         self.last_input_signature: list[int] | None = None
         self.skipped_identical_frames: int = 0
+        self.rt_frame_counter: int = 0
+        self.rt_frame_buffer: list[str] = []
+        self.rt_stream: dict | None = None
+        self.priority_static_pending: bool = False
+        self.last_generated_meta: dict | None = self.history[0] if self.history else None
 
         # Asegurar una imagen inicial latest.png para que TouchDesigner nunca falle al cargar
         if not LATEST_IMG_PATH.exists():
             self._create_initial_placeholder()
 
     def _load_history(self) -> list[dict]:
+        items: list[dict] = []
         if HISTORY_FILE.exists():
             try:
                 with open(HISTORY_FILE, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     if isinstance(data, list):
-                        return data
+                        # Filtrar cualquier frame de streamdiffusion_rt para que el historial solo tenga txt2img e img2img
+                        items = [x for x in data if x.get("mode") in ("txt2img", "img2img")]
             except Exception:
                 pass
-        return []
+        # Limpiar archivos huérfanos de streamdiffusion_rt antiguos en outputs/
+        keep_files = {x.get("filename") for x in items if x.get("filename")}
+        for f_path in OUTPUTS_DIR.glob("gen_*_424242.png"):
+            if f_path.name not in keep_files:
+                try:
+                    f_path.unlink()
+                except Exception:
+                    pass
+        return items
 
     def save_history(self):
         try:
@@ -471,7 +486,25 @@ def _execute_generation_worker(job: dict):
 
     online, _ = STATE.check_comfy_online()
     used_backend = "comfyui"
-    out_filename = f"gen_{int(time.time() * 1000)}_{seed}.png"
+    if is_rt:
+        STATE.rt_frame_counter += 1
+        out_filename = f"rt_ring_{STATE.rt_frame_counter % 16}.png"
+        # Si el loop Realtime se dispara desde la WebApp sin nuevo frame de TD, evolucionar orgánicamente la entrada
+        if job.get("source") == "webapp" and HAS_PIL and LATEST_IMG_PATH.exists():
+            try:
+                prev_im = Image.open(LATEST_IMG_PATH).convert("RGB").resize((width, height), Image.Resampling.BILINEAR)
+                # Zoom suave + rotación leve + pulso cromático para que el reproductor Realtime anime en vivo
+                crop_margin = max(4, width // 36)
+                zoomed = prev_im.crop((crop_margin, crop_margin, width - crop_margin, height - crop_margin)).resize(
+                    (width, height), Image.Resampling.BILINEAR
+                ).rotate(1.8, resample=Image.Resampling.BILINEAR, expand=False)
+                LATEST_INPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+                zoomed.save(LATEST_INPUT_PATH, format="JPEG", quality=90)
+                use_img_input = True
+            except Exception:
+                pass
+    else:
+        out_filename = f"gen_{int(time.time() * 1000)}_{seed}.png"
     out_path = OUTPUTS_DIR / out_filename
 
     try:
@@ -597,13 +630,14 @@ def _execute_generation_worker(job: dict):
             STATE.generation_counter += 1
             STATE.last_latency_ms = elapsed_ms
             STATE.status_state = "READY"
+            frame_url = f"/outputs/{out_filename}?v={STATE.generation_counter}" if is_rt else f"/outputs/{out_filename}"
             entry = {
                 "id": STATE.generation_counter,
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "prompt": prompt,
                 "negative_prompt": negative_prompt,
                 "tier": tier_id,
-                "mode": mode,
+                "mode": "streamdiffusion_rt" if is_rt else mode,
                 "width": width,
                 "height": height,
                 "steps": steps,
@@ -613,20 +647,32 @@ def _execute_generation_worker(job: dict):
                 "latency_ms": elapsed_ms,
                 "backend": used_backend,
                 "filename": out_filename,
-                "url": f"/outputs/{out_filename}",
+                "url": frame_url,
                 "source": job.get("source", "webapp"),
             }
-            STATE.history.insert(0, entry)
-            if len(STATE.history) > 80:
-                for old_item in STATE.history[80:]:
-                    old_f = OUTPUTS_DIR / old_item.get("filename", "")
-                    if old_f.exists() and old_f.name.startswith("gen_"):
-                        try:
-                            old_f.unlink()
-                        except Exception:
-                            pass
-                STATE.history = STATE.history[:80]
-            if not is_rt or (STATE.generation_counter % 5 == 0):
+            STATE.last_generated_meta = entry
+            if is_rt:
+                # En modo StreamDiffusion Realtime: NO ensuciar el historial de fotos; actualizar el reproductor Realtime único
+                STATE.rt_frame_buffer.append(frame_url)
+                if len(STATE.rt_frame_buffer) > 16:
+                    STATE.rt_frame_buffer = STATE.rt_frame_buffer[-16:]
+                rt_entry = dict(entry)
+                rt_entry["frame_count"] = STATE.rt_frame_counter
+                rt_entry["fps"] = round(1000.0 / max(1.0, elapsed_ms), 1)
+                rt_entry["frames"] = list(STATE.rt_frame_buffer)
+                STATE.rt_stream = rt_entry
+            else:
+                # Solo guardar en el historial las imágenes generadas con Text-to-Image (txt2img) o Image-to-Image (img2img)
+                STATE.history.insert(0, entry)
+                if len(STATE.history) > 80:
+                    for old_item in STATE.history[80:]:
+                        old_f = OUTPUTS_DIR / old_item.get("filename", "")
+                        if old_f.exists() and old_f.name.startswith("gen_"):
+                            try:
+                                old_f.unlink()
+                            except Exception:
+                                pass
+                    STATE.history = STATE.history[:80]
                 STATE.save_history()
             STATE.active_job = None
 
@@ -642,8 +688,8 @@ def _execute_generation_worker(job: dict):
 
 class BridgeHTTPHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
-        # Silenciar el spam de polling frecuente de TouchDesigner
-        if "/api/td_poll" in self.path or "/api/status" in self.path:
+        # Silenciar el spam de polling frecuente de TouchDesigner y del reproductor Realtime
+        if any(p in self.path for p in ("/api/td_poll", "/api/status", "/outputs/rt_ring_", "/api/latest.png", "/api/input.png")):
             return
         sys.stderr.write(f"[HTTP] {self.address_string()} - {format % args}\n")
 
@@ -695,7 +741,7 @@ class BridgeHTTPHandler(BaseHTTPRequestHandler):
 
         if route == "/api/td_poll":
             online, _ = STATE.check_comfy_online()
-            latest = STATE.history[0] if STATE.history else None
+            latest = STATE.last_generated_meta or (STATE.history[0] if STATE.history else None)
             latest_file_path = str(OUTPUTS_DIR / latest["filename"]) if (latest and latest.get("filename")) else str(LATEST_IMG_PATH)
             self._send_json({
                 "ok": True,
@@ -746,13 +792,18 @@ class BridgeHTTPHandler(BaseHTTPRequestHandler):
                 "recommended_tier": rec_tier,
                 "active_tier": active_tier,
                 "tiers": STATE.cfg.get("tiers", {}),
-                "latest": STATE.history[0] if STATE.history else None,
+                "latest": STATE.last_generated_meta or (STATE.history[0] if STATE.history else None),
+                "rt_stream": STATE.rt_stream,
                 "has_td_input": LATEST_INPUT_PATH.exists(),
             })
             return
 
         if route == "/api/history":
-            self._send_json({"ok": True, "items": STATE.history[:60]})
+            self._send_json({
+                "ok": True,
+                "rt_stream": STATE.rt_stream,
+                "items": STATE.history[:60],
+            })
             return
 
         if route == "/api/latest.png":
@@ -804,8 +855,23 @@ class BridgeHTTPHandler(BaseHTTPRequestHandler):
             payload = {}
 
         if route == "/api/generate":
+            req_mode = str(payload.get("mode") or "txt2img").strip().lower()
+            req_rt = bool(payload.get("realtime_mode")) or (req_mode == "streamdiffusion_rt") or (payload.get("tier") == "realtime")
+
+            if not req_rt:
+                STATE.priority_static_pending = True
+                try:
+                    wait_until = time.time() + 6.0
+                    while STATE.status_state in ("GENERATING", "QUEUED") and time.time() < wait_until:
+                        time.sleep(0.02)
+                finally:
+                    STATE.priority_static_pending = False
+
             with STATE.lock:
-                if STATE.status_state == "GENERATING":
+                if STATE.status_state in ("GENERATING", "QUEUED") or (req_rt and STATE.priority_static_pending):
+                    if req_rt:
+                        self._send_json({"ok": True, "state": "GENERATING", "skipped_busy": True})
+                        return
                     self._send_json({"ok": False, "error": "Ya hay una generación en curso."}, status=409)
                     return
 
@@ -841,7 +907,7 @@ class BridgeHTTPHandler(BaseHTTPRequestHandler):
 
             if is_sync_td_rt:
                 _execute_generation_worker(job)
-                latest = STATE.history[0] if STATE.history else None
+                latest = STATE.last_generated_meta or (STATE.history[0] if STATE.history else None)
                 latest_file_path = str(OUTPUTS_DIR / latest["filename"]) if (latest and latest.get("filename")) else str(LATEST_IMG_PATH)
                 self._send_json({
                     "ok": True,
