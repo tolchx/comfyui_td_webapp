@@ -530,7 +530,9 @@
       <section class="panel" style="flex:1;">
         <div class="panel-title">
           <span>Historial de Objetos 3D Generados (Click para Inspeccionar en el Visor 3D)</span>
-          <span style="font-size:11px; color:var(--muted);">Guardados en `trellis3d_studio/outputs/models/`</span>
+          <button class="btn btn-secondary" style="padding:4px 10px; font-size:11px;" onclick="open3dOutputsFolder()">
+            📁 Abrir Carpeta 3D (Models & Outputs)
+          </button>
         </div>
         <div id="hist3dGrid" class="hist3d-grid"></div>
       </section>
@@ -1012,6 +1014,34 @@
       await startDirectDownload(activeEngine);
     }
 
+    async function open3dOutputsFolder() {
+      try {
+        await fetch('/api/open_outputs_folder', { method: 'POST' });
+      } catch (err) {
+        alert('No se pudo abrir la carpeta 3D: ' + err.message);
+      }
+    }
+
+    async function delete3DAsset(id, ev) {
+      if (ev) ev.stopPropagation();
+      if (!confirm(`¿Eliminar el modelo 3D #${id} del historial y del disco?`)) return;
+      try {
+        const res = await fetch('/api/delete_3d_asset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: id })
+        });
+        const d = await res.json();
+        if (d.ok) {
+          await pollStatus();
+        } else {
+          alert('Error al borrar: ' + (d.error || 'Desconocido'));
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
     async function pollStatus() {
       try {
         const res = await fetch('/api/status');
@@ -1082,14 +1112,18 @@
           const grid = document.getElementById('hist3dGrid');
           grid.innerHTML = st.history.map(h => `
             <div class="hist3d-card">
-              <img src="${h.preview_url}" alt="Preview #${h.id}" onclick='loadGlbIntoViewer(${JSON.stringify(h.glb_url)})' style="cursor:pointer;" />
+              <div style="position:relative; width:100%; aspect-ratio:1/1; overflow:hidden;">
+                <img src="${h.preview_url}" alt="Preview #${h.id}" onclick='loadGlbIntoViewer(${JSON.stringify(h.glb_url)})' style="cursor:pointer; width:100%; height:100%; object-fit:contain;" />
+                <button class="btn btn-secondary" style="position:absolute; top:6px; right:6px; padding:3px 6px; font-size:11px; color:#f43f5e; border-color:rgba(244,63,94,0.4); background:rgba(9,13,22,0.85);" title="Eliminar modelo 3D" onclick='delete3DAsset(${h.id}, event)'>🗑️</button>
+              </div>
               <div class="hist3d-body">
                 <strong style="color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">#${h.id} • ${h.prompt}</strong>
                 <span style="color:var(--muted);">${h.vertices.toLocaleString()} vértices • ${h.latency_ms} ms</span>
-                <div style="display:flex; gap:6px; margin-top:2px;">
+                <div style="display:flex; gap:6px; margin-top:2px; align-items:center;">
                   <button class="btn btn-secondary" style="flex:1; padding:4px 6px; font-size:11px;" onclick='loadGlbIntoViewer(${JSON.stringify(h.glb_url)})'>👁️ Ver 3D</button>
                   <a href="${h.glb_url}" download="asset_${h.id}.glb" class="btn btn-secondary" style="padding:4px 8px; font-size:11px; text-decoration:none;">.GLB</a>
                   <a href="${h.obj_url}" download="asset_${h.id}.obj" class="btn btn-secondary" style="padding:4px 8px; font-size:11px; text-decoration:none;">.OBJ</a>
+                  <button class="btn btn-secondary" style="padding:4px 7px; font-size:11px; color:#f43f5e; border-color:rgba(244,63,94,0.35); background:rgba(244,63,94,0.12);" title="Eliminar modelo 3D" onclick='delete3DAsset(${h.id}, event)'>🗑️</button>
                 </div>
               </div>
             </div>

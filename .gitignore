@@ -28,6 +28,8 @@ TD/*.8.toe
 TD/*.9.toe
 TD/Backup/
 TD/.agents/
+*.dir/
+*.toc
 
 # Historial local de generaciones (conservar solo latest.png de muestra si se desea, o ignorar gen_*.png)
 bridge/outputs/

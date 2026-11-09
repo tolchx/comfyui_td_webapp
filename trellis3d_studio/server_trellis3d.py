@@ -30,8 +30,10 @@ import io
 import json
 import math
 import os
+import platform
 import shutil
 import struct
+import subprocess
 import sys
 import threading
 import time
@@ -66,6 +68,24 @@ INPUTS_DIR = STUDIO3D_DIR / "inputs"
 HISTORY_FILE = OUTPUTS_DIR / "history_3d.json"
 
 MOD1_OUTPUTS_DIR = ROOT_DIR / "bridge" / "outputs"
+
+
+def open_folder_in_os(folder: Path) -> bool:
+    """Abre una carpeta en el explorador nativo del sistema operativo."""
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+        p = str(folder.resolve())
+        sys_os = platform.system().lower()
+        if "windows" in sys_os:
+            os.startfile(p)
+        elif "darwin" in sys_os:
+            subprocess.Popen(["open", p])
+        else:
+            subprocess.Popen(["xdg-open", p])
+        return True
+    except Exception as e:
+        print(f"[3D Studio] Error abriendo carpeta: {e}")
+        return False
 
 # Catálogo oficial de modelos 3D para ComfyUI (HuggingFace Comfy-Org)
 MODEL_CATALOG_3D: Dict[str, Dict[str, Any]] = {
@@ -649,6 +669,33 @@ class Trellis3DStudioState:
             HISTORY_FILE.write_text(json.dumps(self.history[:40], indent=2, ensure_ascii=False), encoding="utf-8")
         except Exception:
             pass
+
+    def delete_asset_by_id(self, asset_id: int) -> bool:
+        """Elimina un modelo 3D del historial y sus archivos .glb, .obj y preview de disco."""
+        with self.lock:
+            found_idx = -1
+            item = None
+            for idx, it in enumerate(self.history):
+                if int(it.get("id", -1)) == int(asset_id):
+                    found_idx = idx
+                    item = it
+                    break
+            if found_idx >= 0:
+                self.history.pop(found_idx)
+                self._save_history()
+
+            if item:
+                glb_name = f"asset3d_{asset_id:04d}.glb"
+                obj_name = f"asset3d_{asset_id:04d}.obj"
+                preview_name = f"asset3d_{asset_id:04d}.png"
+                for p in [MODELS_OUT_DIR / glb_name, MODELS_OUT_DIR / obj_name, PREVIEWS_OUT_DIR / preview_name]:
+                    try:
+                        if p.exists():
+                            p.unlink()
+                    except Exception:
+                        pass
+                return True
+            return False
 
     def _ensure_initial_3d_asset(self) -> None:
         """Si aún no hay un modelo 3D inicial, convierte la última imagen generada en Módulo 1."""
@@ -1435,6 +1482,11 @@ class Trellis3DHandler(BaseHTTPRequestHandler):
                 self._send_bytes(f.read_bytes(), "image/png")
                 return
 
+        if path in ("/api/open_outputs_folder", "/api/open_folder"):
+            ok = open_folder_in_os(MODELS_OUT_DIR)
+            self._send_json({"ok": ok, "path": str(MODELS_OUT_DIR)})
+            return
+
         self._send_json({"error": "Not found"}, 404)
 
     def do_POST(self) -> None:
@@ -1467,6 +1519,20 @@ class Trellis3DHandler(BaseHTTPRequestHandler):
                 "remove_bg": True,
             })
             self._send_json(res, 200)
+            return
+
+        if path in ("/api/open_outputs_folder", "/api/open_folder"):
+            ok = open_folder_in_os(MODELS_OUT_DIR)
+            self._send_json({"ok": ok, "path": str(MODELS_OUT_DIR)}, 200)
+            return
+
+        if path == "/api/delete_3d_asset":
+            asset_id = body.get("id")
+            if asset_id is not None:
+                ok = STUDIO3D.delete_asset_by_id(int(asset_id))
+                self._send_json({"ok": ok, "id": asset_id}, 200)
+            else:
+                self._send_json({"ok": False, "error": "ID no provisto"}, 400)
             return
 
         if path == "/api/download_3d_models":

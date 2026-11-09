@@ -25,6 +25,7 @@ import io
 import json
 import math
 import os
+import platform
 import subprocess
 import sys
 import threading
@@ -58,6 +59,24 @@ INPUTS_DIR.mkdir(parents=True, exist_ok=True)
 sys.path.insert(0, str(BRIDGE_DIR))
 import installer
 import workflows
+
+
+def open_folder_in_os(folder: Path) -> bool:
+    """Abre una carpeta en el explorador de archivos nativo del SO (Windows Explorer, Finder o XDG)."""
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+        p = str(folder.resolve())
+        sys_os = platform.system().lower()
+        if "windows" in sys_os:
+            os.startfile(p)
+        elif "darwin" in sys_os:
+            subprocess.Popen(["open", p])
+        else:
+            subprocess.Popen(["xdg-open", p])
+        return True
+    except Exception as e:
+        print(f"[WARN] No se pudo abrir la carpeta en el explorador: {e}")
+        return False
 
 
 class BridgeState:
@@ -818,6 +837,11 @@ class BridgeHTTPHandler(BaseHTTPRequestHandler):
                 self._send_file(LATEST_IMG_PATH, "image/png")
             return
 
+        if route in ("/api/open_outputs_folder", "/api/open_folder"):
+            ok = open_folder_in_os(OUTPUTS_DIR)
+            self._send_json({"ok": ok, "path": str(OUTPUTS_DIR)})
+            return
+
         if route.startswith("/outputs/"):
             fname = Path(route).name
             self._send_file(OUTPUTS_DIR / fname, "image/png")
@@ -940,6 +964,40 @@ class BridgeHTTPHandler(BaseHTTPRequestHandler):
                 self._send_json({"ok": True, "active_tier": tier_id})
             else:
                 self._send_json({"ok": False, "error": "Tier inválido"}, status=400)
+            return
+
+        if route in ("/api/open_outputs_folder", "/api/open_folder"):
+            ok = open_folder_in_os(OUTPUTS_DIR)
+            self._send_json({"ok": ok, "path": str(OUTPUTS_DIR)})
+            return
+
+        if route == "/api/delete_generation":
+            del_id = payload.get("id")
+            del_fname = payload.get("filename")
+            deleted_file = ""
+
+            with STATE.lock:
+                idx_found = -1
+                for idx, it in enumerate(STATE.history):
+                    if (del_id is not None and it.get("id") == del_id) or (del_fname and it.get("filename") == del_fname):
+                        idx_found = idx
+                        del_fname = it.get("filename")
+                        break
+
+                if idx_found >= 0:
+                    STATE.history.pop(idx_found)
+                    STATE.save_history()
+
+                if del_fname:
+                    target_p = OUTPUTS_DIR / Path(del_fname).name
+                    if target_p.exists() and target_p.resolve() != LATEST_IMG_PATH.resolve():
+                        try:
+                            target_p.unlink()
+                            deleted_file = str(target_p.name)
+                        except Exception as e:
+                            print(f"[WARN] Error al borrar archivo {target_p}: {e}")
+
+            self._send_json({"ok": True, "deleted": deleted_file, "id": del_id})
             return
 
         if route == "/api/comfy/start":

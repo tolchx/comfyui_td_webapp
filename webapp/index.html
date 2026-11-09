@@ -387,6 +387,29 @@
       border-color: var(--accent);
       transform: scale(1.08);
     }
+    .delete-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 7px;
+      border: 1px solid rgba(244, 63, 94, 0.45);
+      background: rgba(9, 13, 22, 0.85);
+      color: #f43f5e;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
+      transition: all 0.15s ease;
+      z-index: 4;
+    }
+    .delete-btn:hover {
+      background: #f43f5e;
+      color: #ffffff;
+      border-color: #f43f5e;
+      transform: scale(1.08);
+      box-shadow: 0 0 10px rgba(244, 63, 94, 0.55);
+    }
     .mode-pill {
       position: absolute;
       top: 8px;
@@ -838,7 +861,10 @@
       <section class="panel" style="flex:1;">
         <div class="panel-title">
           <span>Historial de Imágenes Generadas (Txt2Img / Img2Img)</span>
-          <button class="btn btn-secondary" style="padding:4px 10px; font-size:11px;" onclick="loadHistory(true)">↻ Actualizar</button>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button class="btn btn-secondary" style="padding:4px 10px; font-size:11px;" onclick="openOutputsFolder()">📁 Abrir Carpeta de Outputs</button>
+            <button class="btn btn-secondary" style="padding:4px 10px; font-size:11px;" onclick="loadHistory(true)">↻ Actualizar</button>
+          </div>
         </div>
         <div id="historyGrid" class="history-grid"></div>
       </section>
@@ -854,11 +880,17 @@
         <span id="lbMetaText" style="color:var(--muted);">1024×1024 • 0 ms</span>
       </div>
       <div class="lightbox-actions">
+        <button class="btn btn-secondary" style="padding:6px 12px; font-size:12px;" onclick="openOutputsFolder()">
+          📁 Abrir Carpeta
+        </button>
         <button class="btn" style="padding:6px 12px; font-size:12px; background:linear-gradient(135deg,#10b981,#38bdf8); color:#041114;" onclick="sendLightboxItemTo3D()">
-          🧊 Convertir a Objeto 3D (Trellis v2 / Hunyuan 3D)
+          🧊 Convertir a Objeto 3D
+        </button>
+        <button class="btn btn-secondary" style="padding:6px 12px; font-size:12px; background:rgba(244,63,94,0.15); color:#f43f5e; border-color:rgba(244,63,94,0.4);" onclick="deleteCurrentLightboxItem()">
+          🗑️ Eliminar Imagen
         </button>
         <button class="btn btn-secondary" style="padding:6px 12px; font-size:12px;" onclick="useCurrentLightboxItem()">
-          ⚡ Reutilizar este Prompt y Seed
+          ⚡ Reutilizar Prompt/Seed
         </button>
         <button class="lightbox-close" title="Cerrar (Esc)" onclick="closeLightbox()">✕</button>
       </div>
@@ -1105,6 +1137,52 @@
       if (item) sendItemTo3D(item);
     }
 
+    async function openOutputsFolder() {
+      try {
+        const res = await fetch('/api/open_outputs_folder', { method: 'POST' });
+        const data = await res.json();
+        if (!data.ok && data.error) {
+          alert('Aviso: ' + data.error);
+        }
+      } catch (err) {
+        alert('No se pudo abrir la carpeta: ' + err.message);
+      }
+    }
+
+    async function deleteHistoryItem(item, event) {
+      if (event) event.stopPropagation();
+      if (!item || (!item.id && !item.filename)) return;
+      const snippet = (item.prompt || '').slice(0, 45);
+      if (!confirm(`¿Eliminar la imagen #${item.id || ''} ("${snippet}...")?\nSe borrará del historial y del disco.`)) {
+        return;
+      }
+      try {
+        const res = await fetch('/api/delete_generation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: item.id, filename: item.filename })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          staticHistoryItems = staticHistoryItems.filter(it => it.id !== item.id && it.filename !== item.filename);
+          renderHistoryGridDom();
+          if (lightboxOpen) {
+            closeLightbox();
+          }
+        } else {
+          alert('Error al borrar: ' + (data.error || 'Desconocido'));
+        }
+      } catch (err) {
+        alert('Error de conexión: ' + err.message);
+      }
+    }
+
+    function deleteCurrentLightboxItem() {
+      const list = getGalleryList();
+      const item = list[lightboxIdx];
+      if (item) deleteHistoryItem(item);
+    }
+
     function renderHistoryGridDom() {
       const grid = document.getElementById('historyGrid');
       if (staticHistoryItems.length === 0) {
@@ -1120,13 +1198,19 @@
             <div class="hist-thumb-wrap">
               <img src="${item.url}" loading="lazy" alt="Gen #${item.id}" />
               <span class="mode-pill">${modeLabel}</span>
-              <button class="expand-btn" title="Ver imagen en tamaño grande" onclick="openLightbox(${idx}, event)">⛶</button>
+              <div style="position:absolute; top:8px; right:8px; display:flex; gap:6px; z-index:4;">
+                <button class="expand-btn" style="position:static;" title="Ver imagen en tamaño grande" onclick="openLightbox(${idx}, event)">⛶</button>
+                <button class="delete-btn" style="position:static;" title="Eliminar imagen" onclick='deleteHistoryItem(${itemJson}, event)'>🗑️</button>
+              </div>
             </div>
             <div class="hist-meta">
               <div class="hist-prompt">${item.prompt}</div>
               <div class="hist-sub" style="align-items:center;">
                 <span>#${item.id} • ${item.latency_ms} ms</span>
-                <button class="btn" style="padding:2px 7px; font-size:10px; background:linear-gradient(135deg,#10b981,#38bdf8); color:#041114;" onclick='sendItemTo3D(${itemJson}, event)'>🧊 a 3D</button>
+                <div style="display:flex; gap:5px; align-items:center;">
+                  <button class="btn" style="padding:2px 7px; font-size:10px; background:linear-gradient(135deg,#10b981,#38bdf8); color:#041114;" onclick='sendItemTo3D(${itemJson}, event)'>🧊 a 3D</button>
+                  <button class="btn btn-secondary" style="padding:2px 6px; font-size:10px; color:#f43f5e; border-color:rgba(244,63,94,0.35); background:rgba(244,63,94,0.12);" title="Borrar imagen" onclick='deleteHistoryItem(${itemJson}, event)'>🗑️</button>
+                </div>
               </div>
             </div>
           </div>
