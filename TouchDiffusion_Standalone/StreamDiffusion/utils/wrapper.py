@@ -8,6 +8,17 @@ from typing import List, Literal, Optional, Union, Dict
 module_path = os.path.abspath(__file__)
 touchdiffusion_path = os.path.abspath(os.path.join(module_path, "../../../"))
 
+def _dbg(msg):
+    try:
+        log_p = os.path.join(touchdiffusion_path, "touchdiffusion_debug.log")
+        from datetime import datetime
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        with open(log_p, "a", encoding="utf-8", errors="replace") as f:
+            f.write(f"[{ts}] [wrapper] {msg}\n")
+            f.flush()
+    except Exception:
+        pass
+
 # Registrar automáticamente los directorios de DLLs de CUDA y TensorRT del .venv
 # para que los alumnos NO necesiten instalar CUDA Toolkit 11.8 en Windows ni reiniciar la PC.
 if os.name == "nt":
@@ -254,8 +265,10 @@ class StreamDiffusionWrapper:
         ckpt_dir = os.path.join(touchdiffusion_path, "models", "checkpoints")
         os.makedirs(ckpt_dir, exist_ok=True)
 
+        _dbg(f"_load_model start: model_type={self.model_type}, accel={acceleration}")
         if self.model_type == "sd_1.5":
             ckpt_file = os.path.join(ckpt_dir, f"{model_id_or_path}.safetensors")
+            _dbg(f"Loading single_file {ckpt_file}")
             for local_only in ([True, False] if self.local_files_only else [False]):
                 try:
                     pipe = StableDiffusionPipeline.from_single_file(
@@ -272,9 +285,10 @@ class StreamDiffusionWrapper:
                 except Exception as e:
                     last_err = e
         else:
-            # Default a sd_1.5_turbo ('stabilityai/sd-turbo')
+            _dbg("Loading from_pretrained sd-turbo")
             for local_only in ([True, False] if self.local_files_only else [False]):
                 try:
+                    _dbg(f"Attempting from_pretrained (local_files_only={local_only})...")
                     pipe = StableDiffusionPipeline.from_pretrained(
                         "stabilityai/sd-turbo",
                         cache_dir=ckpt_dir,
@@ -285,13 +299,16 @@ class StreamDiffusionWrapper:
                         add_watermarker=False,
                         safety_checker=None,
                     ).to(device=self.device, dtype=self.dtype)
+                    _dbg("from_pretrained sd-turbo success!")
                     break
                 except Exception as e:
                     last_err = e
+                    _dbg(f"from_pretrained error: {e}")
 
         if pipe is None:
             raise RuntimeError(f"Could not load model '{model_id_or_path}' ({self.model_type}): {last_err}")
 
+        _dbg("Creating StreamDiffusion instance...")
         stream = StreamDiffusion(
             pipe=pipe,
             t_index_list=t_index_list,
@@ -303,6 +320,7 @@ class StreamDiffusionWrapper:
             use_denoising_batch=self.use_denoising_batch,
             cfg_type=cfg_type,
         )
+        _dbg("StreamDiffusion instance created!")
         if not self.sd_turbo:
             lora_cache_dir = os.path.join(touchdiffusion_path, "models", "acceleration_loras")
             os.makedirs(lora_cache_dir, exist_ok=True)
@@ -337,23 +355,28 @@ class StreamDiffusionWrapper:
                     stream.fuse_lora(lora_scale=lora_scale)
 
         if use_tiny_vae:
+            _dbg("Loading TinyVAE...")
             vae_cache_dir = os.path.join(touchdiffusion_path, "models", "vae")
             os.makedirs(vae_cache_dir, exist_ok=True)
             target_vae = vae_id or "madebyollin/taesd"
             loaded_vae = None
             for local_only in ([True, False] if self.local_files_only else [False]):
                 try:
+                    _dbg(f"Loading taesd from_pretrained (local_only={local_only})...")
                     loaded_vae = AutoencoderTiny.from_pretrained(
                         target_vae,
                         cache_dir=vae_cache_dir,
                         local_files_only=local_only,
                     ).to(device=pipe.device, dtype=pipe.dtype)
+                    _dbg("Loaded taesd successfully!")
                     break
-                except Exception:
+                except Exception as e:
+                    _dbg(f"TinyVAE load error: {e}")
                     pass
             if loaded_vae is not None:
                 stream.vae = loaded_vae
 
+        _dbg(f"Checking acceleration: {acceleration}")
         if acceleration == "tensorrt":
             def create_prefix(
                 model_id_or_path: str,
@@ -389,25 +412,32 @@ class StreamDiffusionWrapper:
             vae_encoder_path = os.path.join(engine_dir, prefix_vae, "vae_encoder.engine")
             vae_decoder_path = os.path.join(engine_dir, prefix_vae, "vae_decoder.engine")
 
+            _dbg(f"Checking unet_path exists: {unet_path} -> {os.path.exists(unet_path)}")
             if touchdiffusion and not os.path.exists(unet_path):
+                _dbg(f"Engine not found: {unet_path}")
                 print(f"[TouchDiffusion] Engine '{unet_path}' not found; running in PyTorch Direct FP16 + TinyVAE mode.")
             else:
+                _dbg("Importing polygraphy and engine classes...")
                 from polygraphy import cuda
-                from streamdiffusion.acceleration.tensorrt import (
-                    TorchVAEEncoder,
-                    compile_unet,
-                    compile_vae_decoder,
-                    compile_vae_encoder,
-                )
+                _dbg("Imported polygraphy.cuda!")
                 from streamdiffusion.acceleration.tensorrt.engine import (
                     AutoencoderKLEngine,
                     UNet2DConditionModelEngine,
                 )
-                from streamdiffusion.acceleration.tensorrt.models import (
-                    VAE,
-                    UNet,
-                    VAEEncoder,
-                )
+                _dbg("Imported engine classes!")
+
+                if not touchdiffusion:
+                    from streamdiffusion.acceleration.tensorrt import (
+                        TorchVAEEncoder,
+                        compile_unet,
+                        compile_vae_decoder,
+                        compile_vae_encoder,
+                    )
+                    from streamdiffusion.acceleration.tensorrt.models import (
+                        VAE,
+                        UNet,
+                        VAEEncoder,
+                    )
 
                 if not touchdiffusion:
                     if not os.path.exists(unet_path):
@@ -470,6 +500,7 @@ class StreamDiffusionWrapper:
                             opt_batch_size=self.batch_size if self.mode == "txt2img" else stream.frame_bff_size,
                         )
 
+                _dbg(f"Loading UNet2DConditionModelEngine from {unet_path}")
                 cuda_stream = cuda.Stream()
                 vae_config = stream.vae.config
                 vae_dtype = stream.vae.dtype
@@ -477,6 +508,8 @@ class StreamDiffusionWrapper:
                 stream.unet = UNet2DConditionModelEngine(
                     unet_path, cuda_stream, use_cuda_graph=False
                 )
+                _dbg("UNet2DConditionModelEngine loaded!")
+                _dbg(f"Loading AutoencoderKLEngine from {vae_encoder_path} and {vae_decoder_path}")
                 stream.vae = AutoencoderKLEngine(
                     vae_encoder_path,
                     vae_decoder_path,
@@ -484,18 +517,22 @@ class StreamDiffusionWrapper:
                     stream.pipe.vae_scale_factor,
                     use_cuda_graph=False,
                 )
+                _dbg("AutoencoderKLEngine loaded!")
                 setattr(stream.vae, "config", vae_config)
                 setattr(stream.vae, "dtype", vae_dtype)
 
                 gc.collect()
                 torch.cuda.empty_cache()
+                _dbg("TensorRT acceleration enabled.")
                 print("TensorRT acceleration enabled.")
         else:
+            _dbg("PyTorch Direct mode")
             print("PyTorch Direct FP16 + TinyVAE acceleration enabled (No TensorRT engine build needed).")
 
         if seed < 0:
             seed = np.random.randint(0, 1000000)
 
+        _dbg("Calling stream.prepare default...")
         stream.prepare(
             "",
             "",
@@ -506,5 +543,6 @@ class StreamDiffusionWrapper:
             generator=torch.Generator(),
             seed=seed,
         )
+        _dbg("stream.prepare default finished!")
 
         return stream

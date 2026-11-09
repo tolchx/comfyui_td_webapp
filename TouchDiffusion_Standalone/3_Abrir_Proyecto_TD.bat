@@ -16,15 +16,17 @@ if not exist ".venv\Scripts\python.exe" (
 set "PATH=%~dp0.venv\Lib\site-packages\torch\lib;%~dp0.venv\Lib\site-packages\tensorrt_libs;%~dp0.venv\Lib\site-packages\nvidia\cudnn\bin;%~dp0.venv\Lib\site-packages\nvidia\cublas\bin;%~dp0.venv\Lib\site-packages\nvidia\cuda_nvrtc\bin;%PATH%"
 
 set TD_EXE=
-for /d %%D in ("C:\Program Files\Derivative\TouchDesigner*") do (
-    if exist "%%D\bin\TouchDesigner.exe" (
-        set TD_EXE="%%D\bin\TouchDesigner.exe"
+for /f "delims=" %%D in ('dir /b /ad /o-n "C:\Program Files\Derivative\TouchDesigner*"') do (
+    if not defined TD_EXE (
+        if exist "C:\Program Files\Derivative\%%D\bin\TouchDesigner.exe" (
+            set "TD_EXE=C:\Program Files\Derivative\%%D\bin\TouchDesigner.exe"
+        )
     )
 )
 
 if defined TD_EXE (
-    echo Iniciando TouchDesigner: %TD_EXE%
-    start "" %TD_EXE% "%~dp0TD\TouchDiffusion_Clase_IA.toe"
+    echo Iniciando TouchDesigner: "%TD_EXE%"
+    start "" "%TD_EXE%" "%~dp0TD\TouchDiffusion_Clase_IA.toe"
 ) else (
     echo Abriendo "%~dp0TD\TouchDiffusion_Clase_IA.toe" con la aplicacion predeterminada...
     start "" "%~dp0TD\TouchDiffusion_Clase_IA.toe"

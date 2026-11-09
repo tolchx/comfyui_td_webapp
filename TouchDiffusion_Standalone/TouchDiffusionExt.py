@@ -352,18 +352,6 @@ class TouchDiffusionExt:
         target_w = self.output_interface.mem_shape.width
         target_h = self.output_interface.mem_shape.height
 
-        # Verificación estricta de seguridad GPU: evitar buffer overflow en TouchDesigner
-        if scriptOp.width != target_w or scriptOp.height != target_h or str(scriptOp.format) != "rgba32float":
-            try:
-                scriptOp.par.outputresolution = "custom"
-                scriptOp.par.resolutionw = target_w
-                scriptOp.par.resolutionh = target_h
-                scriptOp.par.format = "rgba32float"
-            except Exception:
-                pass
-            # Salir para que TD asigne limpiamente la memoria en el siguiente ciclo sin crashear
-            return
-
         # Capturar o construir el tensor de entrada GPU
         image_tensor = None
         try:
@@ -386,13 +374,8 @@ class TouchDiffusionExt:
 
             output_tensor = self.postprocess_image(output_image)
 
-            # Copiar a la textura de script1 sólo si el tamaño coincide exactamente
-            if (
-                output_tensor is not None
-                and scriptOp.width == target_w
-                and scriptOp.height == target_h
-                and str(scriptOp.format) == "rgba32float"
-            ):
+            # Copiar a la textura de script1 mediante CUDA
+            if output_tensor is not None:
                 scriptOp.copyCUDAMemory(
                     output_tensor.data_ptr(),
                     self.output_interface.size,

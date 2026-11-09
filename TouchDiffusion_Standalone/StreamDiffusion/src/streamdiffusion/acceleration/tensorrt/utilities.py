@@ -23,8 +23,14 @@ from collections import OrderedDict
 from typing import *
 
 import numpy as np
-import onnx
-import onnx_graphsurgeon as gs
+try:
+    import onnx
+except Exception:
+    onnx = None
+try:
+    import onnx_graphsurgeon as gs
+except Exception:
+    gs = None
 import tensorrt as trt
 import torch
 #from cuda import cudart

@@ -25,3 +25,5 @@ models/vae/*
 !models/vae/.gitkeep
 engines/*
 !engines/.gitkeep
+*.log
+.claude/
