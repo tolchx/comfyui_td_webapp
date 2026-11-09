@@ -76,6 +76,11 @@ class BridgeState:
         self.comfy_logs: list[str] = []
         self.gpu_cache = installer.detect_gpu()
         self.gpu_cache_ts = time.time()
+        # Auto-ajustar al nivel óptimo según el hardware detectado (ej. RTX 4090 24GB -> 'avanzado')
+        rec = installer.recommend_tier(self.gpu_cache.get("vram_gb", 0.0), self.gpu_cache.get("vendor", "nvidia"))
+        if self.cfg.get("active_tier") not in self.cfg.get("tiers", {}) or self.gpu_cache.get("vram_gb", 0.0) >= 12.0:
+            self.cfg["active_tier"] = rec
+            installer.save_config(self.cfg)
         self.models_cache: dict | None = None
         self.models_cache_ts: float = 0.0
         self.online_cache: tuple[bool, dict] = (False, {})
@@ -513,12 +518,8 @@ def _execute_generation_worker(job: dict):
             avail = STATE.get_comfy_available_models()
             all_ckpts = avail["checkpoints"] + avail["unet"]
 
-            # Determinar qué checkpoint usar
-            # En modo StreamDiffusion Realtime (o tier 'realtime'), priorizar siempre el pipeline 1-Step SD1.5 + Hyper-SD + TAESD
-            if is_rt and not job.get("checkpoint") and "DreamShaper_8_pruned.safetensors" in all_ckpts:
-                chosen_ckpt = "DreamShaper_8_pruned.safetensors"
-            else:
-                chosen_ckpt = job.get("checkpoint") or tier_cfg.get("checkpoint")
+            # Determinar qué checkpoint usar según el nivel de hardware (ej. Avanzado en RTX 4090 -> Flux.2 Klein 4B / Dev / Qwen 2.1)
+            chosen_ckpt = job.get("checkpoint") or tier_cfg.get("checkpoint")
             if chosen_ckpt not in all_ckpts:
                 # Si tiene Flux.2 Klein 4B o Qwen Image 2.1 o Flux.2 Dev instalados localmente, usarlos automáticamente
                 if "flux-2-klein-4b.safetensors" in all_ckpts:

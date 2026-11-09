@@ -70,52 +70,50 @@ for p in list(comp.customPages):
 
 page = comp.appendCustomPage('ComfyUI Control')
 
-p_url = page.appendStr('Bridgeurl', label='Bridge URL')[0]
+p_url = page.appendStr('Bridgeurl', label='Bridge URL (Mod 1: 8080 / Mod 2: 8081)')[0]
 p_url.val = 'http://127.0.0.1:8080'
 
 p_mode = page.appendMenu('Mode', label='Modo Generacion')[0]
-p_mode.menuNames = ['txt2img', 'img2img', 'streamdiffusion_rt']
+p_mode.menuNames = ['txt2img', 'img2img']
 p_mode.menuLabels = [
-    'Text-to-Image (Solo Prompt)',
-    'Image-to-Image (Usa TOP Entrada)',
-    'StreamDiffusion Realtime (1-2 Steps + TAESD)'
+    'Text-to-Image Alta Calidad (Solo Prompt)',
+    'Image-to-Image Alta Calidad (Usa TOP Entrada)'
 ]
-p_mode.val = 'streamdiffusion_rt'
+p_mode.val = 'txt2img'
 
 p_tier = page.appendMenu('Tier', label='Nivel Hardware (Tier)')[0]
-p_tier.menuNames = ['realtime', 'basico', 'medio', 'avanzado']
+p_tier.menuNames = ['basico', 'medio', 'avanzado']
 p_tier.menuLabels = [
-    'StreamDiffusion RT (3GB+ / Mac - HyperSD + TAESD)',
-    'Basico (4-6GB SD1.5 LCM)',
-    'Medio (8-10GB SDXL Turbo)',
-    'Avanzado (12GB+ Flux/Qwen)'
+    'Basico (4-6GB SD1.5 DreamShaper 8 HQ)',
+    'Medio (8-10GB SDXL / Flux Schnell)',
+    'Avanzado (12-24GB+ RTX 4090 - Flux.2 Klein / Dev / Qwen)'
 ]
-p_tier.val = 'realtime'
+p_tier.val = 'avanzado'
 
-p_rt = page.appendToggle('Realtimemode', label='Turbo TAESD + SimFilter (StreamDiffusion)')[0]
-p_rt.val = True
+p_rt = page.appendToggle('Realtimemode', label='Enviar a StreamDiffusionV2 Studio (Puerto 8081)')[0]
+p_rt.val = False
 
 p_smooth = page.appendToggle('Smooth60fps', label='Suavizado Temporal 60FPS (GPU Blend)')[0]
-p_smooth.val = True
+p_smooth.val = False
 
 p_prompt = page.appendStr('Prompt', label='Prompt Positivo')[0]
-p_prompt.val = 'futuristic glowing crystalline sculpture floating in dark space, volumetric neon cyan and magenta lighting, 8k'
+p_prompt.val = 'Anime art of Akira, detailed scene, red, masterpiece, crisp lineart, perfect face, volumetric lighting, 8k'
 
 p_neg = page.appendStr('Negativeprompt', label='Prompt Negativo')[0]
-p_neg.val = 'low quality, blurry, watermark, text, deformed'
+p_neg.val = 'low quality, blurry, watermark, text, deformed, bad anatomy'
 
 p_w = page.appendInt('Width', label='Ancho (px)')[0]
-p_w.val = 512
+p_w.val = 1024
 p_w.min, p_w.max = 256, 1536
 p_w.clampMin, p_w.clampMax = True, True
 
 p_h = page.appendInt('Height', label='Alto (px)')[0]
-p_h.val = 512
+p_h.val = 1024
 p_h.min, p_h.max = 256, 1536
 p_h.clampMin, p_h.clampMax = True, True
 
 p_steps = page.appendInt('Steps', label='Pasos (Steps)')[0]
-p_steps.val = 1
+p_steps.val = 6
 p_steps.min, p_steps.max = 1, 40
 p_steps.clampMin, p_steps.clampMax = True, True
 
@@ -123,25 +121,26 @@ p_cfg = page.appendFloat('Cfg', label='CFG Scale')[0]
 p_cfg.val = 1.0
 p_cfg.min, p_cfg.max = 1.0, 15.0
 
-p_denoise = page.appendFloat('Denoise', label='Denoise (Img2Img / RT)')[0]
-p_denoise.val = 0.55
+p_denoise = page.appendFloat('Denoise', label='Denoise (Img2Img)')[0]
+p_denoise.val = 0.65
 p_denoise.min, p_denoise.max = 0.05, 1.0
 p_denoise.clampMin, p_denoise.clampMax = True, True
 
 p_seed = page.appendInt('Seed', label='Semilla (-1 = Random)')[0]
-p_seed.val = 424242
+p_seed.val = -1
 
-p_gen = page.appendPulse('Generate', label='Generar Ahora (Pulse)')[0]
-p_send = page.appendPulse('Sendframe', label='Enviar TOP + Generar (Img2Img)')[0]
-p_send_rt = page.appendPulse('Sendrtframe', label='Disparo StreamDiffusion RT (1-2 Steps)')[0]
-p_auto = page.appendToggle('Autostream', label='Auto-Stream Continuo (Realtime Loop)')[0]
-p_auto.val = True
+p_gen = page.appendPulse('Generate', label='Generar Imagen HQ Ahora (Pulse)')[0]
+p_send = page.appendPulse('Sendframe', label='Enviar TOP + Generar (Img2Img HQ)')[0]
+p_send_rt = page.appendPulse('Sendrtframe', label='Enviar Frame a StreamDiffusionV2 (8081)')[0]
+p_auto = page.appendToggle('Autostream', label='Auto-Stream Continuo (Hacia Modulo Activo)')[0]
+p_auto.val = False
 
 p_interval = page.appendFloat('Streaminterval', label='Intervalo Auto-Stream (s)')[0]
 p_interval.val = 4.0
 p_interval.min, p_interval.max = 1.0, 30.0
 
-p_web = page.appendPulse('Openwebapp', label='Abrir WebApp Monitor')[0]
+p_web = page.appendPulse('Openwebapp', label='Abrir WebApp Generador HQ (8080)')[0]
+p_web_rt = page.appendPulse('Openstreamwebapp', label='Abrir WebApp StreamDiffusionV2 (8081)')[0]
 
 page_stat = comp.appendCustomPage('Estado & Telemetria')
 p_st = page_stat.appendStr('Status', label='Estado Servidor')[0]
@@ -238,30 +237,27 @@ import webbrowser
 
 def trigger_generation(force_img2img=False, force_rt=False):
     comp = parent()
-    base_url = comp.par.Bridgeurl.eval().rstrip('/')
+    rt_toggle = bool(comp.par.Realtimemode.eval()) or force_rt
+    base_url = 'http://127.0.0.1:8081' if rt_toggle else comp.par.Bridgeurl.eval().rstrip('/')
     raw_mode = comp.par.Mode.eval()
-    rt_toggle = bool(comp.par.Realtimemode.eval()) or force_rt or (raw_mode == 'streamdiffusion_rt') or (comp.par.Tier.eval() == 'realtime')
 
-    if force_rt:
-        mode = 'streamdiffusion_rt'
+    if rt_toggle:
+        mode = 'img2img'
     elif force_img2img and raw_mode == 'txt2img':
-        mode = 'streamdiffusion_rt' if rt_toggle else 'img2img'
+        mode = 'img2img'
     else:
         mode = raw_mode
 
     steps_val = int(comp.par.Steps.eval())
     cfg_val = float(comp.par.Cfg.eval())
     denoise_val = float(comp.par.Denoise.eval())
-    if mode == 'streamdiffusion_rt' or rt_toggle:
-        steps_val = min(steps_val, 2)
-        cfg_val = 1.0
 
     payload = {
         'prompt': comp.par.Prompt.eval(),
         'negative_prompt': comp.par.Negativeprompt.eval(),
         'mode': mode,
         'tier': comp.par.Tier.eval(),
-        'realtime_mode': rt_toggle,
+        'realtime_mode': False,
         'width': int(comp.par.Width.eval()),
         'height': int(comp.par.Height.eval()),
         'steps': steps_val,
@@ -271,16 +267,17 @@ def trigger_generation(force_img2img=False, force_rt=False):
         'source': 'touchdesigner',
     }
 
-    if mode in ('img2img', 'streamdiffusion_rt'):
+    if mode == 'img2img' or rt_toggle:
         top_in = op('input_frame')
         if top_in and top_in.width > 0:
-            ext = '.jpg' if (mode == 'streamdiffusion_rt' or rt_toggle) else '.png'
+            ext = '.jpg' if rt_toggle else '.png'
             img_bytes = bytes(top_in.saveByteArray(ext))
             payload['image_b64'] = base64.b64encode(img_bytes).decode('ascii')
 
+    endpoint = '/api/stream_frame' if rt_toggle else '/api/generate'
     raw_body = json.dumps(payload).encode('utf-8')
     op('api_generate').request(
-        base_url + '/api/generate',
+        base_url + endpoint,
         'POST',
         header={'Content-Type': 'application/json'},
         data=raw_body
@@ -290,12 +287,16 @@ def trigger_generation(force_img2img=False, force_rt=False):
 
 def poll_bridge():
     comp = parent()
-    base_url = comp.par.Bridgeurl.eval().rstrip('/')
+    rt_toggle = bool(comp.par.Realtimemode.eval())
+    base_url = 'http://127.0.0.1:8081' if rt_toggle else comp.par.Bridgeurl.eval().rstrip('/')
     op('api_poll').request(base_url + '/api/td_poll', 'GET')
 
-def open_webapp():
+def open_webapp(stream_studio=False):
     comp = parent()
-    webbrowser.open(comp.par.Bridgeurl.eval().rstrip('/'))
+    if stream_studio:
+        webbrowser.open('http://127.0.0.1:8081')
+    else:
+        webbrowser.open(comp.par.Bridgeurl.eval().rstrip('/'))
 """
 
 # Callbacks compartidos para api_generate y api_poll (actualiza textura en <1ms al terminar cada frame y relanza el loop Realtime)
@@ -369,16 +370,13 @@ par_exec.text = """def onPulse(par):
     elif par.name == 'Sendrtframe':
         mod('controller_ext').trigger_generation(force_img2img=True, force_rt=True)
     elif par.name == 'Openwebapp':
-        mod('controller_ext').open_webapp()
+        mod('controller_ext').open_webapp(stream_studio=False)
+    elif par.name == 'Openstreamwebapp':
+        mod('controller_ext').open_webapp(stream_studio=True)
 
 def onValueChange(par, prev):
     if par.name == 'Autostream' and par.eval():
         mod('controller_ext').trigger_generation()
-    elif par.name == 'Mode' and par.eval() == 'streamdiffusion_rt':
-        parent().par.Realtimemode = True
-        parent().par.Steps = 2
-        parent().par.Cfg = 1.0
-        parent().par.Denoise = 0.55
 
 def onValuesChanged(changes):
     return
@@ -396,11 +394,11 @@ def onModeChange(par, val, prev):
     return
 """
 
-# LFO + ChopExecute para hacer polling cada ~0.12 segundos en modo StreamDiffusion Realtime sin bloquear TouchDesigner
+# LFO + ChopExecute para hacer polling cada ~0.25 segundos sin bloquear TouchDesigner
 poll_lfo = comp.create(td.lfoCHOP, 'poll_clock')
 poll_lfo.nodeX, poll_lfo.nodeY = 180, -640
 poll_lfo.par.wavetype = 'square'
-poll_lfo.par.frequency = 8.0
+poll_lfo.par.frequency = 4.0
 
 poll_exec = comp.create(td.chopexecuteDAT, 'poll_runner')
 poll_exec.nodeX, poll_exec.nodeY = 380, -640
@@ -441,22 +439,21 @@ comp_layout.inputConnectors[0].connect(in_null)
 comp_layout.inputConnectors[1].connect(comp.outputConnectors[0])
 comp_layout.viewer = True
 
-# Asegurar valores iniciales Realtime y arrancar el loop
-comp.par.Mode = 'streamdiffusion_rt'
-comp.par.Tier = 'realtime'
-comp.par.Realtimemode = 1
-comp.par.Smooth60fps = 1
-comp.par.Steps = 1
+# Configurar valores iniciales en Nivel Avanzado (RTX 4090 Alta Calidad) sin Auto-Stream forzado
+comp.par.Mode = 'txt2img'
+comp.par.Tier = 'avanzado'
+comp.par.Realtimemode = 0
+comp.par.Smooth60fps = 0
+comp.par.Width = 1024
+comp.par.Height = 1024
+comp.par.Steps = 6
 comp.par.Cfg = 1.0
-comp.par.Denoise = 0.58
-comp.par.Autostream = 1
+comp.par.Denoise = 0.65
+comp.par.Autostream = 0
 
 # Guardar componente .tox y el proyecto v1.toe
 comp.save(project.folder + '/ComfyUI_Studio_Bridge.tox')
-project.save()
-
-# Lanzar primer frame de StreamDiffusion Realtime
-mod(comp.path + '/controller_ext').trigger_generation()
+project.save(project.folder + '/v1.toe')
 
 print('<<JSON>>' + json.dumps({
     'ok': True,

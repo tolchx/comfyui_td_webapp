@@ -1,6 +1,18 @@
-# 📘 Puente TouchDesigner ↔ ComfyUI + StreamDiffusion Realtime + WebApp (Windows & macOS)
+# 📘 Sistema Modular TouchDesigner ↔ ComfyUI (Windows & macOS)
+## Módulo 1: Generador de Imágenes Alta Calidad (`8080`) + Módulo 2: StreamDiffusionV2 & ScreenDiffusion Studio (`8081`)
 
-Sistema **standalone y multiplataforma (Windows & macOS)** diseñado para cátedras y talleres de Inteligencia Artificial Generativa. Permite conectar **TouchDesigner** con **ComfyUI** en tiempo real (**StreamDiffusion Realtime 1-Step**, **Text-to-Image**, **Image-to-Image** desde cualquier TOP y **Auto-Stream continuo a 60 FPS**), integrando una **WebApp de monitoreo de hardware, diagnóstico de compatibilidad, historial y control interactivo**.
+Arquitectura **modular, standalone y multiplataforma (Windows & macOS)** diseñada para cátedras y talleres de Inteligencia Artificial Generativa. Separa el sistema en **dos módulos independientes y complementarios** conectados a **ComfyUI** y **TouchDesigner**:
+
+1. **🎨 Módulo 1 — Generador de Imágenes de Alta Calidad (`bridge/` + `webapp/` • Puerto `8080`)**:
+   - Dedicado exclusivamente a **Text-to-Image (`txt2img`)** e **Image-to-Image (`img2img`)** de máxima fidelidad visual.
+   - **Auto-detección de Hardware Potente**: Al detectar GPUs de gama alta (ej. **NVIDIA GeForce RTX 4090 24 GB VRAM**), activa automáticamente el nivel **`AVANZADO`** con **Flux.2 Klein 4B / Flux.2 Dev / Qwen Image 2.1** a `1024×1024` y decodificador **Full VAE** (`flux2-vae.safetensors`), evitando los artefactos y deformaciones de los modos de 1 paso.
+   - **Galería e Historial Limpio + Lightbox Pantalla Completa**: El historial almacena únicamente generaciones `txt2img` e `img2img`, e incluye un visor **Lightbox (`⛶`)** con flechas de navegación (`❮` / `❯` y teclado `←` / `→`) y un **carrusel inferior de miniaturas**.
+
+2. **🎬 Módulo 2 — StreamDiffusionV2 + ComfyUI_StreamDiffusion + ScreenDiffusion Studio (`streamdiffusion_studio/` • Puerto `8081`)**:
+   - Módulo separado en la carpeta [`streamdiffusion_studio/`](streamdiffusion_studio/) que fusiona tres tecnologías de tiempo real conectadas directamente a **ComfyUI (`127.0.0.1:8188`)** y **TouchDesigner**:
+     - **[StreamDiffusionV2 (`chenfengxu714/StreamDiffusionV2`)](https://github.com/chenfengxu714/StreamDiffusionV2)**: Escalado dinámico según GPU (`Flux.2 Klein 4B` en 4 pasos con Full VAE a ~610 ms en RTX 4090, o `DreamShaper 8 + Hyper-SD` multi-paso) + **Motion-Aware Temporal Controller** (analiza el delta de movimiento entre fotogramas para estabilizar rostros y detalles sin deformación ni parpadeo).
+     - **[ComfyUI_StreamDiffusion (`jesenzhang/ComfyUI_StreamDiffusion`)](https://github.com/jesenzhang/ComfyUI_StreamDiffusion)**: Integración nativa con los nodos personalizados `StreamDiffusion_Loader` y `StreamDiffusion_Sampler` en `ComfyUI/custom_nodes/ComfyUI_StreamDiffusion`.
+     - **[ScreenDiffusion (`rudyaa-sd/ScreenDiffusion`)](https://github.com/rudyaa-sd/ScreenDiffusion)**: Captura en vivo de cualquier región de tu pantalla o ventana del sistema operativo (`PIL.ImageGrab` nativo + `getDisplayMedia` WebRTC), además de **Webcam en vivo**, **Pizarra de Boceto Interactiva** y entrada desde **TouchDesigner TOP**.
 
 Repositorio oficial: **[https://github.com/tolchx/comfyui_td_webapp](https://github.com/tolchx/comfyui_td_webapp)**
 
@@ -55,17 +67,20 @@ En lugar de depender de un motor TensorRT rígido, implementamos las optimizacio
 
 ---
 
-## 🚀 Instalación y Uso en Windows (En 2 clics)
+## 🚀 Instalación y Uso en Windows
 
 ### Paso 1: Configurar Hardware y Descargar Modelo
 Hacé doble clic en **`1_Instalar_Modelos.bat`**.
-- El asistente detectará tu GPU y VRAM, te mostrará el diagnóstico de compatibilidad y te permitirá elegir el nivel (**`[0] REALTIME (StreamDiffusion-RT)`**, **`[1] BASICO`**, **`[2] MEDIO`** o **`[3] AVANZADO`**).
+- El asistente detectará tu GPU y VRAM, te mostrará el diagnóstico de compatibilidad y te permitirá elegir el nivel (**`[1] BASICO`**, **`[2] MEDIO`** o **`[3] AVANZADO`** para GPUs potentes como RTX 3080/4080/4090).
 - Si no tenés ComfyUI instalado, elegí la opción **`[1]`** para que descargue e instale **ComfyUI Portable** automáticamente dentro de esta carpeta (o la opción **`[2]`** para vincular un ComfyUI que ya tengas en tu PC).
 
-### Paso 2: Iniciar el Sistema
+### Paso 2: Iniciar Módulo 1 (Generador de Imágenes Alta Calidad • Puerto 8080)
 Hacé doble clic en **`2_Iniciar_Sistema_TD_Comfy.bat`**.
 - Levantará **ComfyUI en segundo plano** (`http://127.0.0.1:8188`).
-- Iniciará el **Servidor Puente** y abrirá automáticamente la **WebApp** en tu navegador (`http://127.0.0.1:8080`).
+- Iniciará el **Módulo 1 (Generador de Imágenes HQ)** en `http://127.0.0.1:8080` y también levantará en segundo plano el **Módulo 2 (StreamDiffusionV2 Studio)** en `http://127.0.0.1:8081`.
+
+### Paso 3: Iniciar Módulo 2 Independiente (StreamDiffusionV2 + ScreenDiffusion Studio • Puerto 8081)
+Si querés abrir directamente la WebApp de tiempo real (**StreamDiffusionV2 + ComfyUI_StreamDiffusion + ScreenDiffusion**), hacé doble clic en **`3_Iniciar_StreamDiffusion_V2_Studio.bat`** (o en **`3_Iniciar_StreamDiffusion_Mac.command`** en macOS), o abrí `http://127.0.0.1:8081`.
 
 ---
 

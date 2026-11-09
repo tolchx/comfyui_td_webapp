@@ -134,7 +134,7 @@
 
     .tier-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: 8px;
     }
     .tier-card {
@@ -651,12 +651,15 @@
     <div class="brand">
       <div class="brand-logo">TD</div>
       <div>
-        <h1>TouchDesigner ↔ ComfyUI Bridge</h1>
-        <span>Sistema Standalone de Generación Local • Monitor & Control de Cátedra</span>
+        <h1>Módulo 1: Generador de Imágenes Alta Calidad (TD ↔ ComfyUI)</h1>
+        <span>Text-to-Image & Image-to-Image • Detección Automática de Hardware (RTX 4090 / Flux.2 / Qwen / SD)</span>
       </div>
     </div>
 
     <div class="telemetry-bar">
+      <a href="http://127.0.0.1:8081" target="_blank" class="btn" style="padding:6px 14px; font-size:12px; text-decoration:none; box-shadow:0 0 14px rgba(56,189,248,0.35);">
+        🎬 Abrir Módulo 2: StreamDiffusionV2 + ScreenDiffusion (8081) ↗
+      </a>
       <div class="pill">
         <span id="comfyDot" class="dot offline"></span>
         <span id="comfyStatusText">ComfyUI: Verificando...</span>
@@ -683,36 +686,31 @@
       <section class="panel">
         <div class="panel-title">
           <span>1. Nivel de Hardware (Model Tier)</span>
-          <span id="recBadge" class="badge">Sugerido: --</span>
+          <span id="recBadge" class="badge">Sugerido: AVANZADO</span>
         </div>
 
         <div class="tier-grid">
-          <div class="tier-card" id="tier-realtime" onclick="selectTier('realtime')">
-            <strong>⚡ StreamDiffusion RT</strong>
-            <small>3+ GB VRAM / Mac 8GB</small>
-            <small style="color:var(--green);margin-top:2px;">1-Step + TAESD TinyVAE</small>
-          </div>
           <div class="tier-card" id="tier-basico" onclick="selectTier('basico')">
             <strong>Básico</strong>
             <small>4–6 GB VRAM</small>
-            <small style="color:var(--accent);margin-top:2px;">SD 1.5 + LCM</small>
+            <small style="color:var(--accent);margin-top:2px;">SD 1.5 DreamShaper HQ</small>
           </div>
           <div class="tier-card" id="tier-medio" onclick="selectTier('medio')">
             <strong>Medio</strong>
             <small>8–10 GB VRAM</small>
-            <small style="color:var(--accent);margin-top:2px;">SDXL Turbo</small>
+            <small style="color:var(--accent);margin-top:2px;">SDXL / Flux Schnell</small>
           </div>
-          <div class="tier-card" id="tier-avanzado" onclick="selectTier('avanzado')">
-            <strong>Avanzado</strong>
-            <small>12+ GB VRAM</small>
-            <small style="color:var(--accent);margin-top:2px;">Flux.1 / Flux.2</small>
+          <div class="tier-card active" id="tier-avanzado" onclick="selectTier('avanzado')">
+            <strong>🔥 Avanzado (Pro)</strong>
+            <small>12–24+ GB VRAM</small>
+            <small style="color:var(--green);margin-top:2px;">Flux.2 Klein / Dev / Qwen</small>
           </div>
         </div>
 
         <div>
           <label for="ckptSelect">Checkpoint / Modelo Detectado</label>
           <select id="ckptSelect">
-            <option value="">Automático según Tier seleccionado</option>
+            <option value="">Automático según Tier seleccionado (Flux.2 Klein 4B / Dev en RTX 4090)</option>
           </select>
         </div>
 
@@ -730,65 +728,61 @@
 
       <section class="panel">
         <div class="panel-title">
-          <span>2. Generador Interactivo (WebApp & TD)</span>
+          <span>2. Generador de Alta Calidad (Txt2Img & Img2Img)</span>
           <span class="badge" id="modeBadge">TXT2IMG</span>
         </div>
 
         <div>
           <label for="modeSelect">Modo de Generación</label>
           <select id="modeSelect" onchange="updateModeBadge()">
-            <option value="txt2img">Text-to-Image (Solo texto)</option>
+            <option value="txt2img">Text-to-Image (Alta Calidad desde texto)</option>
             <option value="img2img">Image-to-Image (Usa textura enviada desde TouchDesigner)</option>
-            <option value="streamdiffusion_rt">⚡ StreamDiffusion Realtime (1-2 Steps + TAESD TinyVAE + TD Input)</option>
           </select>
         </div>
 
         <div>
           <label for="promptInput">Prompt Positivo</label>
-          <textarea id="promptInput">masterpiece, abstract organic bioluminescent cyberpunk architecture, neon subsurface scattering, octane render, 8k</textarea>
+          <textarea id="promptInput">Anime art of Akira, detailed scene, red, masterpiece, crisp lineart, perfect face, volumetric lighting, 8k</textarea>
         </div>
 
         <div>
           <label for="negInput">Prompt Negativo</label>
-          <input id="negInput" type="text" value="low quality, blurry, watermark, text, deformed, ugly" />
+          <input id="negInput" type="text" value="low quality, blurry, watermark, text, deformed, ugly, bad anatomy" />
         </div>
 
         <div class="row-2">
           <div>
             <label for="widthInput">Ancho (px)</label>
-            <input id="widthInput" type="number" step="64" value="512" />
+            <input id="widthInput" type="number" step="64" value="1024" />
           </div>
           <div>
             <label for="heightInput">Alto (px)</label>
-            <input id="heightInput" type="number" step="64" value="512" />
+            <input id="heightInput" type="number" step="64" value="1024" />
           </div>
         </div>
 
         <div class="row-3">
           <div>
             <label for="stepsInput">Pasos (Steps)</label>
-            <input id="stepsInput" type="number" min="1" max="50" value="1" />
+            <input id="stepsInput" type="number" min="1" max="50" value="6" />
           </div>
           <div>
             <label for="cfgInput">CFG Scale</label>
             <input id="cfgInput" type="number" step="0.1" value="1.0" />
           </div>
           <div>
-            <label for="denoiseInput">Denoise (Img2Img / RT)</label>
-            <input id="denoiseInput" type="number" step="0.05" min="0.05" max="1.0" value="0.55" />
+            <label for="denoiseInput">Denoise (Img2Img)</label>
+            <input id="denoiseInput" type="number" step="0.05" min="0.05" max="1.0" value="0.65" />
           </div>
         </div>
 
         <div>
-          <label for="seedInput">Semilla (Seed: 424242 = Fija RT / -1 = Aleatorio)</label>
-          <input id="seedInput" type="number" value="424242" />
+          <label for="seedInput">Semilla (Seed: -1 = Aleatorio)</label>
+          <input id="seedInput" type="number" value="-1" />
         </div>
 
         <button id="btnGenerate" class="btn" onclick="triggerGenerate()">
-          ⚡ Generar Imagen (Se actualiza en TouchDesigner)
-        </button>
-        <button id="btnRtLoop" class="btn btn-secondary" style="margin-top:8px; border-color:var(--accent); color:var(--accent);" onclick="toggleWebRealtimeLoop()">
-          🔴 Iniciar Loop StreamDiffusion Realtime (Continuo)
+          ⚡ Generar Imagen Alta Calidad (Se actualiza en TouchDesigner)
         </button>
       </section>
 
@@ -805,7 +799,7 @@
     <div style="display:flex; flex-direction:column; gap:18px;">
       <section class="panel">
         <div class="panel-title">
-          <span>Monitor en Tiempo Real (Sincronizado con TouchDesigner `v1.toe`)</span>
+          <span>Monitor de Alta Calidad (Sincronizado con TouchDesigner `v1.toe`)</span>
           <span id="genCounterBadge" class="badge">Generación #0</span>
         </div>
 
@@ -835,7 +829,7 @@
 
       <section class="panel" style="flex:1;">
         <div class="panel-title">
-          <span>Reproductor StreamDiffusion RT (1 Cuadro en Vivo) + Historial (Txt2Img / Img2Img)</span>
+          <span>Historial de Imágenes Generadas (Txt2Img / Img2Img)</span>
           <button class="btn btn-secondary" style="padding:4px 10px; font-size:11px;" onclick="loadHistory(true)">↻ Actualizar</button>
         </div>
         <div id="historyGrid" class="history-grid"></div>
@@ -849,7 +843,7 @@
       <div class="lightbox-info">
         <span id="lbModeBadge" class="badge">MODO</span>
         <strong id="lbTitleText" style="color:var(--text);">Generación #0</strong>
-        <span id="lbMetaText" style="color:var(--muted);">512×512 • 0 ms</span>
+        <span id="lbMetaText" style="color:var(--muted);">1024×1024 • 0 ms</span>
       </div>
       <div class="lightbox-actions">
         <button class="btn btn-secondary" style="padding:6px 12px; font-size:12px;" onclick="useCurrentLightboxItem()">
@@ -875,75 +869,37 @@
 
   <script>
     let currentGenId = -1;
-    let currentTier = 'realtime';
+    let currentTier = 'avanzado';
     let tiersMeta = {};
     let knownModels = [];
-    let webRtLoopActive = false;
 
-    // Estado del Reproductor Realtime Único y del Historial (solo txt2img e img2img)
-    let rtStreamData = null;
+    // Historial de imágenes generadas con txt2img e img2img
     let staticHistoryItems = [];
     let lastStaticHistorySig = '';
-    let rtPlayerPlaying = true;
-    let rtPlaybackIdx = 0;
-    let lastLiveFrameTs = 0;
 
-    // Estado del Lightbox Modal (índice 0 = Reproductor Realtime si existe, luego staticHistoryItems)
+    // Estado del Lightbox Modal
     let lightboxOpen = false;
     let lightboxIdx = 0;
 
     function getGalleryList() {
-      const list = [];
-      const rtCard = rtStreamData || {
+      if (staticHistoryItems.length > 0) {
+        return staticHistoryItems;
+      }
+      return [{
         id: currentGenId > 0 ? currentGenId : 1,
-        isRealtimePlayer: true,
-        mode: 'streamdiffusion_rt',
-        prompt: document.getElementById('promptInput')?.value || 'StreamDiffusion Realtime Stream',
+        mode: document.getElementById('modeSelect')?.value || 'txt2img',
+        prompt: document.getElementById('promptInput')?.value || '',
         negative_prompt: document.getElementById('negInput')?.value || '',
-        width: 512,
-        height: 512,
-        steps: 1,
+        width: 1024,
+        height: 1024,
+        steps: 6,
         cfg: 1.0,
-        seed: 424242,
-        latency_ms: 210,
-        fps: 4.5,
-        frame_count: currentGenId > 0 ? currentGenId : 1,
+        seed: -1,
+        latency_ms: 0,
         url: `/api/latest.png?v=${currentGenId}`,
-        frames: [`/api/latest.png?v=${currentGenId}`],
-        source: 'realtime'
-      };
-      rtCard.isRealtimePlayer = true;
-      list.push(rtCard);
-      for (const it of staticHistoryItems) {
-        list.push(it);
-      }
-      return list;
+        source: 'webapp'
+      }];
     }
-
-    function toggleRtCardPlay(ev) {
-      if (ev) ev.stopPropagation();
-      rtPlayerPlaying = !rtPlayerPlaying;
-      const btn = document.getElementById('rtPlayToggleBtn');
-      if (btn) {
-        btn.textContent = rtPlayerPlaying ? '⏸ Vivo' : '▶ Pausa';
-      }
-    }
-
-    // Bucle de animación del Reproductor Realtime (anima dentro del único cuadrado en la grilla y en el Lightbox si está en índice 0)
-    setInterval(() => {
-      if (!rtPlayerPlaying) return;
-      const frames = rtStreamData?.frames || [];
-      if (frames.length > 1 && (Date.now() - lastLiveFrameTs > 450)) {
-        rtPlaybackIdx = (rtPlaybackIdx + 1) % frames.length;
-        const frameUrl = frames[rtPlaybackIdx];
-        const cardImg = document.getElementById('rtCardImg');
-        if (cardImg) cardImg.src = frameUrl;
-        if (lightboxOpen && lightboxIdx === 0) {
-          const lbImg = document.getElementById('lightboxImg');
-          if (lbImg) lbImg.src = frameUrl;
-        }
-      }
-    }, 210);
 
     function openLightbox(idx, ev) {
       if (ev) ev.stopPropagation();
@@ -990,19 +946,11 @@
       const img = document.getElementById('lightboxImg');
       const cap = document.getElementById('lightboxCaption');
 
-      if (item.isRealtimePlayer || item.mode === 'streamdiffusion_rt') {
-        badge.textContent = '🔴 STREAMDIFFUSION RT (VIDEO EN VIVO)';
-        badge.style.background = 'rgba(220, 38, 38, 0.25)';
-        badge.style.color = '#fca5a5';
-        title.textContent = `Reproductor Realtime • Frame #${item.frame_count || item.id || 0}`;
-        meta.textContent = `${item.width || 512}×${item.height || 512} • ${item.fps || 4.5} FPS (${item.latency_ms || 0} ms) • Seed ${item.seed ?? 424242}`;
-      } else {
-        badge.textContent = (item.mode || 'TXT2IMG').toUpperCase();
-        badge.style.background = 'rgba(56, 189, 248, 0.15)';
-        badge.style.color = 'var(--accent)';
-        title.textContent = `Generación #${item.id} (${(item.source || 'webapp').toUpperCase()})`;
-        meta.textContent = `${item.width || 512}×${item.height || 512} • ${item.steps || 6} pasos • ${item.latency_ms || 0} ms • Seed ${item.seed ?? -1}`;
-      }
+      badge.textContent = (item.mode || 'TXT2IMG').toUpperCase();
+      badge.style.background = 'rgba(56, 189, 248, 0.15)';
+      badge.style.color = 'var(--accent)';
+      title.textContent = `Generación #${item.id} (${(item.source || 'webapp').toUpperCase()})`;
+      meta.textContent = `${item.width || 1024}×${item.height || 1024} • ${item.steps || 6} pasos • ${item.latency_ms || 0} ms • Seed ${item.seed ?? -1}`;
 
       img.src = item.url;
       cap.textContent = item.prompt || '';
@@ -1010,12 +958,11 @@
       // Renderizar carrusel inferior de miniaturas
       const car = document.getElementById('lightboxCarousel');
       car.innerHTML = list.map((it, idx) => {
-        const isRt = it.isRealtimePlayer || it.mode === 'streamdiffusion_rt';
-        const tag = isRt ? '🔴 LIVE RT' : `#${it.id}`;
+        const tag = `#${it.id}`;
         return `
           <div id="lb-thumb-${idx}" class="carousel-thumb ${idx === lightboxIdx ? 'active' : ''}" onclick="openLightbox(${idx}, event)">
             <img src="${it.url}" alt="${tag}" />
-            <span class="carousel-thumb-tag" style="${isRt ? 'background:rgba(220,38,38,0.88);' : ''}">${tag}</span>
+            <span class="carousel-thumb-tag">${tag}</span>
           </div>
         `;
       }).join('');
@@ -1033,34 +980,9 @@
       else if (ev.key === 'ArrowRight') stepLightbox(1);
     });
 
-    function toggleWebRealtimeLoop() {
-      webRtLoopActive = !webRtLoopActive;
-      const btn = document.getElementById('btnRtLoop');
-      if (webRtLoopActive) {
-        document.getElementById('modeSelect').value = 'streamdiffusion_rt';
-        updateModeBadge();
-        btn.style.background = 'rgba(34, 197, 94, 0.2)';
-        btn.style.borderColor = 'var(--green)';
-        btn.style.color = 'var(--green)';
-        btn.textContent = '🟢 Loop StreamDiffusion Realtime ACTIVO (Click para detener)';
-        triggerGenerate();
-      } else {
-        btn.style.background = '';
-        btn.style.borderColor = 'var(--accent)';
-        btn.style.color = 'var(--accent)';
-        btn.textContent = '🔴 Iniciar Loop StreamDiffusion Realtime (Continuo)';
-      }
-    }
-
     function updateModeBadge() {
       const m = document.getElementById('modeSelect').value;
       document.getElementById('modeBadge').textContent = m.toUpperCase();
-      if (m === 'streamdiffusion_rt') {
-        document.getElementById('stepsInput').value = 2;
-        document.getElementById('cfgInput').value = 1.0;
-        document.getElementById('denoiseInput').value = 0.65;
-        document.getElementById('seedInput').value = 424242;
-      }
     }
 
     async function selectTier(tierId) {
@@ -1071,10 +993,10 @@
 
       const tCfg = tiersMeta[tierId];
       if (tCfg) {
-        document.getElementById('widthInput').value = tCfg.default_width || 512;
-        document.getElementById('heightInput').value = tCfg.default_height || 512;
+        document.getElementById('widthInput').value = tCfg.default_width || 1024;
+        document.getElementById('heightInput').value = tCfg.default_height || 1024;
         document.getElementById('stepsInput').value = tCfg.default_steps || 6;
-        document.getElementById('cfgInput').value = tCfg.default_cfg || 1.8;
+        document.getElementById('cfgInput').value = tCfg.default_cfg || 1.0;
       }
 
       await fetch('/api/tier', {
@@ -1085,12 +1007,11 @@
     }
 
     async function downloadActiveTierModels() {
-      const res = await fetch('/api/tier', {
+      await fetch('/api/tier', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tier: currentTier, download_models: true })
       });
-      const data = await res.json();
       alert(`Descarga iniciada en segundo plano para el nivel "${currentTier.toUpperCase()}". Podés ver el progreso en la ventana de consola del servidor.`);
     }
 
@@ -1108,7 +1029,7 @@
     async function triggerGenerate() {
       const btn = document.getElementById('btnGenerate');
       btn.disabled = true;
-      btn.textContent = '⏳ Generando imagen...';
+      btn.textContent = '⏳ Generando imagen de alta calidad...';
 
       const payload = {
         prompt: document.getElementById('promptInput').value,
@@ -1122,7 +1043,7 @@
         denoise: parseFloat(document.getElementById('denoiseInput').value),
         seed: parseInt(document.getElementById('seedInput').value, 10),
         checkpoint: document.getElementById('ckptSelect').value || null,
-        realtime_mode: (document.getElementById('modeSelect').value === 'streamdiffusion_rt' || currentTier === 'realtime'),
+        realtime_mode: false,
         source: 'webapp'
       };
 
@@ -1136,11 +1057,11 @@
         if (!data.ok) {
           alert('Error: ' + (data.error || 'No se pudo iniciar generación'));
           btn.disabled = false;
-          btn.textContent = '⚡ Generar Imagen (Se actualiza en TouchDesigner)';
+          btn.textContent = '⚡ Generar Imagen Alta Calidad (Se actualiza en TouchDesigner)';
         }
       } catch (err) {
         btn.disabled = false;
-        btn.textContent = '⚡ Generar Imagen (Se actualiza en TouchDesigner)';
+        btn.textContent = '⚡ Generar Imagen Alta Calidad (Se actualiza en TouchDesigner)';
       }
     }
 
@@ -1148,80 +1069,21 @@
       document.getElementById('inputImg').src = `/api/input.png?t=${Date.now()}`;
     }
 
-    function updateRealtimeCardInPlace(rt) {
-      if (!rt) return;
-      rtStreamData = rt;
-      lastLiveFrameTs = Date.now();
-      const cardImg = document.getElementById('rtCardImg');
-      if (!cardImg) {
-        renderHistoryGridDom();
-        return;
-      }
-      if (rtPlayerPlaying && rt.url) {
-        cardImg.src = rt.url;
-      }
-      const fpsEl = document.getElementById('rtCardFpsBadge');
-      if (fpsEl) {
-        fpsEl.textContent = `${rt.fps || 4.5} FPS • ${rt.latency_ms || 0} ms`;
-      }
-      const promptEl = document.getElementById('rtCardPrompt');
-      if (promptEl) {
-        promptEl.textContent = rt.prompt || '';
-      }
-      const subEl = document.getElementById('rtCardSub');
-      if (subEl) {
-        subEl.innerHTML = `<span>🎬 Frame #${rt.frame_count || rt.id} • ${(rt.source || 'TD').toUpperCase()}</span><span>1 Cuadro Realtime</span>`;
-      }
-      if (lightboxOpen && lightboxIdx === 0 && rtPlayerPlaying) {
-        const lbImg = document.getElementById('lightboxImg');
-        if (lbImg) lbImg.src = rt.url;
-        const lbTitle = document.getElementById('lbTitleText');
-        if (lbTitle) lbTitle.textContent = `Reproductor Realtime • Frame #${rt.frame_count || rt.id || 0}`;
-        const lbMeta = document.getElementById('lbMetaText');
-        if (lbMeta) lbMeta.textContent = `${rt.width || 512}×${rt.height || 512} • ${rt.fps || 4.5} FPS (${rt.latency_ms || 0} ms) • Seed ${rt.seed ?? 424242}`;
-      }
-    }
-
     function renderHistoryGridDom() {
       const grid = document.getElementById('historyGrid');
-      const list = getGalleryList();
-      const rt = list[0];
+      if (staticHistoryItems.length === 0) {
+        grid.innerHTML = `<div style="grid-column:1/-1; color:var(--muted); font-size:13px; padding:18px; text-align:center;">Todavía no hay generaciones estáticas (Txt2Img / Img2Img). Hacé click en "Generar Imagen Alta Calidad" para crear la primera.</div>`;
+        return;
+      }
 
-      // 1. Único cuadrado Reproductor StreamDiffusion Realtime al principio de la grilla
-      const rtHtml = `
-        <div id="rtPlayerCard" class="hist-item rt-player-card" onclick='applyHistoryItem(${JSON.stringify(rt).replace(/'/g, "&#39;")})'>
-          <div class="hist-thumb-wrap">
-            <img id="rtCardImg" src="${rt.url || '/api/latest.png'}" alt="Reproductor StreamDiffusion Realtime" />
-            <div class="rt-live-pill">
-              <span class="rt-live-dot"></span>
-              <span>STREAMDIFFUSION RT</span>
-            </div>
-            <button class="expand-btn" title="Ver Reproductor Realtime en tamaño grande" onclick="openLightbox(0, event)">⛶</button>
-            <div class="rt-player-controls">
-              <span id="rtCardFpsBadge" class="rt-fps-badge">${rt.fps || 4.5} FPS • ${rt.latency_ms || 0} ms</span>
-              <button id="rtPlayToggleBtn" class="rt-play-toggle" onclick="toggleRtCardPlay(event)">${rtPlayerPlaying ? '⏸ Vivo' : '▶ Pausa'}</button>
-            </div>
-          </div>
-          <div class="hist-meta">
-            <div id="rtCardPrompt" class="hist-prompt">${rt.prompt || 'StreamDiffusion Realtime Video Stream'}</div>
-            <div id="rtCardSub" class="hist-sub" style="color:var(--accent);">
-              <span>🎬 Frame #${rt.frame_count || rt.id || 1} • ${(rt.source || 'TD').toUpperCase()}</span>
-              <span>1 Cuadro Realtime</span>
-            </div>
-          </div>
-        </div>
-      `;
-
-      // 2. Solo imágenes estáticas generadas con Text-to-Image (txt2img) o Image-to-Image (img2img)
-      const staticHtml = staticHistoryItems.map((item, idx) => {
-        const galleryIdx = idx + 1;
+      grid.innerHTML = staticHistoryItems.map((item, idx) => {
         const modeLabel = (item.mode || 'txt2img').toUpperCase();
         return `
           <div class="hist-item" onclick='applyHistoryItem(${JSON.stringify(item).replace(/'/g, "&#39;")})'>
             <div class="hist-thumb-wrap">
               <img src="${item.url}" loading="lazy" alt="Gen #${item.id}" />
               <span class="mode-pill">${modeLabel}</span>
-              <button class="expand-btn" title="Ver imagen en tamaño grande" onclick="openLightbox(${galleryIdx}, event)">⛶</button>
+              <button class="expand-btn" title="Ver imagen en tamaño grande" onclick="openLightbox(${idx}, event)">⛶</button>
             </div>
             <div class="hist-meta">
               <div class="hist-prompt">${item.prompt}</div>
@@ -1233,27 +1095,19 @@
           </div>
         `;
       }).join('');
-
-      grid.innerHTML = rtHtml + staticHtml;
     }
 
     async function loadHistory(forceRender = false) {
       try {
         const res = await fetch('/api/history');
         const data = await res.json();
-        if (data.rt_stream) {
-          rtStreamData = data.rt_stream;
-        }
-        // Filtrar estrictamente para que el historial solo muestre txt2img e img2img
         const filtered = (data.items || []).filter(it => it.mode === 'txt2img' || it.mode === 'img2img');
         const sig = filtered.map(it => it.id).join(',');
-        if (forceRender || sig !== lastStaticHistorySig || !document.getElementById('rtPlayerCard')) {
+        if (forceRender || sig !== lastStaticHistorySig) {
           staticHistoryItems = filtered;
           lastStaticHistorySig = sig;
           renderHistoryGridDom();
           if (lightboxOpen) renderLightboxView();
-        } else if (data.rt_stream) {
-          updateRealtimeCardInPlace(data.rt_stream);
         }
       } catch (e) {}
     }
@@ -1262,10 +1116,10 @@
       document.getElementById('promptInput').value = item.prompt || '';
       document.getElementById('negInput').value = item.negative_prompt || '';
       document.getElementById('seedInput').value = item.seed ?? -1;
-      document.getElementById('widthInput').value = item.width || 512;
-      document.getElementById('heightInput').value = item.height || 512;
+      document.getElementById('widthInput').value = item.width || 1024;
+      document.getElementById('heightInput').value = item.height || 1024;
       document.getElementById('stepsInput').value = item.steps || 6;
-      document.getElementById('cfgInput').value = item.cfg || 1.8;
+      document.getElementById('cfgInput').value = item.cfg || 1.0;
       document.getElementById('latestImg').src = item.url;
     }
 
@@ -1285,7 +1139,7 @@
           document.getElementById('vramText').textContent = 'N/A';
         }
 
-        document.getElementById('recBadge').textContent = `Sugerido: ${(st.recommended_tier || 'basico').toUpperCase()}`;
+        document.getElementById('recBadge').textContent = `Detectado: ${(st.recommended_tier || 'avanzado').toUpperCase()}`;
 
         // Diagnóstico de Compatibilidad de Hardware
         if (st.compatibility) {
@@ -1312,6 +1166,13 @@
         // Tier activo
         if (st.active_tier && st.active_tier !== currentTier && currentGenId === -1) {
           currentTier = st.active_tier;
+          const tCfg = tiersMeta[currentTier];
+          if (tCfg) {
+            document.getElementById('widthInput').value = tCfg.default_width || 1024;
+            document.getElementById('heightInput').value = tCfg.default_height || 1024;
+            document.getElementById('stepsInput').value = tCfg.default_steps || 6;
+            document.getElementById('cfgInput').value = tCfg.default_cfg || 1.0;
+          }
         }
         document.querySelectorAll('.tier-card').forEach(el => el.classList.remove('active'));
         const activeCard = document.getElementById(`tier-${currentTier}`);
@@ -1345,7 +1206,7 @@
           knownModels = allModels;
           const sel = document.getElementById('ckptSelect');
           const prev = sel.value;
-          sel.innerHTML = '<option value="">Automático según Tier seleccionado</option>' +
+          sel.innerHTML = '<option value="">Automático según Tier seleccionado (Flux.2 Klein 4B / Dev en RTX 4090)</option>' +
             allModels.map(m => `<option value="${m}">${m}</option>`).join('');
           sel.value = prev;
         }
@@ -1361,7 +1222,7 @@
           btnGen.textContent = '⏳ Generando en curso...';
         } else {
           btnGen.disabled = false;
-          btnGen.textContent = '⚡ Generar Imagen (Se actualiza en TouchDesigner)';
+          btnGen.textContent = '⚡ Generar Imagen Alta Calidad (Se actualiza en TouchDesigner)';
         }
 
         // Logs
@@ -1370,10 +1231,10 @@
         } else if (st.last_error) {
           document.getElementById('logBox').textContent = `[ERROR] ${st.last_error}`;
         } else {
-          document.getElementById('logBox').textContent = `[OK] Servidor Puente Activo en 127.0.0.1:8080 | Nivel: ${currentTier.toUpperCase()} | Esperando pedidos desde TouchDesigner o WebApp...`;
+          document.getElementById('logBox').textContent = `[OK] Módulo 1 Activo en 127.0.0.1:8080 | Nivel: ${currentTier.toUpperCase()} | Listo para generaciones de alta calidad...`;
         }
 
-        // Si cambió el generation_id, recargar imagen y actualizar reproductor Realtime o historial estático
+        // Si cambió el generation_id, recargar imagen y refrescar el historial estático
         if (st.generation_id !== currentGenId) {
           currentGenId = st.generation_id;
           document.getElementById('latestImg').src = `/api/latest.png?v=${currentGenId}&t=${Date.now()}`;
@@ -1381,23 +1242,14 @@
           if (st.latest) {
             document.getElementById('latestBackendLabel').textContent = st.latest.backend || '';
           }
-          if (st.rt_stream) {
-            updateRealtimeCardInPlace(st.rt_stream);
-          }
-          // Si la última generación fue txt2img o img2img, refrescar el historial estático inmediatamente
-          if (st.latest && (st.latest.mode === 'txt2img' || st.latest.mode === 'img2img')) {
-            loadHistory(true);
-          }
-        }
-        if (webRtLoopActive && (st.state === 'READY' || st.state === 'IDLE')) {
-          triggerGenerate();
+          loadHistory(true);
         }
       } catch (e) {}
     }
 
-    setInterval(pollStatus, 350);
+    setInterval(pollStatus, 600);
     pollStatus();
-    loadHistory();
+    loadHistory(true);
   </script>
 </body>
 </html>

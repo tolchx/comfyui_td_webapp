@@ -56,17 +56,16 @@ def build_workflow(
             input_image_name=input_image_name,
         )
 
-    # Caso especial 2: Flux.2 Klein 4B o Flux.2 Dev FP8
+    # Caso especial 2: Flux.2 Klein 4B o Flux.2 Dev FP8 (siempre usa flux2-vae completo para máxima calidad de imagen)
     if "flux2" in ckpt.lower() or "flux-2" in ckpt.lower():
-        use_taef2 = is_rt and available_vaes and ("taef2" in available_vaes)
         return _build_flux2_workflow(
             unet_name="flux-2-klein-4b.safetensors" if "klein" in ckpt.lower() else "flux2_dev_fp8mixed.safetensors",
             clip_name="qwen_3_4b.safetensors" if "klein" in ckpt.lower() else "mistral_3_small_flux2_bf16.safetensors",
-            vae_name="taef2" if use_taef2 else "flux2-vae.safetensors",
+            vae_name="flux2-vae.safetensors",
             prompt=prompt,
             width=width,
             height=height,
-            steps=max(2, min(4, steps)) if is_rt else steps,
+            steps=max(4, steps),
             seed=seed,
             denoise=denoise,
             input_image_name=input_image_name,

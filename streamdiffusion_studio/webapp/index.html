@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Módulo 2: StreamDiffusionV2 + ComfyUI_StreamDiffusion + ScreenDiffusion Studio</title>
+  <style>
+    :root {
+      --bg-0: #07090e;
+      --bg-1: #0f1420;
+      --bg-2: #171f32;
+      --bg-3: #222d46;
+      --accent: #38bdf8;
+      --accent-2: #a855f7;
+      --green: #34d399;
+      --amber: #fbbf24;
+      --red: #f43f5e;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --border: rgba(148, 163, 184, 0.18);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: radial-gradient(circle at top left, #1b1435 0%, var(--bg-0) 60%);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: rgba(15, 20, 32, 0.9);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent-2), var(--accent));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 15px;
+      color: #fff;
+      box-shadow: 0 0 20px rgba(168, 85, 247, 0.45);
+    }
+    .brand h1 { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; }
+    .brand span { display: block; font-size: 12px; color: var(--muted); }
+
+    .telemetry-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .pill {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+    .dot.online { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .dot.live { background: var(--red); box-shadow: 0 0 10px var(--red); animation: pulse 0.9s infinite alternate; }
+    @keyframes pulse { from { opacity: 0.4; } to { opacity: 1; } }
+
+    main {
+      max-width: 1540px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 18px 22px;
+      display: grid;
+      grid-template-columns: 430px 1fr;
+      gap: 20px;
+      flex: 1;
+    }
+    @media (max-width: 1100px) {
+      main { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: rgba(15, 20, 32, 0.88);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .panel-title {
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 9px;
+    }
+
+    .engine-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    .engine-card {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: all 0.16s ease;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .engine-card:hover { border-color: var(--accent); }
+    .engine-card.active {
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.18), rgba(56, 189, 248, 0.16));
+      border-color: var(--accent);
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.22);
+    }
+    .engine-card strong { font-size: 13px; display: block; margin-bottom: 2px; }
+    .engine-card small { font-size: 11px; color: var(--muted); }
+    .badge {
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 800;
+      background: rgba(56, 189, 248, 0.16);
+      color: var(--accent);
+    }
+
+    .source-tabs {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 7px;
+    }
+    .tab-btn {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 9px 10px;
+      border-radius: 9px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+    }
+    .tab-btn:hover { border-color: var(--accent); }
+    .tab-btn.active {
+      background: var(--accent);
+      color: #060911;
+      border-color: var(--accent);
+    }
+
+    label {
+      display: block;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 5px;
+    }
+    textarea, input, select {
+      width: 100%;
+      background: var(--bg-0);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 11px;
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+    }
+    textarea:focus, input:focus, select:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 68px; }
+
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 9px; }
+    .row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+
+    .btn {
+      background: linear-gradient(135deg, var(--accent-2), var(--accent));
+      color: #fff;
+      font-weight: 800;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 13.5px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: transform 0.12s, opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.95; transform: translateY(-1px); }
+    .btn-secondary {
+      background: var(--bg-3);
+      color: var(--text);
+      border: 1px solid var(--border);
+      font-weight: 600;
+      font-size: 12px;
+      padding: 8px 12px;
+    }
+    .btn-live-active {
+      background: linear-gradient(135deg, #e11d48, #f97316) !important;
+      box-shadow: 0 0 20px rgba(225, 29, 72, 0.45);
+    }
+
+    .stage-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 860px) {
+      .stage-grid { grid-template-columns: 1fr; }
+    }
+    .viewport-card {
+      background: var(--bg-0);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .viewport-header {
+      padding: 10px 14px;
+      background: var(--bg-2);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .viewport-body {
+      aspect-ratio: 1 / 1;
+      max-height: 500px;
+      width: 100%;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: repeating-conic-gradient(#0b0f18 0% 25%, #111726 0% 50%) 50% / 22px 22px;
+    }
+    .viewport-body canvas,
+    .viewport-body video,
+    .viewport-body img {
+      max-width: 100%;
+      max-height: 100%;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .hud-overlay {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+    }
+    .hud-tag {
+      background: rgba(7, 9, 14, 0.84);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: var(--accent);
+      padding: 4px 9px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      backdrop-filter: blur(6px);
+    }
+
+    .preset-bar {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .preset-chip {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 5px 9px;
+      border-radius: 6px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .preset-chip:hover { border-color: var(--accent); color: var(--accent); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-logo">SD2</div>
+      <div>
+        <h1>Módulo 2: StreamDiffusionV2 + ComfyUI_StreamDiffusion + ScreenDiffusion</h1>
+        <span>Fusión Realtime de Alta Fidelidad • Conectado a ComfyUI (127.0.0.1:8188) & TouchDesigner</span>
+      </div>
+    </div>
+
+    <div class="telemetry-bar">
+      <a href="http://127.0.0.1:8080" class="btn btn-secondary" style="text-decoration:none; border-color:var(--accent); color:var(--accent);">
+        ⬅ Ir a Módulo 1: Generador de Imágenes HQ (8080)
+      </a>
+      <div class="pill">
+        <span id="streamDot" class="dot online"></span>
+        <span id="streamStateText">LISTO</span>
+      </div>
+      <div class="pill">
+        <span>GPU: <strong id="gpuName">RTX 4090</strong></span>
+      </div>
+      <div class="pill">
+        <span>FPS IA: <strong id="fpsText" style="color:var(--green)">0.0 FPS</strong></span>
+      </div>
+      <div class="pill">
+        <span>Latencia: <strong id="latText">0 ms</strong></span>
+      </div>
+      <div class="pill">
+        <span>Motion Δ: <strong id="motionText" style="color:var(--accent)">0.000</strong></span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- COLUMNA IZQUIERDA: MOTOR + SCREENDIFFUSION + CONTROLES -->
+    <div style="display:flex; flex-direction:column; gap:16px;">
+
+      <section class="panel">
+        <div class="panel-title">
+          <span>1. Motor StreamDiffusion (Conectado a ComfyUI)</span>
+          <span id="nodeBadge" class="badge">Auto-Hardware</span>
+        </div>
+
+        <div class="engine-grid">
+          <div class="engine-card active" id="eng-sdv2_flux_hq" onclick="selectEngine('sdv2_flux_hq')">
+            <div>
+              <strong>🔥 StreamDiffusionV2 Ultra-HQ (RTX 4090 / 12GB+)</strong>
+              <small>Flux.2 Klein 4B + Full VAE + Motion-Aware Rolling Consistency</small>
+            </div>
+            <span class="badge" style="color:var(--green);">MÁXIMA CALIDAD</span>
+          </div>
+
+          <div class="engine-card" id="eng-sdv2_sd15_hq" onclick="selectEngine('sdv2_sd15_hq')">
+            <div>
+              <strong>⚡ StreamDiffusionV2 Multi-Step (DreamShaper 8 HQ)</strong>
+              <small>SD 1.5 + Hyper-SD LoRA (3–4 Pasos + Full VAE sin deformar rostros)</small>
+            </div>
+            <span class="badge">ALTO FPS + HQ</span>
+          </div>
+
+          <div class="engine-card" id="eng-comfy_sd_node" onclick="selectEngine('comfy_sd_node')">
+            <div>
+              <strong>🧩 ComfyUI_StreamDiffusion Node (jesenzhang)</strong>
+              <small>Usa nodo nativo `StreamDiffusion_Sampler` + Similar Image Filter</small>
+            </div>
+            <span class="badge">NODO COMFY</span>
+          </div>
+        </div>
+
+        <div class="row-2">
+          <div>
+            <label for="ckptSelect">Modelo / Checkpoint en ComfyUI</label>
+            <select id="ckptSelect">
+              <option value="">Automático según Motor elegido</option>
+            </select>
+          </div>
+          <div>
+            <label for="vaeModeSelect">Decodificador VAE</label>
+            <select id="vaeModeSelect">
+              <option value="full">Full VAE Alta Calidad (Rostros Nítidos)</option>
+              <option value="tiny">TAESD TinyVAE (Turbo Bajo Recurso)</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">
+          <span>2. Fuente en Vivo (ScreenDiffusion / Cam / TD)</span>
+          <span id="sourceBadge" class="badge">SCREENDIFFUSION OS</span>
+        </div>
+
+        <div class="source-tabs">
+          <button class="tab-btn active" id="tab-screen_os" onclick="setSourceMode('screen_os')">🖥️ ScreenDiffusion (Región PC)</button>
+          <button class="tab-btn" id="tab-screen_webrtc" onclick="setSourceMode('screen_webrtc')">🪟 Capturar Ventana / App</button>
+          <button class="tab-btn" id="tab-webcam" onclick="setSourceMode('webcam')">📷 Webcam en Vivo</button>
+          <button class="tab-btn" id="tab-canvas" onclick="setSourceMode('canvas')">🎨 Pizarra / TouchDesigner</button>
+        </div>
+
+        <!-- Controles de ScreenDiffusion (Región de Pantalla OS) -->
+        <div id="screenOsBox" style="display:flex; flex-direction:column; gap:8px; background:var(--bg-2); padding:10px; border-radius:9px; border:1px solid var(--border);">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong style="font-size:12px; color:var(--accent);">Región de Captura en Pantalla (ScreenDiffusion)</strong>
+            <button class="btn btn-secondary" style="padding:3px 8px; font-size:11px;" onclick="previewScreenRegion()">↻ Ver Región</button>
+          </div>
+          <div class="row-4">
+            <div>
+              <label>X (px)</label>
+              <input id="scrX" type="number" step="32" value="0" onchange="previewScreenRegion()" />
+            </div>
+            <div>
+              <label>Y (px)</label>
+              <input id="scrY" type="number" step="32" value="0" onchange="previewScreenRegion()" />
+            </div>
+            <div>
+              <label>Ancho</label>
+              <input id="scrW" type="number" step="64" value="960" onchange="previewScreenRegion()" />
+            </div>
+            <div>
+              <label>Alto</label>
+              <input id="scrH" type="number" step="64" value="960" onchange="previewScreenRegion()" />
+            </div>
+          </div>
+          <div class="preset-bar">
+            <button class="preset-chip" onclick="setScreenPreset(0, 0, 960, 1080)">Mitad Izquierda</button>
+            <button class="preset-chip" onclick="setScreenPreset(960, 0, 960, 1080)">Mitad Derecha</button>
+            <button class="preset-chip" onclick="setScreenPreset(480, 60, 960, 960)">Centro 960×960</button>
+            <button class="preset-chip" onclick="setScreenPreset(0, 0, 1920, 1080)">Monitor Completo</button>
+          </div>
+        </div>
+
+        <!-- Controles de Pizarra Interactiva -->
+        <div id="canvasToolsBox" style="display:none; gap:8px; align-items:center; flex-wrap:wrap; background:var(--bg-2); padding:8px 10px; border-radius:9px;">
+          <span style="font-size:11px; color:var(--muted);">Color Pincel:</span>
+          <input type="color" id="brushColor" value="#ef4444" style="width:36px; height:28px; padding:2px;" />
+          <button class="preset-chip" onclick="drawAkiraTemplate()">🏍️ Plantilla Escena Akira</button>
+          <button class="preset-chip" onclick="clearSketchCanvas()">🗑️ Limpiar</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">
+          <span>3. Prompt & Control Temporal StreamDiffusionV2</span>
+          <button class="preset-chip" onclick="resetTemporalBuffer()">Reset Buffer Temporal</button>
+        </div>
+
+        <div>
+          <label for="promptInput">Prompt Positivo</label>
+          <textarea id="promptInput">Anime art of Akira, detailed scene, red, masterpiece, crisp lineart, perfect face, intricately detailed, cinematic lighting, 8k</textarea>
+        </div>
+
+        <div>
+          <label for="negInput">Prompt Negativo</label>
+          <input id="negInput" type="text" value="low quality, blurry, deformed face, bad anatomy, ugly, watermark, text" />
+        </div>
+
+        <div class="row-3">
+          <div>
+            <label for="widthInput">Ancho (px)</label>
+            <input id="widthInput" type="number" step="64" value="768" />
+          </div>
+          <div>
+            <label for="heightInput">Alto (px)</label>
+            <input id="heightInput" type="number" step="64" value="768" />
+          </div>
+          <div>
+            <label for="stepsInput">Pasos (Steps)</label>
+            <input id="stepsInput" type="number" min="1" max="12" value="4" />
+          </div>
+        </div>
+
+        <div class="row-3">
+          <div>
+            <label for="denoiseInput">Denoise Base</label>
+            <input id="denoiseInput" type="number" step="0.05" min="0.20" max="0.95" value="0.55" />
+          </div>
+          <div>
+            <label for="temporalInput">Estabilidad V2 (0-0.5)</label>
+            <input id="temporalInput" type="number" step="0.05" min="0.0" max="0.55" value="0.22" />
+          </div>
+          <div>
+            <label for="seedInput">Seed Fija</label>
+            <input id="seedInput" type="number" value="424242" />
+          </div>
+        </div>
+
+        <div class="row-2">
+          <button id="btnStartStream" class="btn" onclick="toggleRealtimeStream()">
+            ▶️ INICIAR STREAMDIFFUSION V2 EN VIVO
+          </button>
+          <button class="btn btn-secondary" onclick="sendSingleFrame()">
+            ⚡ Generar 1 Frame HQ Ahora
+          </button>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- COLUMNA DERECHA: REPRODUCTOR REALTIME LADO A LADO -->
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <section class="panel" style="flex:1;">
+        <div class="panel-title">
+          <span>Escenario en Tiempo Real (Entrada ScreenDiffusion / Cam vs Salida StreamDiffusionV2)</span>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <span id="frameCounterBadge" class="badge">Frame #0</span>
+            <button class="preset-chip" onclick="toggleFullscreenStage()">⛶ Pantalla Completa</button>
+          </div>
+        </div>
+
+        <div id="stageContainer" class="stage-grid">
+          <!-- ENTRADA EN VIVO -->
+          <div class="viewport-card">
+            <div class="viewport-header">
+              <span id="inputHeaderTitle">🖥️ Entrada: ScreenDiffusion / Pizarra Interactiva</span>
+              <span style="color:var(--muted); font-size:11px;">Fuente en Vivo</span>
+            </div>
+            <div class="viewport-body">
+              <canvas id="inputCanvas" width="768" height="768" style="cursor:crosshair;"></canvas>
+              <video id="liveVideo" autoplay playsinline muted style="display:none;"></video>
+              <div class="hud-overlay">
+                <span class="hud-tag" id="inputHudTag">Entrada Lista</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- SALIDA REPRODUCTOR STREAMDIFFUSION V2 -->
+          <div class="viewport-card" style="border-color:var(--accent);">
+            <div class="viewport-header">
+              <span>🎬 Reproductor StreamDiffusionV2 (Interpolación 60 FPS)</span>
+              <span id="backendLabel" style="color:var(--green); font-size:11px;">Flux.2 Klein 4B • Full VAE</span>
+            </div>
+            <div class="viewport-body" id="outputViewport">
+              <canvas id="outputCanvas" width="768" height="768"></canvas>
+              <div class="hud-overlay">
+                <span class="hud-tag" id="outputHudLeft">🟢 StreamDiffusionV2 HQ</span>
+                <span class="hud-tag" id="outputHudRight">768×768 • Full VAE</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:#05070b; border:1px solid var(--border); border-radius:9px; padding:10px 14px; font-family:monospace; font-size:11.5px; color:var(--muted); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+          <span id="statusLogText">[LISTO] StreamDiffusionV2 + ComfyUI_StreamDiffusion + ScreenDiffusion Studio conectado a ComfyUI en 127.0.0.1:8188</span>
+          <span style="color:var(--accent);">Sincronizado automáticamente con TouchDesigner (`out_ai`)</span>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    let activeEngine = 'sdv2_flux_hq';
+    let sourceMode = 'screen_os'; // 'screen_os', 'screen_webrtc', 'webcam', 'canvas'
+    let streamingActive = false;
+    let requestInFlight = false;
+    let currentGenId = -1;
+    let knownModels = [];
+
+    const inCanvas = document.getElementById('inputCanvas');
+    const inCtx = inCanvas.getContext('2d');
+    const outCanvas = document.getElementById('outputCanvas');
+    const outCtx = outCanvas.getContext('2d');
+    const liveVideo = document.getElementById('liveVideo');
+
+    // Imágenes para interpolación suave a 60 FPS en el reproductor de salida
+    const prevOutImg = new Image();
+    const currOutImg = new Image();
+    let blendAlpha = 1.0;
+
+    // Inicializar plantilla visual en el canvas de entrada
+    function drawAkiraTemplate() {
+      const w = inCanvas.width, h = inCanvas.height;
+      const grad = inCtx.createRadialGradient(w * 0.5, h * 0.42, 40, w * 0.5, h * 0.5, w * 0.65);
+      grad.addColorStop(0, '#dc2626');
+      grad.addColorStop(0.45, '#7f1d1d');
+      grad.addColorStop(1, '#090d16');
+      inCtx.fillStyle = grad;
+      inCtx.fillRect(0, 0, w, h);
+
+      // Silueta / guía compositiva estilo escena anime ciberpunk
+      inCtx.strokeStyle = '#f87171';
+      inCtx.lineWidth = 4;
+      for (let i = 0; i < 6; i++) {
+        inCtx.beginPath();
+        inCtx.moveTo(0, h * 0.65 + i * 24);
+        inCtx.lineTo(w, h * 0.52 + i * 32);
+        inCtx.stroke();
+      }
+      inCtx.fillStyle = '#fef2f2';
+      inCtx.beginPath();
+      inCtx.arc(w * 0.5, h * 0.42, 95, 0, Math.PI * 2);
+      inCtx.fill();
+    }
+
+    function clearSketchCanvas() {
+      inCtx.fillStyle = '#0b0f19';
+      inCtx.fillRect(0, 0, inCanvas.width, inCanvas.height);
+    }
+
+    // Dibujo interactivo con mouse sobre inputCanvas
+    let isDrawing = false;
+    inCanvas.addEventListener('pointerdown', (e) => {
+      isDrawing = true;
+      paintStroke(e);
+    });
+    window.addEventListener('pointerup', () => { isDrawing = false; });
+    inCanvas.addEventListener('pointermove', (e) => {
+      if (isDrawing) paintStroke(e);
+    });
+
+    function paintStroke(e) {
+      const rect = inCanvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) * (inCanvas.width / rect.width);
+      const y = (e.clientY - rect.top) * (inCanvas.height / rect.height);
+      inCtx.fillStyle = document.getElementById('brushColor').value;
+      inCtx.beginPath();
+      inCtx.arc(x, y, 22, 0, Math.PI * 2);
+      inCtx.fill();
+    }
+
+    // Interpolador de 60 FPS para el reproductor de salida
+    function renderSmoothOutputLoop() {
+      if (currOutImg.complete && currOutImg.naturalWidth > 0) {
+        if (blendAlpha < 1.0 && prevOutImg.complete && prevOutImg.naturalWidth > 0) {
+          blendAlpha = Math.min(1.0, blendAlpha + 0.14);
+          outCtx.globalAlpha = 1.0;
+          outCtx.drawImage(prevOutImg, 0, 0, outCanvas.width, outCanvas.height);
+          outCtx.globalAlpha = blendAlpha;
+          outCtx.drawImage(currOutImg, 0, 0, outCanvas.width, outCanvas.height);
+          outCtx.globalAlpha = 1.0;
+        } else {
+          outCtx.drawImage(currOutImg, 0, 0, outCanvas.width, outCanvas.height);
+        }
+      }
+      if ( (sourceMode === 'webcam' || sourceMode === 'screen_webrtc') && liveVideo.readyState >= 2 ) {
+        inCtx.drawImage(liveVideo, 0, 0, inCanvas.width, inCanvas.height);
+      }
+      requestAnimationFrame(renderSmoothOutputLoop);
+    }
+    requestAnimationFrame(renderSmoothOutputLoop);
+
+    function loadNewOutputFrame(url) {
+      if (currOutImg.src) {
+        prevOutImg.src = currOutImg.src;
+      }
+      blendAlpha = 0.2;
+      currOutImg.src = url;
+    }
+
+    function selectEngine(eng) {
+      activeEngine = eng;
+      document.querySelectorAll('.engine-card').forEach(el => el.classList.remove('active'));
+      const card = document.getElementById(`eng-${eng}`);
+      if (card) card.classList.add('active');
+
+      if (eng === 'sdv2_flux_hq') {
+        document.getElementById('widthInput').value = 768;
+        document.getElementById('heightInput').value = 768;
+        document.getElementById('stepsInput').value = 4;
+        document.getElementById('vaeModeSelect').value = 'full';
+      } else if (eng === 'sdv2_sd15_hq') {
+        document.getElementById('widthInput').value = 512;
+        document.getElementById('heightInput').value = 512;
+        document.getElementById('stepsInput').value = 4;
+        document.getElementById('vaeModeSelect').value = 'full';
+      } else {
+        document.getElementById('widthInput').value = 512;
+        document.getElementById('heightInput').value = 512;
+        document.getElementById('stepsInput').value = 3;
+      }
+    }
+
+    async function setSourceMode(mode) {
+      sourceMode = mode;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById(`tab-${mode}`);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      document.getElementById('screenOsBox').style.display = (mode === 'screen_os') ? 'flex' : 'none';
+      document.getElementById('canvasToolsBox').style.display = (mode === 'canvas') ? 'flex' : 'none';
+      document.getElementById('sourceBadge').textContent = mode.toUpperCase();
+
+      // Detener tracks previos si había cámara/pantalla WebRTC
+      if (liveVideo.srcObject) {
+        liveVideo.srcObject.getTracks().forEach(t => t.stop());
+        liveVideo.srcObject = null;
+      }
+
+      if (mode === 'webcam') {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 768, height: 768 } });
+          liveVideo.srcObject = stream;
+          document.getElementById('inputHudTag').textContent = '📷 Webcam Activa';
+        } catch (err) {
+          alert('No se pudo abrir la Webcam: ' + err.message);
+        }
+      } else if (mode === 'screen_webrtc') {
+        try {
+          const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+          liveVideo.srcObject = stream;
+          document.getElementById('inputHudTag').textContent = '🪟 Ventana Compartida Activa';
+        } catch (err) {
+          alert('Captura de ventana cancelada.');
+        }
+      } else if (mode === 'screen_os') {
+        document.getElementById('inputHudTag').textContent = '🖥️ ScreenDiffusion Región OS';
+        previewScreenRegion();
+      } else {
+        document.getElementById('inputHudTag').textContent = '🎨 Pizarra / TouchDesigner';
+        drawAkiraTemplate();
+      }
+    }
+
+    function setScreenPreset(x, y, w, h) {
+      document.getElementById('scrX').value = x;
+      document.getElementById('scrY').value = y;
+      document.getElementById('scrW').value = w;
+      document.getElementById('scrH').value = h;
+      previewScreenRegion();
+    }
+
+    function previewScreenRegion() {
+      const x = document.getElementById('scrX').value;
+      const y = document.getElementById('scrY').value;
+      const w = document.getElementById('scrW').value;
+      const h = document.getElementById('scrH').value;
+      const img = new Image();
+      img.onload = () => {
+        inCtx.drawImage(img, 0, 0, inCanvas.width, inCanvas.height);
+      };
+      img.src = `/api/screendiffusion/preview.jpg?x=${x}&y=${y}&w=${w}&h=${h}&t=${Date.now()}`;
+    }
+
+    async function resetTemporalBuffer() {
+      await fetch('/api/reset_temporal', { method: 'POST' });
+    }
+
+    function toggleFullscreenStage() {
+      const el = document.getElementById('outputViewport');
+      if (!document.fullscreenElement) {
+        el.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+
+    function toggleRealtimeStream() {
+      streamingActive = !streamingActive;
+      const btn = document.getElementById('btnStartStream');
+      const dot = document.getElementById('streamDot');
+      if (streamingActive) {
+        btn.classList.add('btn-live-active');
+        btn.textContent = '⏹️ DETENER STREAM EN VIVO';
+        dot.className = 'dot live';
+        loopStreamStep();
+      } else {
+        btn.classList.remove('btn-live-active');
+        btn.textContent = '▶️ INICIAR STREAMDIFFUSION V2 EN VIVO';
+        dot.className = 'dot online';
+      }
+    }
+
+    async function loopStreamStep() {
+      if (!streamingActive) return;
+      if (!requestInFlight) {
+        await sendSingleFrame();
+      }
+      if (streamingActive) {
+        setTimeout(loopStreamStep, 40);
+      }
+    }
+
+    async function sendSingleFrame() {
+      if (requestInFlight) return;
+      requestInFlight = true;
+
+      try {
+        const payload = {
+          engine: activeEngine,
+          prompt: document.getElementById('promptInput').value,
+          negative_prompt: document.getElementById('negInput').value,
+          width: parseInt(document.getElementById('widthInput').value, 10),
+          height: parseInt(document.getElementById('heightInput').value, 10),
+          steps: parseInt(document.getElementById('stepsInput').value, 10),
+          denoise: parseFloat(document.getElementById('denoiseInput').value),
+          temporal_weight: parseFloat(document.getElementById('temporalInput').value),
+          seed: parseInt(document.getElementById('seedInput').value, 10),
+          checkpoint: document.getElementById('ckptSelect').value || null,
+          use_tiny_vae: document.getElementById('vaeModeSelect').value === 'tiny',
+          source: sourceMode
+        };
+
+        if (sourceMode === 'screen_os') {
+          payload.capture_screen = true;
+          payload.screen_x = parseInt(document.getElementById('scrX').value, 10);
+          payload.screen_y = parseInt(document.getElementById('scrY').value, 10);
+          payload.screen_w = parseInt(document.getElementById('scrW').value, 10);
+          payload.screen_h = parseInt(document.getElementById('scrH').value, 10);
+          previewScreenRegion();
+        } else {
+          payload.image_b64 = inCanvas.toDataURL('image/jpeg', 0.9);
+        }
+
+        const res = await fetch('/api/stream_frame', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.ok && data.result) {
+          const r = data.result;
+          currentGenId = r.id;
+          loadNewOutputFrame(`${r.url}&t=${Date.now()}`);
+          document.getElementById('fpsText').textContent = `${r.fps} FPS`;
+          document.getElementById('latText').textContent = `${r.latency_ms} ms`;
+          document.getElementById('motionText').textContent = r.motion_delta;
+          document.getElementById('frameCounterBadge').textContent = `Frame #${r.frame_count}`;
+          document.getElementById('backendLabel').textContent = r.backend;
+          document.getElementById('outputHudRight').textContent = `${r.width}×${r.height} • ${r.latency_ms} ms`;
+          document.getElementById('statusLogText').textContent = `[OK] Frame #${r.frame_count} generado con ${r.backend} en ${r.latency_ms} ms`;
+        } else if (data.error && !data.busy) {
+          document.getElementById('statusLogText').textContent = `[AVISO] ${data.error}`;
+        }
+      } catch (err) {
+        document.getElementById('statusLogText').textContent = `[ERROR] ${err.message}`;
+      } finally {
+        requestInFlight = false;
+      }
+    }
+
+    async function pollStudioStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const st = await res.json();
+        if (st.gpu && st.gpu.found) {
+          document.getElementById('gpuName').textContent = `${st.gpu.name} (${st.gpu.vram_gb} GB)`;
+        }
+        document.getElementById('streamStateText').textContent = st.state;
+        if (st.comfy) {
+          document.getElementById('nodeBadge').textContent = st.comfy.has_streamdiffusion_node
+            ? 'Nodo Comfy_SD Instalado ✓'
+            : 'Motor ComfyUI Activo ✓';
+          const allModels = [...(st.comfy.checkpoints || []), ...(st.comfy.unets || [])];
+          if (JSON.stringify(allModels) !== JSON.stringify(knownModels)) {
+            knownModels = allModels;
+            const sel = document.getElementById('ckptSelect');
+            const prev = sel.value;
+            sel.innerHTML = '<option value="">Automático según Motor elegido</option>' +
+              allModels.map(m => `<option value="${m}">${m}</option>`).join('');
+            sel.value = prev;
+          }
+        }
+        if (st.generation_id > 0 && st.generation_id !== currentGenId) {
+          currentGenId = st.generation_id;
+          loadNewOutputFrame(`/api/latest.png?v=${currentGenId}&t=${Date.now()}`);
+        }
+      } catch (e) {}
+    }
+
+    drawAkiraTemplate();
+    loadNewOutputFrame('/api/latest.png?t=' + Date.now());
+    previewScreenRegion();
+    setInterval(pollStudioStatus, 1000);
+    pollStudioStatus();
+  </script>
+</body>
+</html>

@@ -22,11 +22,17 @@ TD/*.2.toe
 TD/*.3.toe
 TD/*.4.toe
 TD/*.5.toe
+TD/*.6.toe
+TD/*.7.toe
+TD/*.8.toe
+TD/*.9.toe
 TD/Backup/
 TD/.agents/
 
 # Historial local de generaciones (conservar solo latest.png de muestra si se desea, o ignorar gen_*.png)
 bridge/outputs/gen_*.png
+bridge/outputs/rt_ring_*.png
 bridge/outputs/history.json
 bridge/inputs/td_input.png
 bridge/extra_model_paths.yaml
+streamdiffusion_studio/inputs/latest_input.png

@@ -18,10 +18,13 @@ if exist "ComfyUI_windows_portable\python_embeded\python.exe" (
     set PYTHON_CMD="D:\ComfyUI\.venv\Scripts\python.exe"
 )
 
+REM Iniciar Modulo 2 (StreamDiffusionV2 + ScreenDiffusion Studio en puerto 8081) en segundo plano
+start /b "" %PYTHON_CMD% "streamdiffusion_studio\server_stream_studio.py" --port 8081
+
 REM Abrir la WebApp en el navegador luego de 2 segundos
 start "" cmd /c "timeout /t 2 /nobreak >nul && start http://127.0.0.1:8080"
 
-REM Ejecutar el servidor puente con inicio automatico de ComfyUI en segundo plano
+REM Ejecutar el servidor puente (Modulo 1 en puerto 8080) con inicio automatico de ComfyUI en segundo plano
 %PYTHON_CMD% "bridge\server.py" --autostart-comfy
 
 pause

@@ -1,0 +1,27 @@
+# Ignorar entornos virtuales y modelos pesados / motores compilados por GPU
+.venv/
+python311_portable/
+embedded_python/
+__pycache__/
+*.py[cod]
+*.engine
+*.onnx
+*.safetensors
+*.ckpt
+*.pth
+*.bkp*
+*.1.toe
+*.2.toe
+*.3.toe
+Backup/
+
+models/checkpoints/*
+!models/checkpoints/.gitkeep
+models/acceleration_loras/*
+!models/acceleration_loras/.gitkeep
+models/loras/*
+!models/loras/.gitkeep
+models/vae/*
+!models/vae/.gitkeep
+engines/*
+!engines/.gitkeep
