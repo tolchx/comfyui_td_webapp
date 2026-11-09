@@ -694,7 +694,10 @@
               <button class="preset-chip" onclick="clearAllLayers()" title="Borrar todo">🗑️ Todo</button>
             </div>
 
-            <div style="display:flex; gap:5px;">
+            <div style="display:flex; gap:5px; flex-wrap:wrap;">
+              <button class="preset-chip" onclick="drawLandscapeTemplate()" style="border-color:var(--accent); font-weight:700;" title="Crea fondo de cielo, colinas verdes, montañas y sol">🏔️ Plantilla Paisaje</button>
+              <button class="preset-chip" onclick="fillSkyAndGround()" title="Rellena la capa con gradiente de cielo y suelo verde">🌤️ Cielo y Pasto</button>
+              <button class="preset-chip" onclick="fillSolidColor('#ffffff')" title="Rellenar fondo blanco">⚪ Blanco</button>
               <button class="preset-chip" onclick="drawAkiraTemplate()">🏍️ Akira</button>
               <button class="preset-chip" onclick="drawPortraitGuide()">👤 Silueta</button>
               <button class="preset-chip" onclick="drawGridGuide()">📐 Cuadrícula</button>
@@ -761,17 +764,30 @@
       <section class="panel">
         <div class="panel-title">
           <span>3. Prompt &amp; Parámetros StreamDiffusion</span>
-          <button class="preset-chip" onclick="resetTemporalBuffer()">Reset Buffer Temporal</button>
+          <button class="preset-chip" onclick="resetTemporalBuffer()" title="Limpia la memoria del búfer temporal para evitar rastros viejos">🔄 Reset Buffer Temporal</button>
         </div>
 
         <div>
-          <label for="promptInput">Prompt Positivo</label>
-          <textarea id="promptInput">Anime art of Akira, detailed scene, red, masterpiece, crisp lineart, perfect face, intricately detailed, cinematic lighting, 8k</textarea>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+            <label for="promptInput" style="margin:0;">Prompt Positivo</label>
+            <button class="preset-chip" onclick="enhancePrompt()" title="Enriquece el prompt con descriptores fotográficos, atmósfera y luz" style="color:var(--accent); border-color:var(--accent); font-weight:700;">🪄 Auto-Mejorar Prompt</button>
+          </div>
+          <textarea id="promptInput">majestic mountain landscape, lush green hills, golden sunset glowing in sky, dramatic volumetric clouds, photorealistic nature photography, 8k, ultra-detailed, cinematic lighting, masterpiece</textarea>
+        </div>
+
+        <!-- PRESETS RÁPIDOS DE PROMPT -->
+        <div class="preset-bar" style="margin-top:6px; margin-bottom:8px;">
+          <span style="font-size:11px; color:var(--muted); align-self:center; font-weight:600;">Estilos:</span>
+          <button class="preset-chip" onclick="applyPromptPreset('landscape_mountains')">🏔️ Montañas Sunset</button>
+          <button class="preset-chip" onclick="applyPromptPreset('sunset_beach')">🌅 Playa & Océano</button>
+          <button class="preset-chip" onclick="applyPromptPreset('misty_forest')">🌲 Bosque & Niebla</button>
+          <button class="preset-chip" onclick="applyPromptPreset('cyberpunk_city')">🏍️ Akira Cyberpunk</button>
+          <button class="preset-chip" onclick="applyPromptPreset('cinematic_portrait')">👤 Retrato Cinemático</button>
         </div>
 
         <div>
           <label for="negInput">Prompt Negativo</label>
-          <input id="negInput" type="text" value="low quality, blurry, deformed face, bad anatomy, ugly, watermark, text" />
+          <input id="negInput" type="text" value="low quality, blurry, deformed face, bad anatomy, ugly, watermark, text, monochrome, abstract scribble" />
         </div>
 
         <div class="row-3">
@@ -785,23 +801,30 @@
           </div>
           <div>
             <label for="stepsInput">Pasos (Steps)</label>
-            <input id="stepsInput" type="number" min="1" max="12" value="3" />
+            <input id="stepsInput" type="number" min="1" max="10" value="3" />
           </div>
         </div>
 
         <div class="row-3">
           <div>
-            <label for="denoiseInput">Denoise Base</label>
-            <input id="denoiseInput" type="number" step="0.05" min="0.20" max="0.95" value="0.55" />
+            <label for="denoiseInput">Denoise Base (0.60–0.70)</label>
+            <input id="denoiseInput" type="number" step="0.02" min="0.20" max="0.95" value="0.65" />
           </div>
           <div>
-            <label for="temporalInput">Estabilidad V2 (0-0.5)</label>
-            <input id="temporalInput" type="number" step="0.05" min="0.0" max="0.55" value="0.22" />
+            <label for="temporalInput">Estabilidad Temporal (0.05–0.15)</label>
+            <input id="temporalInput" type="number" step="0.02" min="0.0" max="0.50" value="0.10" />
           </div>
           <div>
             <label for="seedInput">Seed Fija</label>
             <input id="seedInput" type="number" value="424242" />
           </div>
+        </div>
+
+        <div style="background:rgba(56, 189, 248, 0.08); border:1px solid rgba(56, 189, 248, 0.25); border-radius:7px; padding:7px 10px; font-size:11px; color:#cbd5e1; line-height:1.4; margin-top:2px;">
+          <span style="color:var(--accent); font-weight:700;">💡 Guía para Bocetos a Paisaje:</span><br/>
+          • <b>Denoise 0.60 – 0.70:</b> Punto óptimo. Convierte tus trazos de montañas/sol en paisaje real respetando su ubicación.<br/>
+          • <b>Denoise &gt; 0.85:</b> La IA destruye el boceto y alucina libremente (por eso antes generaba líneas abstractas).<br/>
+          • <b>Estabilidad 0.05 – 0.15:</b> Fluido y sin "fantasmas" que se queden pegados al pintar en vivo.
         </div>
 
         <div class="row-2">
@@ -928,15 +951,23 @@
 
     function initLayers() {
       layers = [];
-      const bgLayer = createNewLayerObject('Fondo');
-      // Pintar fondo oscuro con gradiente anime por defecto
+      const bgLayer = createNewLayerObject('Fondo Cielo y Pasto');
       const w = bgLayer.canvas.width, h = bgLayer.canvas.height;
-      const grad = bgLayer.ctx.createRadialGradient(w * 0.5, h * 0.45, 40, w * 0.5, h * 0.5, w * 0.65);
-      grad.addColorStop(0, '#dc2626');
-      grad.addColorStop(0.45, '#7f1d1d');
-      grad.addColorStop(1, '#090d16');
-      bgLayer.ctx.fillStyle = grad;
-      bgLayer.ctx.fillRect(0, 0, w, h);
+      
+      // Cielo suave
+      const skyGrad = bgLayer.ctx.createLinearGradient(0, 0, 0, h * 0.65);
+      skyGrad.addColorStop(0, '#38bdf8');
+      skyGrad.addColorStop(0.7, '#bae6fd');
+      skyGrad.addColorStop(1, '#fde68a');
+      bgLayer.ctx.fillStyle = skyGrad;
+      bgLayer.ctx.fillRect(0, 0, w, h * 0.65);
+
+      // Pasto
+      const grassGrad = bgLayer.ctx.createLinearGradient(0, h * 0.65, 0, h);
+      grassGrad.addColorStop(0, '#15803d');
+      grassGrad.addColorStop(1, '#14532d');
+      bgLayer.ctx.fillStyle = grassGrad;
+      bgLayer.ctx.fillRect(0, h * 0.65, w, h * 0.35);
 
       const drawLayer = createNewLayerObject('Boceto 1');
       layers.push(bgLayer);
@@ -962,6 +993,9 @@
 
     function compositeLayers() {
       inCtx.clearRect(0, 0, inCanvas.width, inCanvas.height);
+      // Relleno base blanco para que cualquier capa transparente no se vuelva negro puro en JPEG
+      inCtx.fillStyle = '#ffffff';
+      inCtx.fillRect(0, 0, inCanvas.width, inCanvas.height);
       for (const l of layers) {
         if (!l.visible) continue;
         inCtx.save();
@@ -1485,6 +1519,171 @@
     }
 
     // PLANTILLAS DIDÁCTICAS PARA LA CLASE DE IA
+    function drawLandscapeTemplate() {
+      // 1. Limpiar o configurar capa Fondo con cielo y pasto
+      let bgLayer = layers.find(l => l.name === 'Fondo' || l.name === 'Cielo y Pasto');
+      if (!bgLayer) {
+        bgLayer = createNewLayerObject('Cielo y Pasto');
+        layers.unshift(bgLayer); // colocar al fondo
+      } else {
+        bgLayer.name = 'Cielo y Pasto';
+      }
+      saveLayerState(bgLayer);
+      const w = bgLayer.canvas.width, h = bgLayer.canvas.height;
+      const ctxBg = bgLayer.ctx;
+      ctxBg.clearRect(0, 0, w, h);
+
+      // Gradiente de cielo (azul celeste a cálido dorado en el horizonte)
+      const skyGrad = ctxBg.createLinearGradient(0, 0, 0, h * 0.65);
+      skyGrad.addColorStop(0, '#38bdf8');
+      skyGrad.addColorStop(0.7, '#93c5fd');
+      skyGrad.addColorStop(1, '#fed7aa');
+      ctxBg.fillStyle = skyGrad;
+      ctxBg.fillRect(0, 0, w, h * 0.65);
+
+      // Colina / pasto verde en el horizonte
+      ctxBg.fillStyle = '#15803d';
+      ctxBg.beginPath();
+      ctxBg.moveTo(0, h * 0.62);
+      ctxBg.bezierCurveTo(w * 0.35, h * 0.58, w * 0.65, h * 0.66, w, h * 0.62);
+      ctxBg.lineTo(w, h);
+      ctxBg.lineTo(0, h);
+      ctxBg.closePath();
+      ctxBg.fill();
+
+      // Pasto frontal más oscuro para dar profundidad
+      ctxBg.fillStyle = '#166534';
+      ctxBg.beginPath();
+      ctxBg.moveTo(0, h * 0.78);
+      ctxBg.bezierCurveTo(w * 0.4, h * 0.72, w * 0.75, h * 0.82, w, h * 0.76);
+      ctxBg.lineTo(w, h);
+      ctxBg.lineTo(0, h);
+      ctxBg.closePath();
+      ctxBg.fill();
+
+      // 2. Capa de Boceto con Montañas y Sol
+      addNewLayer('Boceto Montañas');
+      const sketchLayer = getActiveLayer();
+      saveLayerState(sketchLayer);
+      const sCtx = sketchLayer.ctx;
+
+      // Sol dorado
+      sCtx.fillStyle = '#f59e0b';
+      sCtx.beginPath();
+      sCtx.arc(w * 0.72, h * 0.32, 42, 0, Math.PI * 2);
+      sCtx.fill();
+
+      // Montañas de fondo (gris pizarra con picos nevados)
+      sCtx.fillStyle = '#475569';
+      sCtx.beginPath();
+      sCtx.moveTo(w * 0.05, h * 0.63);
+      sCtx.lineTo(w * 0.28, h * 0.30);
+      sCtx.lineTo(w * 0.52, h * 0.63);
+      sCtx.closePath();
+      sCtx.fill();
+
+      sCtx.fillStyle = '#334155';
+      sCtx.beginPath();
+      sCtx.moveTo(w * 0.38, h * 0.63);
+      sCtx.lineTo(w * 0.60, h * 0.25);
+      sCtx.lineTo(w * 0.86, h * 0.63);
+      sCtx.closePath();
+      sCtx.fill();
+
+      // Picos con nieve blanca
+      sCtx.fillStyle = '#f8fafc';
+      sCtx.beginPath();
+      sCtx.moveTo(w * 0.60, h * 0.25);
+      sCtx.lineTo(w * 0.54, h * 0.34);
+      sCtx.lineTo(w * 0.60, h * 0.32);
+      sCtx.lineTo(w * 0.66, h * 0.34);
+      sCtx.closePath();
+      sCtx.fill();
+
+      // 3. Configurar Parámetros Óptimos
+      document.getElementById('promptInput').value = 'majestic mountain landscape, lush green hills, golden sunset glowing in sky, dramatic volumetric clouds, photorealistic nature photography, 8k, ultra-detailed, cinematic lighting, masterpiece';
+      document.getElementById('denoiseInput').value = '0.65';
+      document.getElementById('temporalInput').value = '0.10';
+      document.getElementById('stepsInput').value = '3';
+      resetTemporalBuffer();
+
+      renderLayersList();
+      compositeLayers();
+    }
+
+    function fillSkyAndGround() {
+      const layer = getActiveLayer();
+      if (!layer) return;
+      saveLayerState(layer);
+      const w = layer.canvas.width, h = layer.canvas.height;
+      const ctx = layer.ctx;
+
+      // Cielo
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, h * 0.65);
+      skyGrad.addColorStop(0, '#38bdf8');
+      skyGrad.addColorStop(0.7, '#bae6fd');
+      skyGrad.addColorStop(1, '#fde68a');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, w, h * 0.65);
+
+      // Pasto
+      const grassGrad = ctx.createLinearGradient(0, h * 0.65, 0, h);
+      grassGrad.addColorStop(0, '#15803d');
+      grassGrad.addColorStop(1, '#14532d');
+      ctx.fillStyle = grassGrad;
+      ctx.fillRect(0, h * 0.65, w, h * 0.35);
+
+      compositeLayers();
+    }
+
+    function fillSolidColor(hex) {
+      const layer = getActiveLayer();
+      if (!layer) return;
+      saveLayerState(layer);
+      layer.ctx.fillStyle = hex;
+      layer.ctx.fillRect(0, 0, layer.canvas.width, layer.canvas.height);
+      compositeLayers();
+    }
+
+    function enhancePrompt() {
+      const p = document.getElementById('promptInput');
+      let val = (p.value || '').trim();
+      if (!val || val.toLowerCase() === 'landscape' || val.toLowerCase() === 'paisaje') {
+        p.value = 'majestic mountain landscape, lush green grassy hills, golden sunset glowing in sky, dramatic volumetric clouds, photorealistic nature photography, 8k, ultra-detailed, cinematic lighting, masterpiece';
+      } else if (!val.includes('8k') && !val.includes('photorealistic')) {
+        p.value = val + ', photorealistic, 8k resolution, volumetric dramatic lighting, ultra-detailed, masterpiece';
+      }
+    }
+
+    function applyPromptPreset(preset) {
+      const p = document.getElementById('promptInput');
+      const d = document.getElementById('denoiseInput');
+      const t = document.getElementById('temporalInput');
+
+      if (preset === 'landscape_mountains') {
+        p.value = 'majestic mountain landscape, lush green hills, golden sunset glowing in sky, dramatic volumetric clouds, photorealistic nature photography, 8k, ultra-detailed, cinematic lighting, masterpiece';
+        d.value = '0.65';
+        t.value = '0.10';
+      } else if (preset === 'sunset_beach') {
+        p.value = 'tropical ocean beach sunset, waves crashing on sand, golden reflections on water, palm trees, dramatic clouds, photorealistic, 8k, cinematic lighting';
+        d.value = '0.66';
+        t.value = '0.10';
+      } else if (preset === 'misty_forest') {
+        p.value = 'dense pine forest landscape, misty morning fog, sunbeams through tall trees, wild flowers, 8k, photorealistic photography, serene atmosphere';
+        d.value = '0.64';
+        t.value = '0.10';
+      } else if (preset === 'cyberpunk_city') {
+        p.value = 'Anime art of Akira, detailed cyberpunk neo tokyo street, glowing red neon, masterpiece, crisp lineart, cinematic lighting, 8k';
+        d.value = '0.70';
+        t.value = '0.15';
+      } else if (preset === 'cinematic_portrait') {
+        p.value = 'cinematic portrait of a person, studio rim lighting, 85mm lens, highly detailed skin texture, photorealistic, dramatic backlight, masterpiece';
+        d.value = '0.62';
+        t.value = '0.10';
+      }
+      resetTemporalBuffer();
+    }
+
     function drawAkiraTemplate() {
       addNewLayer('Guía Akira');
       const layer = getActiveLayer();
