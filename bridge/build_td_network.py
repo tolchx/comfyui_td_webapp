@@ -45,11 +45,11 @@ src_noise.par.outputresolution = 'custom'
 src_noise.par.resolutionw = 512
 src_noise.par.resolutionh = 512
 src_noise.par.type = 'simplex3d'
-src_noise.par.period = 2.8
+src_noise.par.period = 1.8
 src_noise.par.harmon = 3
-src_noise.par.amp = 0.65
+src_noise.par.amp = 0.72
 src_noise.par.mono = False
-src_noise.par.tz.expr = 'absTime.seconds * 0.18'
+src_noise.par.tz.expr = 'absTime.seconds * 0.85'
 
 in_null = root.create(td.nullTOP, 'entrada_img2img')
 in_null.nodeX, in_null.nodeY = -300, 120
@@ -73,15 +73,30 @@ page = comp.appendCustomPage('ComfyUI Control')
 p_url = page.appendStr('Bridgeurl', label='Bridge URL')[0]
 p_url.val = 'http://127.0.0.1:8080'
 
-p_mode = page.appendMenu('Mode', label='Modo (Txt2Img / Img2Img)')[0]
-p_mode.menuNames = ['txt2img', 'img2img']
-p_mode.menuLabels = ['Text-to-Image (Solo Prompt)', 'Image-to-Image (Usa TOP Entrada)']
-p_mode.val = 'txt2img'
+p_mode = page.appendMenu('Mode', label='Modo Generacion')[0]
+p_mode.menuNames = ['txt2img', 'img2img', 'streamdiffusion_rt']
+p_mode.menuLabels = [
+    'Text-to-Image (Solo Prompt)',
+    'Image-to-Image (Usa TOP Entrada)',
+    'StreamDiffusion Realtime (1-2 Steps + TAESD)'
+]
+p_mode.val = 'streamdiffusion_rt'
 
 p_tier = page.appendMenu('Tier', label='Nivel Hardware (Tier)')[0]
-p_tier.menuNames = ['basico', 'medio', 'avanzado']
-p_tier.menuLabels = ['Basico (4-6GB SD1.5 LCM)', 'Medio (8-10GB SDXL Turbo)', 'Avanzado (12GB+ Flux/Qwen)']
-p_tier.val = 'basico'
+p_tier.menuNames = ['realtime', 'basico', 'medio', 'avanzado']
+p_tier.menuLabels = [
+    'StreamDiffusion RT (3GB+ / Mac - HyperSD + TAESD)',
+    'Basico (4-6GB SD1.5 LCM)',
+    'Medio (8-10GB SDXL Turbo)',
+    'Avanzado (12GB+ Flux/Qwen)'
+]
+p_tier.val = 'realtime'
+
+p_rt = page.appendToggle('Realtimemode', label='Turbo TAESD + SimFilter (StreamDiffusion)')[0]
+p_rt.val = True
+
+p_smooth = page.appendToggle('Smooth60fps', label='Suavizado Temporal 60FPS (GPU Blend)')[0]
+p_smooth.val = True
 
 p_prompt = page.appendStr('Prompt', label='Prompt Positivo')[0]
 p_prompt.val = 'futuristic glowing crystalline sculpture floating in dark space, volumetric neon cyan and magenta lighting, 8k'
@@ -100,26 +115,27 @@ p_h.min, p_h.max = 256, 1536
 p_h.clampMin, p_h.clampMax = True, True
 
 p_steps = page.appendInt('Steps', label='Pasos (Steps)')[0]
-p_steps.val = 6
+p_steps.val = 1
 p_steps.min, p_steps.max = 1, 40
 p_steps.clampMin, p_steps.clampMax = True, True
 
 p_cfg = page.appendFloat('Cfg', label='CFG Scale')[0]
-p_cfg.val = 1.8
+p_cfg.val = 1.0
 p_cfg.min, p_cfg.max = 1.0, 15.0
 
-p_denoise = page.appendFloat('Denoise', label='Denoise (Img2Img)')[0]
-p_denoise.val = 0.75
+p_denoise = page.appendFloat('Denoise', label='Denoise (Img2Img / RT)')[0]
+p_denoise.val = 0.55
 p_denoise.min, p_denoise.max = 0.05, 1.0
 p_denoise.clampMin, p_denoise.clampMax = True, True
 
 p_seed = page.appendInt('Seed', label='Semilla (-1 = Random)')[0]
-p_seed.val = -1
+p_seed.val = 424242
 
 p_gen = page.appendPulse('Generate', label='Generar Ahora (Pulse)')[0]
 p_send = page.appendPulse('Sendframe', label='Enviar TOP + Generar (Img2Img)')[0]
-p_auto = page.appendToggle('Autostream', label='Auto-Stream Continuo')[0]
-p_auto.val = False
+p_send_rt = page.appendPulse('Sendrtframe', label='Disparo StreamDiffusion RT (1-2 Steps)')[0]
+p_auto = page.appendToggle('Autostream', label='Auto-Stream Continuo (Realtime Loop)')[0]
+p_auto.val = True
 
 p_interval = page.appendFloat('Streaminterval', label='Intervalo Auto-Stream (s)')[0]
 p_interval.val = 4.0
@@ -154,13 +170,35 @@ root = op('/project1')
 
 # Ruta relativa al proyecto TouchDesigner (compatible con Windows y macOS en cualquier carpeta)
 ai_movie = comp.create(td.moviefileinTOP, 'ai_result')
-ai_movie.nodeX, ai_movie.nodeY = -100, -50
+ai_movie.nodeX, ai_movie.nodeY = -280, -50
 ai_movie.par.file.expr = "project.folder + '/../bridge/outputs/latest.png'"
 ai_movie.par.play = False
 
+# Interpolador Temporal GPU a 60 FPS (Feedback + Cross Blend) para fluidez visual continua en StreamDiffusion
+fb_smooth = comp.create(td.feedbackTOP, 'fb_smooth')
+fb_smooth.nodeX, fb_smooth.nodeY = -100, 60
+fb_smooth.inputConnectors[0].connect(ai_movie)
+
+cross_smooth = comp.create(td.crossTOP, 'cross_smooth')
+cross_smooth.nodeX, cross_smooth.nodeY = 80, 60
+cross_smooth.par.cross = 0.22
+cross_smooth.inputConnectors[0].connect(fb_smooth)
+cross_smooth.inputConnectors[1].connect(ai_movie)
+
+fb_target = comp.create(td.nullTOP, 'fb_target')
+fb_target.nodeX, fb_target.nodeY = 240, 60
+fb_target.inputConnectors[0].connect(cross_smooth)
+fb_smooth.par.top = 'fb_target'
+
+out_switch = comp.create(td.switchTOP, 'out_switch')
+out_switch.nodeX, out_switch.nodeY = 240, -50
+out_switch.par.index.expr = "parent().par.Smooth60fps"
+out_switch.inputConnectors[0].connect(ai_movie)
+out_switch.inputConnectors[1].connect(fb_target)
+
 out_ai = comp.create(td.outTOP, 'out_ai')
-out_ai.nodeX, out_ai.nodeY = 180, -50
-out_ai.inputConnectors[0].connect(ai_movie)
+out_ai.nodeX, out_ai.nodeY = 420, -50
+out_ai.inputConnectors[0].connect(out_switch)
 
 # Telemetria CHOP
 metrics = comp.create(td.constantCHOP, 'stream_metrics')
@@ -198,30 +236,47 @@ ctrl_dat.text = """import json
 import base64
 import webbrowser
 
-def trigger_generation(force_img2img=False):
+def trigger_generation(force_img2img=False, force_rt=False):
     comp = parent()
     base_url = comp.par.Bridgeurl.eval().rstrip('/')
-    mode = 'img2img' if force_img2img else comp.par.Mode.eval()
+    raw_mode = comp.par.Mode.eval()
+    rt_toggle = bool(comp.par.Realtimemode.eval()) or force_rt or (raw_mode == 'streamdiffusion_rt') or (comp.par.Tier.eval() == 'realtime')
+
+    if force_rt:
+        mode = 'streamdiffusion_rt'
+    elif force_img2img and raw_mode == 'txt2img':
+        mode = 'streamdiffusion_rt' if rt_toggle else 'img2img'
+    else:
+        mode = raw_mode
+
+    steps_val = int(comp.par.Steps.eval())
+    cfg_val = float(comp.par.Cfg.eval())
+    denoise_val = float(comp.par.Denoise.eval())
+    if mode == 'streamdiffusion_rt' or rt_toggle:
+        steps_val = min(steps_val, 2)
+        cfg_val = 1.0
 
     payload = {
         'prompt': comp.par.Prompt.eval(),
         'negative_prompt': comp.par.Negativeprompt.eval(),
         'mode': mode,
         'tier': comp.par.Tier.eval(),
+        'realtime_mode': rt_toggle,
         'width': int(comp.par.Width.eval()),
         'height': int(comp.par.Height.eval()),
-        'steps': int(comp.par.Steps.eval()),
-        'cfg': float(comp.par.Cfg.eval()),
-        'denoise': float(comp.par.Denoise.eval()),
+        'steps': steps_val,
+        'cfg': cfg_val,
+        'denoise': denoise_val,
         'seed': int(comp.par.Seed.eval()),
         'source': 'touchdesigner',
     }
 
-    if mode == 'img2img':
+    if mode in ('img2img', 'streamdiffusion_rt'):
         top_in = op('input_frame')
         if top_in and top_in.width > 0:
-            png_bytes = bytes(top_in.saveByteArray('.png'))
-            payload['image_b64'] = base64.b64encode(png_bytes).decode('ascii')
+            ext = '.jpg' if (mode == 'streamdiffusion_rt' or rt_toggle) else '.png'
+            img_bytes = bytes(top_in.saveByteArray(ext))
+            payload['image_b64'] = base64.b64encode(img_bytes).decode('ascii')
 
     raw_body = json.dumps(payload).encode('utf-8')
     op('api_generate').request(
@@ -243,10 +298,11 @@ def open_webapp():
     webbrowser.open(comp.par.Bridgeurl.eval().rstrip('/'))
 """
 
-# Callbacks de api_poll (actualiza automaticamente la textura cuando termina una imagen en TD o en la WebApp)
+# Callbacks compartidos para api_generate y api_poll (actualiza textura en <1ms al terminar cada frame y relanza el loop Realtime)
 cb_poll = op(wc_poll.par.callbacks.eval()) if wc_poll.par.callbacks.eval() else comp.create(td.textDAT, 'api_poll_callbacks')
 cb_poll.nodeX, cb_poll.nodeY = 40, -450
 wc_poll.par.callbacks = cb_poll.name
+wc_gen.par.callbacks = cb_poll.name
 cb_poll.text = """import json
 
 def onConnect(webClientDAT, id):
@@ -265,16 +321,17 @@ def onResponse(webClientDAT, statusCode, headerDict, data, id):
 
     comp = parent()
     metrics = op('stream_metrics')
-    state = msg.get('state', 'IDLE')
+    state = msg.get('state', msg.get('status', 'IDLE'))
     gen_id = int(msg.get('generation_id', 0))
     lat = float(msg.get('latency_ms', 0.0))
-    online = float(msg.get('comfy_online', 0))
+    online = float(msg.get('comfy_online', 1))
 
     comp.par.Status = state
-    comp.par.Latencyms = lat
+    if lat > 0:
+        comp.par.Latencyms = lat
+        metrics.par.value2 = lat
     metrics.par.value0 = online
     metrics.par.value1 = 1.0 if state in ('GENERATING', 'QUEUED') else 0.0
-    metrics.par.value2 = lat
 
     prev_id = int(comp.par.Generationid.eval())
     if gen_id > 0 and gen_id != prev_id:
@@ -288,11 +345,13 @@ def onResponse(webClientDAT, statusCode, headerDict, data, id):
         movie.par.reloadpulse.pulse()
 
         log = op('generation_log')
+        if log.numRows > 60:
+            log.deleteRow(1)
         log.appendRow([str(gen_id), msg.get('latest_prompt', '')[:60], comp.par.Mode.eval(), msg.get('tier', ''), str(lat)])
 
-        # Si Auto-Stream esta activo y ya termino, lanzar la siguiente
-        if comp.par.Autostream.eval() and state == 'READY':
-            mod('controller_ext').trigger_generation()
+    # Si Auto-Stream esta activo y el servidor ya esta libre (READY o IDLE), disparar el siguiente frame inmediatamente
+    if comp.par.Autostream.eval() and state in ('READY', 'IDLE'):
+        mod('controller_ext').trigger_generation()
 """
 
 # Parameter Execute DAT para reaccionar a los botones Pulse del usuario en TouchDesigner
@@ -304,15 +363,22 @@ par_exec.par.onpulse = True
 par_exec.par.valuechange = True
 par_exec.text = """def onPulse(par):
     if par.name == 'Generate':
-        mod('controller_ext').trigger_generation(force_img2img=False)
+        mod('controller_ext').trigger_generation(force_img2img=False, force_rt=False)
     elif par.name == 'Sendframe':
-        mod('controller_ext').trigger_generation(force_img2img=True)
+        mod('controller_ext').trigger_generation(force_img2img=True, force_rt=False)
+    elif par.name == 'Sendrtframe':
+        mod('controller_ext').trigger_generation(force_img2img=True, force_rt=True)
     elif par.name == 'Openwebapp':
         mod('controller_ext').open_webapp()
 
 def onValueChange(par, prev):
     if par.name == 'Autostream' and par.eval():
         mod('controller_ext').trigger_generation()
+    elif par.name == 'Mode' and par.eval() == 'streamdiffusion_rt':
+        parent().par.Realtimemode = True
+        parent().par.Steps = 2
+        parent().par.Cfg = 1.0
+        parent().par.Denoise = 0.55
 
 def onValuesChanged(changes):
     return
@@ -330,11 +396,11 @@ def onModeChange(par, val, prev):
     return
 """
 
-# LFO + ChopExecute para hacer polling cada ~0.6 segundos sin bloquear TouchDesigner
+# LFO + ChopExecute para hacer polling cada ~0.12 segundos en modo StreamDiffusion Realtime sin bloquear TouchDesigner
 poll_lfo = comp.create(td.lfoCHOP, 'poll_clock')
 poll_lfo.nodeX, poll_lfo.nodeY = 180, -640
 poll_lfo.par.wavetype = 'square'
-poll_lfo.par.frequency = 0.8
+poll_lfo.par.frequency = 8.0
 
 poll_exec = comp.create(td.chopexecuteDAT, 'poll_runner')
 poll_exec.nodeX, poll_exec.nodeY = 380, -640
@@ -375,8 +441,22 @@ comp_layout.inputConnectors[0].connect(in_null)
 comp_layout.inputConnectors[1].connect(comp.outputConnectors[0])
 comp_layout.viewer = True
 
-# Guardar el proyecto v1.toe
+# Asegurar valores iniciales Realtime y arrancar el loop
+comp.par.Mode = 'streamdiffusion_rt'
+comp.par.Tier = 'realtime'
+comp.par.Realtimemode = 1
+comp.par.Smooth60fps = 1
+comp.par.Steps = 1
+comp.par.Cfg = 1.0
+comp.par.Denoise = 0.58
+comp.par.Autostream = 1
+
+# Guardar componente .tox y el proyecto v1.toe
+comp.save(project.folder + '/ComfyUI_Studio_Bridge.tox')
 project.save()
+
+# Lanzar primer frame de StreamDiffusion Realtime
+mod(comp.path + '/controller_ext').trigger_generation()
 
 print('<<JSON>>' + json.dumps({
     'ok': True,

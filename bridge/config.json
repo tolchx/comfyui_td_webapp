@@ -2,7 +2,7 @@
   "bridge_port": 8080,
   "comfy_port": 8188,
   "comfy_host": "127.0.0.1",
-  "active_tier": "basico",
+  "active_tier": "avanzado",
   "comfy_installations": [
     {
       "name": "ComfyUI Portable (Windows Curso)",
@@ -47,12 +47,74 @@
     "~/Documents/ComfyUI/models"
   ],
   "tiers": {
+    "realtime": {
+      "id": "realtime",
+      "label": "StreamDiffusion Realtime (3GB+ VRAM / Mac 8GB+) — Hyper-SD 1-Step + TAESD TinyVAE",
+      "min_vram_gb": 3,
+      "comfy_flags": [
+        "--lowvram"
+      ],
+      "mac_flags": [
+        "--force-fp16"
+      ],
+      "default_width": 512,
+      "default_height": 512,
+      "default_steps": 2,
+      "default_cfg": 1.0,
+      "sampler_name": "lcm",
+      "scheduler": "sgm_uniform",
+      "checkpoint": "DreamShaper_8_pruned.safetensors",
+      "lora": "Hyper-SD15-1step-lora.safetensors",
+      "realtime_mode": true,
+      "files": [
+        {
+          "filename": "DreamShaper_8_pruned.safetensors",
+          "subdir": "checkpoints",
+          "size_mb": 2034,
+          "url": "https://huggingface.co/Lykon/DreamShaper/resolve/main/DreamShaper_8_pruned.safetensors"
+        },
+        {
+          "filename": "Hyper-SD15-1step-lora.safetensors",
+          "subdir": "loras",
+          "size_mb": 67,
+          "url": "https://huggingface.co/ByteDance/Hyper-SD/resolve/main/Hyper-SD15-1step-lora.safetensors"
+        },
+        {
+          "filename": "taesd_encoder.pth",
+          "subdir": "vae_approx",
+          "size_mb": 5,
+          "url": "https://raw.githubusercontent.com/madebyollin/taesd/main/taesd_encoder.pth"
+        },
+        {
+          "filename": "taesd_decoder.pth",
+          "subdir": "vae_approx",
+          "size_mb": 5,
+          "url": "https://raw.githubusercontent.com/madebyollin/taesd/main/taesd_decoder.pth"
+        },
+        {
+          "filename": "taef2_encoder.pth",
+          "subdir": "vae_approx",
+          "size_mb": 5,
+          "url": "https://raw.githubusercontent.com/madebyollin/taesd/main/taef2_encoder.pth"
+        },
+        {
+          "filename": "taef2_decoder.pth",
+          "subdir": "vae_approx",
+          "size_mb": 5,
+          "url": "https://raw.githubusercontent.com/madebyollin/taesd/main/taef2_decoder.pth"
+        }
+      ]
+    },
     "basico": {
       "id": "basico",
       "label": "Básico (4GB - 6GB VRAM / Mac 8GB-16GB) — SD 1.5 + LCM LoRA (Rápido / 4-6 pasos)",
       "min_vram_gb": 4,
-      "comfy_flags": ["--lowvram"],
-      "mac_flags": ["--force-fp16"],
+      "comfy_flags": [
+        "--lowvram"
+      ],
+      "mac_flags": [
+        "--force-fp16"
+      ],
       "default_width": 512,
       "default_height": 512,
       "default_steps": 6,
@@ -73,6 +135,18 @@
           "subdir": "loras",
           "size_mb": 128,
           "url": "https://huggingface.co/latent-consistency/lcm-lora-sdv1-5/resolve/main/pytorch_lora_weights.safetensors"
+        },
+        {
+          "filename": "taesd_encoder.pth",
+          "subdir": "vae_approx",
+          "size_mb": 5,
+          "url": "https://raw.githubusercontent.com/madebyollin/taesd/main/taesd_encoder.pth"
+        },
+        {
+          "filename": "taesd_decoder.pth",
+          "subdir": "vae_approx",
+          "size_mb": 5,
+          "url": "https://raw.githubusercontent.com/madebyollin/taesd/main/taesd_decoder.pth"
         }
       ]
     },
@@ -80,8 +154,10 @@
       "id": "medio",
       "label": "Medio (8GB - 10GB VRAM / Mac 16GB-24GB) — SDXL Turbo FP16 (Alta Velocidad / 4 pasos)",
       "min_vram_gb": 8,
-      "comfy_flags": ["--normalvram"],
-      "mac_flags": ["--force-fp16"],
+      "comfy_flags": [],
+      "mac_flags": [
+        "--force-fp16"
+      ],
       "default_width": 768,
       "default_height": 768,
       "default_steps": 4,
@@ -103,8 +179,10 @@
       "id": "avanzado",
       "label": "Avanzado (12GB+ VRAM / Mac 32GB+) — Flux.1 Schnell FP8 (Máxima Calidad / 4 pasos)",
       "min_vram_gb": 12,
-      "comfy_flags": ["--normalvram"],
-      "mac_flags": ["--force-fp16"],
+      "comfy_flags": [],
+      "mac_flags": [
+        "--force-fp16"
+      ],
       "default_width": 1024,
       "default_height": 1024,
       "default_steps": 4,

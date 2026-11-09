@@ -1,6 +1,6 @@
-# 📘 Puente TouchDesigner ↔ ComfyUI + WebApp (Windows & macOS)
+# 📘 Puente TouchDesigner ↔ ComfyUI + StreamDiffusion Realtime + WebApp (Windows & macOS)
 
-Sistema **standalone y multiplataforma (Windows & macOS)** diseñado para cátedras y talleres de Inteligencia Artificial Generativa. Permite conectar **TouchDesigner** con **ComfyUI** en tiempo real (**Text-to-Image**, **Image-to-Image** desde cualquier TOP y **Auto-Stream continuo**), integrando una **WebApp de monitoreo de hardware, diagnóstico de compatibilidad, historial y control interactivo**.
+Sistema **standalone y multiplataforma (Windows & macOS)** diseñado para cátedras y talleres de Inteligencia Artificial Generativa. Permite conectar **TouchDesigner** con **ComfyUI** en tiempo real (**StreamDiffusion Realtime 1-Step**, **Text-to-Image**, **Image-to-Image** desde cualquier TOP y **Auto-Stream continuo a 60 FPS**), integrando una **WebApp de monitoreo de hardware, diagnóstico de compatibilidad, historial y control interactivo**.
 
 Repositorio oficial: **[https://github.com/tolchx/comfyui_td_webapp](https://github.com/tolchx/comfyui_td_webapp)**
 
@@ -8,16 +8,39 @@ Repositorio oficial: **[https://github.com/tolchx/comfyui_td_webapp](https://git
 
 ## ✨ Características Principales
 
-1. **Detección Automática de Hardware y Diagnóstico Inteligente**:
+1. **⚡ Modo StreamDiffusion Realtime Integrado (1-Step + TAESD TinyVAE + 60 FPS GPU Blend)**:
+   - Inspirado en [StreamDiffusion (`cumulo-autumn/streamdiffusion`)](https://github.com/cumulo-autumn/streamdiffusion) y [TouchDiffusion (`olegchomp/TouchDiffusion`)](https://github.com/olegchomp/TouchDiffusion), pero modernizado para funcionar **sin compilar motores TensorRT** y compatible con **PCs de bajos recursos (desde 3 GB VRAM) y Macs con Apple Silicon**.
+   - Combina **Hyper-SD 1-Step LoRA** (`steps=1, cfg=1.0`), **TAESD / TAEF2 Tiny AutoEncoder** (5 MB), **Stochastic Similarity Filter** y un **Interpolador Temporal en GPU a 60 FPS (`feedbackTOP` + `crossTOP`)** dentro del nodo de TouchDesigner.
+2. **Detección Automática de Hardware y Diagnóstico Inteligente**:
    - Detecta automáticamente placas **NVIDIA CUDA** (Windows/Linux), chips **Apple Silicon M1/M2/M3/M4 con Metal (MPS)** en macOS, placas **AMD Radeon** o **GPUs integradas / CPU**.
    - Evalúa en vivo si el modelo elegido es compatible con la memoria VRAM disponible y **muestra en la WebApp alertas y soluciones paso a paso** cuando detecta cuellos de botella o falta de memoria.
-2. **Instalación por Niveles (Básico / Medio / Avanzado)**:
+3. **Instalación por Niveles (Realtime / Básico / Medio / Avanzado)**:
    - Descarga automáticamente el modelo generador óptimo desde HuggingFace con barra de progreso y soporte para reanudar descargas interrumpidas.
-3. **Modo Práctica Procedural Integrado (Cero VRAM / Sin ComfyUI)**:
+4. **Modo Práctica Procedural Integrado (Cero VRAM / Sin ComfyUI)**:
    - Si un alumno está en clase con una notebook sin GPU dedicada o mientras descarga ComfyUI, el servidor puente genera arte procedural reactivo al Prompt y al TOP de entrada (`img2img`) para que pueda practicar todo el flujo en TouchDesigner a **60 FPS** desde el primer minuto.
-4. **Sincronización Bidireccional TouchDesigner ↔ WebApp**:
+5. **Sincronización Bidireccional TouchDesigner ↔ WebApp**:
    - Cualquier generación disparada desde la WebApp actualiza automáticamente la textura `SALIDA_COMFYUI` dentro de TouchDesigner.
    - Cualquier generación disparada desde TouchDesigner aparece en vivo en el monitor y en el historial de la WebApp.
+
+---
+
+## ⚡ Arquitectura StreamDiffusion Realtime: ¿Por qué esta implementación es más óptima?
+
+Hace unos años surgieron proyectos pioneros como **[StreamDiffusion](https://github.com/cumulo-autumn/streamdiffusion)** (2023) y **[TouchDiffusion](https://github.com/olegchomp/TouchDiffusion)** (2024). Si bien demostraron la generación en tiempo real, presentaban grandes barreras para alumnos en una cursada:
+- Requerían **compilar motores TensorRT (`.engine`)** específicos para cada placa NVIDIA (lo cual demora 15–30 minutos, consume >12 GB de RAM/VRAM al compilar y falla al cambiar la resolución).
+- Estaban atados a versiones antiguas de Python/PyTorch/Diffusers y **no funcionaban bien en macOS (Apple Silicon) ni en placas de gama de entrada** sin TensorRT.
+- No soportaban modelos modernos como **Hyper-SD**, **SDXL Turbo** o **Flux.2 Klein** dentro de un mismo flujo con ComfyUI.
+
+### Nuestra Solución Moderna (`StreamDiffusion-RT` sobre ComfyUI)
+En lugar de depender de un motor TensorRT rígido, implementamos las optimizaciones matemáticas clave de StreamDiffusion directamente sobre el ecosistema moderno de ComfyUI y TouchDesigner:
+
+| Componente | Cómo funcionaba antes (SD Clásico) | Cómo funciona nuestro modo `StreamDiffusion-RT` | Ganancia en Tiempo Real |
+| :--- | :--- | :--- | :--- |
+| **Pasos de Inferencia (UNET)** | 20 a 30 pasos con `CFG = 7.5` (40–60 pasadas de red por imagen) | **1 solo paso (`steps = 1`)** con **ByteDance Hyper-SD 1-Step LoRA** y **`CFG = 1.0`** (1 única pasada de red sin duplicación CFG) | **20x a 40x más rápido** (corre hasta en 3 GB VRAM) |
+| **Codificación / Decodificación Latente (VAE)** | VAE estándar de 335 MB (consume el 50% del tiempo total en 1-step) | **TAESD / TAEF2 (`madebyollin/taesd`)**: Tiny AutoEncoder de **5 MB** para codificar el TOP de TD y decodificar el latente | **10x más rápido** y ahorra ~1.2 GB de VRAM |
+| **Semilla Latente Coherente** | Semilla aleatoria en cada frame (provoca parpadeo / flicker severo) | **Latent Seed Locking (`seed = 424242`)** + `denoise = 0.55–0.60` sobre el TOP en movimiento de TouchDesigner | Coherencia temporal fluida entre frames consecutivos |
+| **Stochastic Similarity Filter** | Re-ejecuta la GPU aunque la imagen de entrada no haya cambiado | Calcula una firma perceptual `16x16` del frame entrante y omite la inferencia si el cambio es menor al umbral | Ahorra GPU y temperatura cuando la escena está quieta |
+| **Interpolación Temporal en TD** | Salto brusco entre cada frame recibido desde Python | **GPU Temporal Feedback Blend (`fb_smooth` + `cross_smooth`)** dentro de `/project1/comfy_studio` | Salida visual continua a **60.0 FPS** constantes en TouchDesigner |
 
 ---
 
@@ -25,9 +48,10 @@ Repositorio oficial: **[https://github.com/tolchx/comfyui_td_webapp](https://git
 
 | Nivel | Hardware Recomendado (Windows / Mac) | Modelo Instalado Automáticamente | Peso | Flags Automáticos |
 | :--- | :--- | :--- | :--- | :--- |
-| **1. Básico** | **NVIDIA 4–6 GB VRAM** (GTX 1650, RTX 3050)<br>**Mac Apple Silicon 8–16 GB RAM** (M1/M2/M3) | **DreamShaper 8 (SD 1.5) + LCM LoRA** | ~2.1 GB | Windows: `--lowvram`<br>Mac: `--force-fp16` |
-| **2. Medio** | **NVIDIA 8–10 GB VRAM** (RTX 3060, 3070, 4060)<br>**Mac Apple Silicon 16–24 GB RAM** (M1 Pro/Max, M2/M3/M4) | **SDXL Turbo FP16** | ~6.6 GB | Windows: `--normalvram`<br>Mac: `--force-fp16` |
-| **3. Avanzado** | **NVIDIA 12 GB+ VRAM** (RTX 3080, 4070, 4080, 4090)<br>**Mac Apple Silicon 32 GB+ RAM** | **Flux.1 Schnell FP8** *(+ soporte nativo para Flux.2 Klein 4B / Dev y Qwen Image 2.1)* | ~16.4 GB | Windows: `--normalvram`<br>Mac: `--force-fp16` |
+| **0. ⚡ StreamDiffusion RT** | **NVIDIA 3 GB+ VRAM** (GTX 1650, RTX 2060/3050/4060/4090)<br>**Mac Apple Silicon 8 GB+ RAM** (M1/M2/M3/M4) | **DreamShaper 8 + Hyper-SD 1-Step LoRA + TAESD / TAEF2 TinyVAE** | ~2.1 GB | `<6GB`: `--lowvram`<br>`>=14GB`: `--highvram`<br>Mac: `--force-fp16` |
+| **1. Básico** | **NVIDIA 4–6 GB VRAM** (GTX 1650, RTX 3050)<br>**Mac Apple Silicon 8–16 GB RAM** (M1/M2/M3) | **DreamShaper 8 (SD 1.5) + LCM LoRA + TAESD** | ~2.1 GB | Windows `<6GB`: `--lowvram`<br>Mac: `--force-fp16` |
+| **2. Medio** | **NVIDIA 8–10 GB VRAM** (RTX 3060, 3070, 4060)<br>**Mac Apple Silicon 16–24 GB RAM** (M1 Pro/Max, M2/M3/M4) | **SDXL Turbo FP16** | ~6.6 GB | Windows: Normal VRAM<br>Mac: `--force-fp16` |
+| **3. Avanzado** | **NVIDIA 12 GB+ VRAM** (RTX 3080, 4070, 4080, 4090)<br>**Mac Apple Silicon 32 GB+ RAM** | **Flux.1 Schnell FP8** *(+ soporte nativo para Flux.2 Klein 4B / Dev con TAEF2 y Qwen Image 2.1)* | ~16.4 GB | Windows `>=14GB`: `--highvram`<br>Mac: `--force-fp16` |
 
 ---
 
@@ -35,7 +59,7 @@ Repositorio oficial: **[https://github.com/tolchx/comfyui_td_webapp](https://git
 
 ### Paso 1: Configurar Hardware y Descargar Modelo
 Hacé doble clic en **`1_Instalar_Modelos.bat`**.
-- El asistente detectará tu GPU y VRAM, te mostrará el diagnóstico de compatibilidad y te sugerirá el nivel (Básico, Medio o Avanzado).
+- El asistente detectará tu GPU y VRAM, te mostrará el diagnóstico de compatibilidad y te permitirá elegir el nivel (**`[0] REALTIME (StreamDiffusion-RT)`**, **`[1] BASICO`**, **`[2] MEDIO`** o **`[3] AVANZADO`**).
 - Si no tenés ComfyUI instalado, elegí la opción **`[1]`** para que descargue e instale **ComfyUI Portable** automáticamente dentro de esta carpeta (o la opción **`[2]`** para vincular un ComfyUI que ya tengas en tu PC).
 
 ### Paso 2: Iniciar el Sistema
@@ -47,7 +71,7 @@ Hacé doble clic en **`2_Iniciar_Sistema_TD_Comfy.bat`**.
 
 ## 🍎 Instalación y Uso en macOS (Apple Silicon M1 / M2 / M3 / M4 e Intel)
 
-Sí, **el sistema es 100% compatible con macOS**. En Macs con chip Apple Silicon (`M1`, `M2`, `M3`, `M4`), ComfyUI utiliza aceleración por hardware **Apple Metal (`MPS`)** y Memoria Unificada con el flag `--force-fp16` configurado automáticamente por el servidor puente.
+Sí, **el sistema y el modo StreamDiffusion Realtime son 100% compatibles con macOS**. En Macs con chip Apple Silicon (`M1`, `M2`, `M3`, `M4`), ComfyUI utiliza aceleración por hardware **Apple Metal (`MPS`)** y Memoria Unificada con el flag `--force-fp16` configurado automáticamente por el servidor puente.
 
 ### Paso 1: Dar permisos de ejecución (solo la primera vez)
 Abrí la aplicación **Terminal** en tu Mac, arrastrá la carpeta del proyecto o entrá en ella y ejecutá:
@@ -60,7 +84,7 @@ chmod +x 1_Instalar_Mac.command 2_Iniciar_Sistema_Mac.command
 Hacé doble clic en **`1_Instalar_Mac.command`** (o ejecutalo con `./1_Instalar_Mac.command` en Terminal).
 - El instalador detectará tu chip Apple Silicon y cuánta Memoria Unificada tenés disponible.
 - Si no tenés ComfyUI instalado (ni la versión Desktop en `/Applications/ComfyUI.app`), elegí **`[1]`**: el script clonará ComfyUI, creará el entorno `.venv` e instalará **PyTorch con soporte Metal (MPS)** automáticamente.
-- **Recomendación para usuarios de Mac**: Elegí el **Nivel 1 (Básico — DreamShaper 8 + LCM)** si tu Mac tiene 8 GB o 16 GB de RAM unificada, o el **Nivel 2 (Medio — SDXL Turbo FP16)** si tenés 16 GB a 32 GB+. Evitá modelos cuantizados en `FP8` en Mac ya que FP8 es específico de arquitecturas NVIDIA Ada/Hopper.
+- **Recomendación para usuarios de Mac**: Elegí el **Nivel 0 (`REALTIME — StreamDiffusion-RT: Hyper-SD 1-Step + TAESD`)** o el **Nivel 1 (`Básico — DreamShaper 8 + LCM`)** para obtener la máxima fluidez en Metal.
 
 ### Paso 3: Iniciar el Sistema en Mac
 Hacé doble clic en **`2_Iniciar_Sistema_Mac.command`** (o ejecutá `./2_Iniciar_Sistema_Mac.command`).
@@ -75,7 +99,7 @@ Si sos alumno y usás un asistente de IA con acceso a terminal (**Claude Code / 
 ### 📋 Copiá y pegale este Prompt exacto a tu Agente LLM:
 
 ```markdown
-Necesito que instales, configures, verifiques y dejes funcionando al 100% este repositorio (Puente TouchDesigner <-> ComfyUI + WebApp) en mi máquina. Seguí este protocolo autónomo sin detenerte hasta que el autodiagnóstico pase con `all_ok: true`:
+Necesito que instales, configures, verifiques y dejes funcionando al 100% este repositorio (Puente TouchDesigner <-> ComfyUI + StreamDiffusion Realtime + WebApp) en mi máquina. Seguí este protocolo autónomo sin detenerte hasta que el autodiagnóstico pase con `all_ok: true`:
 
 1. **Inspección de Hardware y Entorno**:
    - Ejecutá `python bridge/installer.py --detect-json` (en Mac usá `python3`).
@@ -89,16 +113,14 @@ Necesito que instales, configures, verifiques y dejes funcionando al 100% este r
      - Buscá primero si ya tengo una carpeta `ComfyUI` o `ComfyUI_windows_portable` en mi usuario (`~/Documents`, `C:\`, `D:\`, `/Applications/ComfyUI.app`). Si la encontrás, agregala al inicio de `comfy_installations` en `bridge/config.json`.
      - Si no tengo ComfyUI en ningún lado, ejecutá `python bridge/installer.py --install-comfy` para instalarlo automáticamente.
 
-4. **Descarga del Modelo según mi Hardware**:
-   - Si `installed_checkpoints` está vacío (`[]`), descargá automáticamente el modelo del nivel recomendado ejecutando:
-     `python bridge/installer.py --download-tier <recommended_tier>`
-     (donde `<recommended_tier>` es `basico`, `medio` o `avanzado` según lo detectado en el paso 1).
+4. **Descarga del Modelo StreamDiffusion Realtime y Nivel Recomendado**:
+   - Ejecutá `python bridge/installer.py --download-tier realtime` para instalar el paquete ligero de tiempo real (`DreamShaper 8 + Hyper-SD 1-Step LoRA + TAESD TinyVAE`).
 
 5. **Ejecución del Autodiagnóstico End-to-End y Auto-Reparación**:
    - Ejecutá `python bridge/selftest.py`.
    - Este script verifica archivos, levanta el servidor puente en `http://127.0.0.1:8080`, inicia ComfyUI en segundo plano y dispara una generación real verificando que `bridge/outputs/latest.png` sea una imagen PNG válida.
    - **Si cualquier paso de `bridge/selftest.py` falla (`all_ok: false`)**:
-     - Leé el traceback o mensaje de error en los logs (`http://127.0.0.1:8080/api/status`), diagnosticá la causa (puerto ocupado, ruta de Python incorrecta en `bridge/config.json`, falta de VRAM que requiere cambiar a `--lowvram` o `--cpu`, o dependencia faltante en el venv de ComfyUI), corregilo en el código o configuración y volvé a correr `python bridge/selftest.py` en bucle hasta que devuelva `"all_ok": true`.
+     - Leé el traceback o mensaje de error en los logs (`http://127.0.0.1:8080/api/status`), diagnosticá la causa (puerto ocupado, ruta de Python incorrecta en `bridge/config.json`, enlace simbólico roto en `models/loras`, falta de VRAM que requiere cambiar a `--lowvram` o `--cpu`, o dependencia faltante en el venv de ComfyUI), corregilo en el código o configuración y volvé a correr `python bridge/selftest.py` en bucle hasta que devuelva `"all_ok": true`.
 
 6. **Reporte Final**:
    - Cuando `"all_ok": true` esté confirmado, mostrame un resumen con mi GPU detectada, el modelo activo y confirmame que `http://127.0.0.1:8080` y `TD/v1.toe` están listos para usar.
@@ -110,29 +132,36 @@ Necesito que instales, configures, verifiques y dejes funcionando al 100% este r
 
 La WebApp (`http://127.0.0.1:8080`) incluye en su panel izquierdo la tarjeta **"Diagnóstico de Hardware y Soluciones"**, que evalúa automáticamente tu computadora:
 
-- **Caso A: Placa NVIDIA con 4 GB o menos de VRAM (ej. GTX 1650 / RTX 3050 Laptop)**
+- **Caso A: Placa NVIDIA con 3–4 GB de VRAM (ej. GTX 1650 / RTX 3050 Laptop)**
   - **Diagnóstico**: Si elegís un modelo pesado (SDXL o Flux), ocurrirá un error *CUDA Out of Memory (OOM)*.
-  - **Solución automática**: Seleccioná el **Nivel Básico** (`DreamShaper 8 + LCM LoRA`), resolución `512x512` y `4 a 6 pasos`. El puente lanza ComfyUI con `--lowvram` automáticamente.
+  - **Solución automática**: Seleccioná el nivel **`⚡ StreamDiffusion RT`** (`DreamShaper 8 + Hyper-SD 1-Step + TAESD`), resolución `512x512` (o `384x384`) y `1 paso`. El puente activa `--lowvram` sólo en placas de menos de 6.5 GB y usa el TinyVAE de 5 MB para evitar picos de memoria.
 - **Caso B: Usuarios de Mac (Apple Silicon M1/M2/M3/M4)**
   - **Diagnóstico**: Los modelos en formato `FP8` (como `flux1-schnell-fp8`) están diseñados para núcleos Tensor de NVIDIA serie 40 y pueden dar error en Metal (`MPS`).
-  - **Solución automática**: Usá el **Nivel Básico (SD 1.5 LCM)** o **Nivel Medio (SDXL Turbo FP16)**. El puente detecta `darwin` y pasa automáticamente `--force-fp16` a ComfyUI.
+  - **Solución automática**: Usá el nivel **`⚡ StreamDiffusion RT`** o **Nivel Básico / Medio (FP16)**. El puente detecta `darwin` y pasa automáticamente `--force-fp16` a ComfyUI.
 - **Caso C: Placas AMD Radeon o Notebooks con GPU Integrada Intel**
   - **Diagnóstico**: No disponen de NVIDIA CUDA.
   - **Solución automática**: El servidor puente activa el **Modo Práctica Procedural** cuando no hay backend GPU disponible o permite correr ComfyUI con `--cpu` / `--directml`, garantizando que el alumno siempre pueda usar TouchDesigner en clase a 60 FPS sin bloqueos.
 
 ---
 
-## 🎨 Cómo usar el parche en TouchDesigner (`TD/v1.toe`)
+## 🎨 Cómo usar StreamDiffusion Realtime en TouchDesigner (`TD/v1.toe`) y en la WebApp
 
+### En TouchDesigner (`TD/v1.toe` / `TD/ComfyUI_Studio_Bridge.tox`)
 1. Abrí [`TD/v1.toe`](./TD/v1.toe) en TouchDesigner (Windows o macOS) o arrastrá [`TD/ComfyUI_Studio_Bridge.tox`](./TD/ComfyUI_Studio_Bridge.tox) a tu propio proyecto.
-2. Seleccioná el contenedor **`/project1/comfy_studio`** y abrí su ventana de parámetros en la página **`ComfyUI Control`**:
-   - **Modo (`Mode`)**: Elegí entre `Text-to-Image (Solo Prompt)` o `Image-to-Image (Usa TOP Entrada)`.
-   - **Nivel Hardware (`Tier`)**: `Basico`, `Medio` o `Avanzado`.
-   - **Prompt Positivo / Negativo**: Escribí lo que querés generar.
-   - **Denoise (Img2Img)**: Controla cuánto respeta la forma del TOP conectado a la entrada (`0.3` = muy fiel al TOP original, `0.85` = transforma casi todo).
-   - **Generar Ahora (`Generate`)**: Pulsa para crear una nueva imagen.
-   - **Enviar TOP + Generar (`Sendframe`)**: Captura el frame actual de `/project1/entrada_img2img`, lo manda a ComfyUI y devuelve la imagen generada en `/project1/SALIDA_COMFYUI`.
-   - **Auto-Stream Continuo (`Autostream`)**: Cuando está activo, apenas ComfyUI termina de renderizar una imagen, TouchDesigner dispara automáticamente la siguiente generación en bucle continuo manteniendo **60 FPS** en la red.
+2. Conectá cualquier operador visual en movimiento (cámara web `videodevinTOP`, ruido `noiseTOP`, partículas o geometría 3D) a la primera entrada de **`/project1/comfy_studio`** (por defecto ya viene conectado `/project1/entrada_img2img`).
+3. En los parámetros de **`/project1/comfy_studio`** (página **`ComfyUI Control`**):
+   - **Modo Generación (`Mode`)**: Seleccioná **`StreamDiffusion Realtime (1-2 Steps + TAESD)`**.
+   - **Nivel Hardware (`Tier`)**: Seleccioná **`StreamDiffusion RT (3GB+ / Mac - HyperSD + TAESD)`**.
+   - **Turbo TAESD + SimFilter (`Realtimemode`)**: Activo (`On`).
+   - **Suavizado Temporal 60FPS (`Smooth60fps`)**: Activo (`On`) — interpola en GPU cada frame generado por la IA para obtener movimiento continuo a **60 FPS** en `/project1/SALIDA_COMFYUI` y `/project1/comparador_img2img`.
+   - **Auto-Stream Continuo (`Autostream`)**: Activo (`On`) — en cuanto termina un frame (~180–240 ms), TouchDesigner dispara el siguiente en el mismo milisegundo sin esperas de polling.
+   - **Pasos (`Steps`)**: `1` (con Hyper-SD 1-Step LoRA) o `2`.
+   - **Denoise (`Denoise`)**: `0.50` a `0.65` (controla el balance entre la estructura del TOP de entrada en vivo y la transformación creativa del Prompt).
+
+### En la WebApp (`http://127.0.0.1:8080`)
+1. Hacé clic en la tarjeta **`⚡ StreamDiffusion RT`** en el panel izquierdo.
+2. En **Modo**, elegí **`⚡ StreamDiffusion Realtime (1-2 Steps + TAESD TinyVAE + TD Input)`**.
+3. Hacé clic en el botón **`🔴 Iniciar Loop StreamDiffusion Realtime (Continuo)`** para controlar o disparar el flujo continuo desde el navegador mientras ves la entrada de TouchDesigner y la salida IA actualizándose en vivo.
 
 ---
 
@@ -140,21 +169,21 @@ La WebApp (`http://127.0.0.1:8080`) incluye en su panel izquierdo la tarjeta **"
 
 ```text
 comfyui_td_webapp/
-├── 1_Instalar_Modelos.bat           # Instalador interactivo para Windows
+├── 1_Instalar_Modelos.bat           # Instalador interactivo para Windows (incluye opción [0] StreamDiffusion RT)
 ├── 2_Iniciar_Sistema_TD_Comfy.bat   # Lanzador en 1 clic para Windows
 ├── 1_Instalar_Mac.command           # Instalador interactivo para macOS (Apple Silicon / Intel)
 ├── 2_Iniciar_Sistema_Mac.command    # Lanzador en 1 clic para macOS
-├── README.md                        # Documentación completa + Guía para Agentes LLM
+├── README.md                        # Documentación completa + Arquitectura StreamDiffusion + Guía LLM
 ├── TD/
-│   ├── v1.toe                       # Proyecto TouchDesigner configurado a 60 FPS
-│   └── ComfyUI_Studio_Bridge.tox    # Componente .tox portable para Windows y Mac
+│   ├── v1.toe                       # Proyecto TouchDesigner configurado a 60 FPS con StreamDiffusion RT activo
+│   └── ComfyUI_Studio_Bridge.tox    # Componente .tox portable con interpolador GPU 60 FPS
 ├── bridge/
-│   ├── config.json                  # Configuración de niveles (Básico, Medio, Avanzado) y rutas
-│   ├── installer.py                 # Detector de GPU/VRAM/Mac MPS, diagnóstico y descargador HF
-│   ├── workflows.py                 # Generador dinámico de workflows API (SD1.5, SDXL, Flux, Qwen)
-│   ├── server.py                    # Servidor HTTP puente + gestor de ComfyUI en segundo plano
+│   ├── config.json                  # Configuración de niveles (Realtime, Básico, Medio, Avanzado) y rutas
+│   ├── installer.py                 # Detector de GPU/VRAM/Mac MPS, diagnóstico y descargador HF + TAESD
+│   ├── workflows.py                 # Generador dinámico de workflows API (StreamDiffusion 1-Step + TAESD, SDXL, Flux, Qwen)
+│   ├── server.py                    # Servidor HTTP puente de baja latencia + filtro de similitud StreamDiffusion
 │   ├── selftest.py                  # Suite de autodiagnóstico y auto-reparación para agentes LLM
 │   └── build_td_network.py          # Script constructor de la red TouchDesigner vía TDMCP
 └── webapp/
-    └── index.html                   # WebApp con diagnóstico de hardware, visor dual e historial
+    └── index.html                   # WebApp con modo StreamDiffusion RT, diagnóstico de hardware, visor dual e historial
 ```

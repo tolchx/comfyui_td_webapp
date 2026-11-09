@@ -76,6 +76,12 @@ class BridgeState:
         self.comfy_logs: list[str] = []
         self.gpu_cache = installer.detect_gpu()
         self.gpu_cache_ts = time.time()
+        self.models_cache: dict | None = None
+        self.models_cache_ts: float = 0.0
+        self.online_cache: tuple[bool, dict] = (False, {})
+        self.online_cache_ts: float = 0.0
+        self.last_input_signature: list[int] | None = None
+        self.skipped_identical_frames: int = 0
 
         # Asegurar una imagen inicial latest.png para que TouchDesigner nunca falle al cargar
         if not LATEST_IMG_PATH.exists():
@@ -120,8 +126,11 @@ class BridgeState:
         port = self.cfg.get("comfy_port", 8188)
         return f"http://{host}:{port}"
 
-    def check_comfy_online(self) -> tuple[bool, dict]:
-        """Verifica si ComfyUI responde en su puerto HTTP."""
+    def check_comfy_online(self, force: bool = False) -> tuple[bool, dict]:
+        """Verifica si ComfyUI responde en su puerto HTTP (con caché de 2.5s para no frenar el loop Realtime)."""
+        now = time.time()
+        if not force and self.online_cache[0] and (now - self.online_cache_ts < 2.5):
+            return self.online_cache
         for port in [self.cfg.get("comfy_port", 8188), 8000, 8188]:
             url = f"http://127.0.0.1:{port}/system_stats"
             try:
@@ -131,15 +140,22 @@ class BridgeState:
                         data = json.loads(resp.read().decode("utf-8"))
                         if self.cfg.get("comfy_port") != port:
                             self.cfg["comfy_port"] = port
+                        self.online_cache = (True, data)
+                        self.online_cache_ts = now
                         return True, data
             except Exception:
                 continue
+        self.online_cache = (False, {})
+        self.online_cache_ts = now
         return False, {}
 
-    def get_comfy_available_models(self) -> dict:
-        """Consulta /object_info de ComfyUI para saber exactamente qué checkpoints y LoRAs están disponibles."""
+    def get_comfy_available_models(self, force: bool = False) -> dict:
+        """Consulta /object_info de ComfyUI con caché de 15s para eliminar latencia HTTP entre frames Realtime."""
+        now = time.time()
+        if not force and self.models_cache and (now - self.models_cache_ts < 15.0) and self.models_cache.get("checkpoints"):
+            return self.models_cache
         base = self.comfy_base_url()
-        result = {"checkpoints": [], "unet": [], "loras": []}
+        result = {"checkpoints": [], "unet": [], "loras": [], "vaes": []}
         try:
             with urllib.request.urlopen(f"{base}/object_info/CheckpointLoaderSimple", timeout=2.0) as r:
                 d = json.loads(r.read().decode("utf-8"))
@@ -164,6 +180,16 @@ class BridgeState:
                     result["loras"] = loras
         except Exception:
             pass
+        try:
+            with urllib.request.urlopen(f"{base}/object_info/VAELoader", timeout=2.0) as r:
+                d = json.loads(r.read().decode("utf-8"))
+                vaes = d.get("VAELoader", {}).get("input", {}).get("required", {}).get("vae_name", [[]])[0]
+                if isinstance(vaes, list):
+                    result["vaes"] = vaes
+        except Exception:
+            pass
+        self.models_cache = result
+        self.models_cache_ts = now
         return result
 
     def start_comfy_background(self) -> dict:
@@ -186,6 +212,7 @@ class BridgeState:
             "  checkpoints: checkpoints",
             "  loras: loras",
             "  vae: vae",
+            "  vae_approx: vae_approx",
             "  unet: unet",
             "  diffusion_models: diffusion_models",
             "  text_encoders: text_encoders",
@@ -215,7 +242,13 @@ class BridgeState:
         elif gpu_info.get("vendor") not in ("nvidia", "apple_mps"):
             flags = ["--cpu"]
         else:
-            flags = list(tier_cfg.get("comfy_flags", []))
+            vram_gb = float(gpu_info.get("vram_gb", 0.0))
+            if vram_gb >= 14.0:
+                flags = ["--highvram"]
+            elif vram_gb >= 6.5:
+                flags = []
+            else:
+                flags = [f for f in tier_cfg.get("comfy_flags", ["--lowvram"]) if f != "--normalvram"]
         port = self.cfg.get("comfy_port", 8188)
 
         cmd = [
@@ -262,6 +295,29 @@ class BridgeState:
                 if "To see the GUI go to" in clean:
                     self.comfy_starting = False
         self.comfy_starting = False
+
+    def compute_frame_similarity_drop(self, img_path: Path, prompt: str, threshold: float = 0.012) -> bool:
+        """
+        Implementa el 'Stochastic Similarity Filter' de StreamDiffusion (cumulo-autumn/streamdiffusion):
+        Si el frame entrante desde TouchDesigner y el prompt casi no cambiaron respecto al último frame procesado,
+        se evita re-ejecutar el UNET innecesariamente, ahorrando GPU y energía en máquinas de bajos recursos.
+        """
+        if not HAS_PIL or not img_path.exists():
+            return False
+        try:
+            small = Image.open(img_path).convert("RGB").resize((16, 16), Image.Resampling.BILINEAR)
+            sig = list(small.tobytes()) + list(prompt.encode("utf-8")[:32])
+            if self.last_input_signature is not None and len(sig) == len(self.last_input_signature):
+                img_len = 16 * 16 * 3
+                diff = sum(abs(a - b) for a, b in zip(sig[:img_len], self.last_input_signature[:img_len])) / (img_len * 255.0)
+                same_prompt = sig[img_len:] == self.last_input_signature[img_len:]
+                if same_prompt and diff < threshold:
+                    self.skipped_identical_frames += 1
+                    return True
+            self.last_input_signature = sig
+        except Exception:
+            pass
+        return False
 
     def render_procedural_image(
         self,
@@ -346,6 +402,14 @@ STATE = BridgeState()
 
 def _upload_image_to_comfy(base_url: str, img_path: Path) -> str | None:
     """Sube un PNG al endpoint /upload/image de ComfyUI para usarlo en LoadImage (img2img)."""
+    inst = installer.resolve_comfy_installation(STATE.cfg)
+    if inst:
+        local_in_dir = Path(inst["main_py"]).parent / "input"
+        if local_in_dir.exists():
+            target = local_in_dir / "td_in_live.png"
+            target.write_bytes(img_path.read_bytes())
+            return "td_in_live.png"
+
     boundary = f"----TDBridgeBoundary{uuid.uuid4().hex}"
     filename = f"td_in_{int(time.time()*1000)}.png"
     file_bytes = img_path.read_bytes()
@@ -389,11 +453,25 @@ def _execute_generation_worker(job: dict):
     if seed < 0:
         seed = int(time.time() * 1000) % 999999999
     denoise = float(job["denoise"])
-    mode = job["mode"]  # txt2img o img2img
+    mode = job["mode"]  # txt2img, img2img o streamdiffusion_rt
+    is_rt = (mode == "streamdiffusion_rt") or (tier_id == "realtime") or bool(job.get("realtime_mode"))
+    use_img_input = (mode in ("img2img", "streamdiffusion_rt")) and LATEST_INPUT_PATH.exists()
+
+    # Stochastic Similarity Filter (StreamDiffusion): si está en auto-stream realtime y el frame no cambió, reusar salida
+    if is_rt and use_img_input and job.get("similarity_filter", False):
+        if STATE.compute_frame_similarity_drop(LATEST_INPUT_PATH, prompt):
+            with STATE.lock:
+                STATE.status_state = "READY"
+                STATE.active_job = None
+            return
+
+    if is_rt and seed == int(time.time() * 1000) % 999999999:
+        # En modo StreamDiffusion Realtime, si el usuario dejó seed=-1, fijamos semilla coherente para evitar parpadeo
+        seed = 424242
 
     online, _ = STATE.check_comfy_online()
     used_backend = "comfyui"
-    out_filename = f"gen_{int(time.time())}_{seed}.png"
+    out_filename = f"gen_{int(time.time() * 1000)}_{seed}.png"
     out_path = OUTPUTS_DIR / out_filename
 
     try:
@@ -403,7 +481,11 @@ def _execute_generation_worker(job: dict):
             all_ckpts = avail["checkpoints"] + avail["unet"]
 
             # Determinar qué checkpoint usar
-            chosen_ckpt = job.get("checkpoint") or tier_cfg.get("checkpoint")
+            # En modo StreamDiffusion Realtime (o tier 'realtime'), priorizar siempre el pipeline 1-Step SD1.5 + Hyper-SD + TAESD
+            if is_rt and not job.get("checkpoint") and "DreamShaper_8_pruned.safetensors" in all_ckpts:
+                chosen_ckpt = "DreamShaper_8_pruned.safetensors"
+            else:
+                chosen_ckpt = job.get("checkpoint") or tier_cfg.get("checkpoint")
             if chosen_ckpt not in all_ckpts:
                 # Si tiene Flux.2 Klein 4B o Qwen Image 2.1 o Flux.2 Dev instalados localmente, usarlos automáticamente
                 if "flux-2-klein-4b.safetensors" in all_ckpts:
@@ -421,7 +503,7 @@ def _execute_generation_worker(job: dict):
 
             if chosen_ckpt:
                 uploaded_name = None
-                if mode == "img2img" and LATEST_INPUT_PATH.exists():
+                if use_img_input:
                     uploaded_name = _upload_image_to_comfy(base_url, LATEST_INPUT_PATH)
 
                 wf = workflows.build_workflow(
@@ -438,6 +520,8 @@ def _execute_generation_worker(job: dict):
                     input_image_name=uploaded_name,
                     checkpoint_override=chosen_ckpt,
                     available_loras=avail["loras"],
+                    available_vaes=avail.get("vaes", []),
+                    realtime_mode=is_rt,
                 )
 
                 payload = json.dumps({"prompt": wf, "client_id": STATE.client_id}).encode("utf-8")
@@ -451,11 +535,12 @@ def _execute_generation_worker(job: dict):
                     p_res = json.loads(resp.read().decode("utf-8"))
                     prompt_id = p_res["prompt_id"]
 
-                # Esperar resultado en /history/<prompt_id>
+                # Esperar resultado en /history/<prompt_id> (intervalo de 15ms en modo StreamDiffusion Realtime)
                 img_bytes = None
+                poll_sleep = 0.015 if is_rt else 0.20
                 deadline = time.time() + 180.0
                 while time.time() < deadline:
-                    time.sleep(0.35)
+                    time.sleep(poll_sleep)
                     with urllib.request.urlopen(f"{base_url}/history/{prompt_id}", timeout=5) as h_resp:
                         h_data = json.loads(h_resp.read().decode("utf-8"))
                         if prompt_id in h_data:
@@ -476,7 +561,8 @@ def _execute_generation_worker(job: dict):
                 if img_bytes:
                     out_path.write_bytes(img_bytes)
                     LATEST_IMG_PATH.write_bytes(img_bytes)
-                    used_backend = f"ComfyUI ({chosen_ckpt})"
+                    rt_tag = " [StreamDiffusion-RT + TAESD]" if is_rt else ""
+                    used_backend = f"ComfyUI ({chosen_ckpt}){rt_tag}"
                 else:
                     raise RuntimeError("Tiempo de espera agotado esperando imagen de ComfyUI.")
             else:
@@ -531,7 +617,17 @@ def _execute_generation_worker(job: dict):
                 "source": job.get("source", "webapp"),
             }
             STATE.history.insert(0, entry)
-            STATE.save_history()
+            if len(STATE.history) > 80:
+                for old_item in STATE.history[80:]:
+                    old_f = OUTPUTS_DIR / old_item.get("filename", "")
+                    if old_f.exists() and old_f.name.startswith("gen_"):
+                        try:
+                            old_f.unlink()
+                        except Exception:
+                            pass
+                STATE.history = STATE.history[:80]
+            if not is_rt or (STATE.generation_counter % 5 == 0):
+                STATE.save_history()
             STATE.active_job = None
 
     except Exception as e:
@@ -553,26 +649,34 @@ class BridgeHTTPHandler(BaseHTTPRequestHandler):
 
     def _send_json(self, data: dict | list, status: int = 200):
         raw = json.dumps(data, ensure_ascii=False).encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(raw)))
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Cache-Control", "no-store")
-        self.end_headers()
-        self.wfile.write(raw)
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(raw)))
+            self.send_header("Connection", "close")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(raw)
+        except (ConnectionAbortedError, BrokenPipeError, ConnectionResetError):
+            pass
 
     def _send_file(self, path: Path, content_type: str):
         if not path.exists():
             self.send_error(404, "Archivo no encontrado")
             return
         data = path.read_bytes()
-        self.send_response(200)
-        self.send_header("Content-Type", content_type)
-        self.send_header("Content-Length", str(len(data)))
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Cache-Control", "no-cache")
-        self.end_headers()
-        self.wfile.write(data)
+        try:
+            self.send_response(200)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Connection", "close")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            self.wfile.write(data)
+        except (ConnectionAbortedError, BrokenPipeError, ConnectionResetError):
+            pass
 
     def do_OPTIONS(self):
         self.send_response(204)
@@ -592,13 +696,14 @@ class BridgeHTTPHandler(BaseHTTPRequestHandler):
         if route == "/api/td_poll":
             online, _ = STATE.check_comfy_online()
             latest = STATE.history[0] if STATE.history else None
+            latest_file_path = str(OUTPUTS_DIR / latest["filename"]) if (latest and latest.get("filename")) else str(LATEST_IMG_PATH)
             self._send_json({
                 "ok": True,
                 "state": STATE.status_state,
                 "comfy_online": 1 if online else 0,
                 "generation_id": STATE.generation_counter,
                 "latency_ms": STATE.last_latency_ms,
-                "latest_file": str(LATEST_IMG_PATH),
+                "latest_file": latest_file_path,
                 "latest_url": f"http://127.0.0.1:{STATE.cfg.get('bridge_port', 8080)}/api/latest.png?v={STATE.generation_counter}",
                 "latest_prompt": latest["prompt"] if latest else "",
                 "tier": STATE.cfg.get("active_tier", "basico"),
@@ -724,12 +829,31 @@ class BridgeHTTPHandler(BaseHTTPRequestHandler):
                     "steps": int(payload.get("steps") or tier_cfg.get("default_steps", 6)),
                     "cfg": float(payload.get("cfg") or tier_cfg.get("default_cfg", 1.8)),
                     "seed": int(payload.get("seed") if payload.get("seed") is not None else -1),
-                    "denoise": float(payload.get("denoise") if payload.get("denoise") is not None else 0.75),
+                    "denoise": float(payload.get("denoise") if payload.get("denoise") is not None else 0.65),
                     "checkpoint": payload.get("checkpoint") or None,
+                    "realtime_mode": bool(payload.get("realtime_mode", False)),
+                    "similarity_filter": bool(payload.get("similarity_filter", False)),
                     "source": str(payload.get("source") or "webapp"),
                 }
                 STATE.active_job = job
                 STATE.status_state = "QUEUED"
+                is_sync_td_rt = bool(job.get("realtime_mode")) and (job.get("source") == "touchdesigner")
+
+            if is_sync_td_rt:
+                _execute_generation_worker(job)
+                latest = STATE.history[0] if STATE.history else None
+                latest_file_path = str(OUTPUTS_DIR / latest["filename"]) if (latest and latest.get("filename")) else str(LATEST_IMG_PATH)
+                self._send_json({
+                    "ok": True,
+                    "state": STATE.status_state,
+                    "comfy_online": 1,
+                    "generation_id": STATE.generation_counter,
+                    "latency_ms": STATE.last_latency_ms,
+                    "latest_file": latest_file_path,
+                    "latest_prompt": latest["prompt"] if latest else "",
+                    "tier": STATE.cfg.get("active_tier", "realtime"),
+                })
+                return
 
             threading.Thread(target=_execute_generation_worker, args=(job,), daemon=True).start()
             self._send_json({"ok": True, "status": "QUEUED", "job": job})

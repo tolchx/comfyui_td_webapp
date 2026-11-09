@@ -134,7 +134,7 @@
 
     .tier-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(2, 1fr);
       gap: 8px;
     }
     .tier-card {
@@ -391,6 +391,11 @@
         </div>
 
         <div class="tier-grid">
+          <div class="tier-card" id="tier-realtime" onclick="selectTier('realtime')">
+            <strong>⚡ StreamDiffusion RT</strong>
+            <small>3+ GB VRAM / Mac 8GB</small>
+            <small style="color:var(--green);margin-top:2px;">1-Step + TAESD TinyVAE</small>
+          </div>
           <div class="tier-card" id="tier-basico" onclick="selectTier('basico')">
             <strong>Básico</strong>
             <small>4–6 GB VRAM</small>
@@ -438,6 +443,7 @@
           <select id="modeSelect" onchange="updateModeBadge()">
             <option value="txt2img">Text-to-Image (Solo texto)</option>
             <option value="img2img">Image-to-Image (Usa textura enviada desde TouchDesigner)</option>
+            <option value="streamdiffusion_rt">⚡ StreamDiffusion Realtime (1-2 Steps + TAESD TinyVAE + TD Input)</option>
           </select>
         </div>
 
@@ -465,25 +471,28 @@
         <div class="row-3">
           <div>
             <label for="stepsInput">Pasos (Steps)</label>
-            <input id="stepsInput" type="number" min="1" max="50" value="6" />
+            <input id="stepsInput" type="number" min="1" max="50" value="1" />
           </div>
           <div>
             <label for="cfgInput">CFG Scale</label>
-            <input id="cfgInput" type="number" step="0.1" value="1.8" />
+            <input id="cfgInput" type="number" step="0.1" value="1.0" />
           </div>
           <div>
-            <label for="denoiseInput">Denoise (Img2Img)</label>
-            <input id="denoiseInput" type="number" step="0.05" min="0.05" max="1.0" value="0.75" />
+            <label for="denoiseInput">Denoise (Img2Img / RT)</label>
+            <input id="denoiseInput" type="number" step="0.05" min="0.05" max="1.0" value="0.55" />
           </div>
         </div>
 
         <div>
-          <label for="seedInput">Semilla (Seed: -1 = Aleatorio)</label>
-          <input id="seedInput" type="number" value="-1" />
+          <label for="seedInput">Semilla (Seed: 424242 = Fija RT / -1 = Aleatorio)</label>
+          <input id="seedInput" type="number" value="424242" />
         </div>
 
         <button id="btnGenerate" class="btn" onclick="triggerGenerate()">
           ⚡ Generar Imagen (Se actualiza en TouchDesigner)
+        </button>
+        <button id="btnRtLoop" class="btn btn-secondary" style="margin-top:8px; border-color:var(--accent); color:var(--accent);" onclick="toggleWebRealtimeLoop()">
+          🔴 Iniciar Loop StreamDiffusion Realtime (Continuo)
         </button>
       </section>
 
@@ -539,13 +548,39 @@
 
   <script>
     let currentGenId = -1;
-    let currentTier = 'basico';
+    let currentTier = 'realtime';
     let tiersMeta = {};
     let knownModels = [];
+    let webRtLoopActive = false;
+
+    function toggleWebRealtimeLoop() {
+      webRtLoopActive = !webRtLoopActive;
+      const btn = document.getElementById('btnRtLoop');
+      if (webRtLoopActive) {
+        document.getElementById('modeSelect').value = 'streamdiffusion_rt';
+        updateModeBadge();
+        btn.style.background = 'rgba(34, 197, 94, 0.2)';
+        btn.style.borderColor = 'var(--green)';
+        btn.style.color = 'var(--green)';
+        btn.textContent = '🟢 Loop StreamDiffusion Realtime ACTIVO (Click para detener)';
+        triggerGenerate();
+      } else {
+        btn.style.background = '';
+        btn.style.borderColor = 'var(--accent)';
+        btn.style.color = 'var(--accent)';
+        btn.textContent = '🔴 Iniciar Loop StreamDiffusion Realtime (Continuo)';
+      }
+    }
 
     function updateModeBadge() {
       const m = document.getElementById('modeSelect').value;
       document.getElementById('modeBadge').textContent = m.toUpperCase();
+      if (m === 'streamdiffusion_rt') {
+        document.getElementById('stepsInput').value = 2;
+        document.getElementById('cfgInput').value = 1.0;
+        document.getElementById('denoiseInput').value = 0.65;
+        document.getElementById('seedInput').value = 424242;
+      }
     }
 
     async function selectTier(tierId) {
@@ -607,6 +642,7 @@
         denoise: parseFloat(document.getElementById('denoiseInput').value),
         seed: parseInt(document.getElementById('seedInput').value, 10),
         checkpoint: document.getElementById('ckptSelect').value || null,
+        realtime_mode: (document.getElementById('modeSelect').value === 'streamdiffusion_rt' || currentTier === 'realtime'),
         source: 'webapp'
       };
 
@@ -779,12 +815,17 @@
           if (st.latest) {
             document.getElementById('latestBackendLabel').textContent = st.latest.backend || '';
           }
-          loadHistory();
+          if (currentGenId % 4 === 0 || !webRtLoopActive) {
+            loadHistory();
+          }
+        }
+        if (webRtLoopActive && (st.state === 'READY' || st.state === 'IDLE')) {
+          triggerGenerate();
         }
       } catch (e) {}
     }
 
-    setInterval(pollStatus, 1200);
+    setInterval(pollStatus, 350);
     pollStatus();
     loadHistory();
   </script>

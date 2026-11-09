@@ -24,9 +24,12 @@ def build_workflow(
     input_image_name: str | None = None,
     checkpoint_override: str | None = None,
     available_loras: list[str] | None = None,
+    available_vaes: list[str] | None = None,
+    realtime_mode: bool = False,
 ) -> dict:
     if seed is None or int(seed) < 0:
-        seed = random.randint(1, 2**48 - 1)
+        # En modo StreamDiffusion Realtime, mantenemos una semilla determinista (424242) para evitar flicker entre frames
+        seed = 424242 if realtime_mode else random.randint(1, 2**48 - 1)
     else:
         seed = int(seed)
 
@@ -36,6 +39,7 @@ def build_workflow(
     cfg = float(cfg)
     denoise = max(0.05, min(1.0, float(denoise)))
 
+    is_rt = realtime_mode or (tier_id == "realtime") or bool(tier_cfg.get("use_taesd"))
     ckpt = checkpoint_override or tier_cfg.get("checkpoint", "DreamShaper_8_pruned.safetensors")
 
     # Caso especial 1: Qwen Image 2.1 (instalado en E:\video_creator_minimax\models)
@@ -45,7 +49,7 @@ def build_workflow(
             negative_prompt=negative_prompt,
             width=width,
             height=height,
-            steps=steps,
+            steps=2 if is_rt else steps,
             cfg=cfg,
             seed=seed,
             denoise=denoise,
@@ -54,21 +58,39 @@ def build_workflow(
 
     # Caso especial 2: Flux.2 Klein 4B o Flux.2 Dev FP8
     if "flux2" in ckpt.lower() or "flux-2" in ckpt.lower():
+        use_taef2 = is_rt and available_vaes and ("taef2" in available_vaes)
         return _build_flux2_workflow(
             unet_name="flux-2-klein-4b.safetensors" if "klein" in ckpt.lower() else "flux2_dev_fp8mixed.safetensors",
             clip_name="qwen_3_4b.safetensors" if "klein" in ckpt.lower() else "mistral_3_small_flux2_bf16.safetensors",
+            vae_name="taef2" if use_taef2 else "flux2-vae.safetensors",
             prompt=prompt,
             width=width,
             height=height,
-            steps=steps,
+            steps=max(2, min(4, steps)) if is_rt else steps,
             seed=seed,
             denoise=denoise,
             input_image_name=input_image_name,
+            realtime_mode=is_rt,
         )
 
     sampler_name = tier_cfg.get("sampler_name", "euler")
     scheduler = tier_cfg.get("scheduler", "normal")
     lora_name = tier_cfg.get("lora")
+
+    if is_rt:
+        # En modo StreamDiffusion Realtime: preferir Hyper-SD 1-Step LoRA o LCM LoRA con 1 paso y CFG=1.0
+        if available_loras and "Hyper-SD15-1step-lora.safetensors" in available_loras:
+            lora_name = "Hyper-SD15-1step-lora.safetensors"
+            steps = 1
+            cfg = 1.0
+            sampler_name = "lcm"
+            scheduler = "sgm_uniform"
+        elif available_loras and "lcm_lora_sd15.safetensors" in available_loras:
+            lora_name = "lcm_lora_sd15.safetensors"
+            steps = min(steps, 2)
+            cfg = 1.0
+            sampler_name = "lcm"
+            scheduler = "sgm_uniform"
 
     # Si el LoRA configurado no está instalado aún, usar euler_ancestral directo sin LoRA
     if lora_name and available_loras is not None and lora_name not in available_loras:
@@ -76,8 +98,8 @@ def build_workflow(
         if sampler_name == "lcm":
             sampler_name = "euler_ancestral"
             scheduler = "normal"
-            steps = max(steps, 12)
-            cfg = max(cfg, 6.0)
+            steps = max(steps, 8)
+            cfg = max(cfg, 4.0)
 
     workflow = {}
 
@@ -90,6 +112,16 @@ def build_workflow(
     model_ref = ["1", 0]
     clip_ref = ["1", 1]
     vae_ref = ["1", 2]
+
+    # 1b. StreamDiffusion TAESD (Tiny AutoEncoder) para decodificación/codificación instantánea sin cuello de botella de VRAM
+    if is_rt and available_vaes:
+        tae_target = "taesdxl" if "xl" in ckpt.lower() else ("taef1" if "flux1" in ckpt.lower() else "taesd")
+        if tae_target in available_vaes:
+            workflow["99"] = {
+                "class_type": "VAELoader",
+                "inputs": {"vae_name": tae_target},
+            }
+            vae_ref = ["99", 0]
 
     # 2. Optional LoRA Loader (ej. LCM LoRA en Tier Básico)
     if lora_name:
@@ -186,14 +218,20 @@ def build_workflow(
         },
     }
 
-    # 8. SaveImage
-    workflow["8"] = {
-        "class_type": "SaveImage",
-        "inputs": {
-            "filename_prefix": "TD_Comfy_Course",
-            "images": ["7", 0],
-        },
-    }
+    # 8. SaveImage (en modo StreamDiffusion Realtime usa PreviewImage con compress_level=1 para ahorrar ~75ms de CPU PNG)
+    if is_rt:
+        workflow["8"] = {
+            "class_type": "PreviewImage",
+            "inputs": {"images": ["7", 0]},
+        }
+    else:
+        workflow["8"] = {
+            "class_type": "SaveImage",
+            "inputs": {
+                "filename_prefix": "TD_Comfy_Course",
+                "images": ["7", 0],
+            },
+        }
 
     return workflow
 
@@ -313,12 +351,14 @@ def _build_flux2_workflow(
     input_image_name: str | None = None,
     unet_name: str = "flux-2-klein-4b.safetensors",
     clip_name: str = "qwen_3_4b.safetensors",
+    vae_name: str = "flux2-vae.safetensors",
+    realtime_mode: bool = False,
 ) -> dict:
-    """Workflow nativo para Flux.2 Klein 4B o Flux.2 Dev FP8."""
+    """Workflow nativo para Flux.2 Klein 4B o Flux.2 Dev FP8 (con soporte TAESD/TAEF2 y Low-Steps Realtime)."""
     wf = {
         "10": {
             "class_type": "VAELoader",
-            "inputs": {"vae_name": "flux2-vae.safetensors"},
+            "inputs": {"vae_name": vae_name},
         },
         "12": {
             "class_type": "UNETLoader",
@@ -346,39 +386,21 @@ def _build_flux2_workflow(
             "class_type": "FluxGuidance",
             "inputs": {
                 "conditioning": ["6", 0],
-                "guidance": 3.5,
-            },
-        },
-        "22": {
-            "class_type": "BasicGuider",
-            "inputs": {
-                "model": ["12", 0],
-                "conditioning": ["26", 0],
-            },
-        },
-        "16": {
-            "class_type": "KSamplerSelect",
-            "inputs": {"sampler_name": "euler"},
-        },
-        "25": {
-            "class_type": "RandomNoise",
-            "inputs": {"noise_seed": seed},
-        },
-        "48": {
-            "class_type": "Flux2Scheduler",
-            "inputs": {
-                "steps": max(4, steps),
-                "width": width,
-                "height": height,
+                "guidance": 2.2 if realtime_mode else 3.5,
             },
         },
         "13": {
-            "class_type": "SamplerCustomAdvanced",
+            "class_type": "KSampler",
             "inputs": {
-                "noise": ["25", 0],
-                "guider": ["22", 0],
-                "sampler": ["16", 0],
-                "sigmas": ["48", 0],
+                "seed": seed,
+                "steps": max(2, steps) if realtime_mode else max(4, steps),
+                "cfg": 1.0,
+                "sampler_name": "euler",
+                "scheduler": "simple",
+                "denoise": denoise if input_image_name else 1.0,
+                "model": ["12", 0],
+                "positive": ["26", 0],
+                "negative": ["6", 0],
                 "latent_image": ["47", 0],
             },
         },

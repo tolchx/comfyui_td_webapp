@@ -163,7 +163,7 @@ def diagnose_hardware_compatibility(gpu: dict, active_tier: str, comfy_inst: dic
     """
     vendor = gpu.get("vendor", "cpu_integrated")
     vram_gb = float(gpu.get("vram_gb", 0.0))
-    tier_min = {"basico": 4.0, "medio": 8.0, "avanzado": 12.0}.get(active_tier, 4.0)
+    tier_min = {"realtime": 3.0, "basico": 4.0, "medio": 8.0, "avanzado": 12.0}.get(active_tier, 4.0)
 
     issues = []
     solutions = []
@@ -434,8 +434,20 @@ def ensure_tier_models(cfg: dict, tier_id: str, auto_yes: bool = False) -> dict:
     results = []
     for f_spec in tier.get("files", []):
         target_dir = models_dir / f_spec["subdir"]
+        if not target_dir.exists():
+            # Si target_dir es un enlace roto (broken junction/symlink), buscar en extra_models_dirs
+            for extra in cfg.get("extra_models_dirs", []):
+                ep = Path(os.path.expanduser(extra))
+                cand = ep / f_spec["subdir"]
+                if cand.exists():
+                    target_dir = cand
+                    break
+                cand2 = ep / "models" / f_spec["subdir"]
+                if cand2.exists():
+                    target_dir = cand2
+                    break
         target_path = target_dir / f_spec["filename"]
-        if target_path.exists() and target_path.stat().st_size > 10 * 1024 * 1024:
+        if target_path.exists() and target_path.stat().st_size > 1 * 1024 * 1024:
             print(f"  [OK] Modelo ya instalado: {f_spec['filename']} ({f_spec['size_mb']} MB)")
             results.append({"file": f_spec["filename"], "status": "installed", "path": str(target_path)})
             continue
@@ -521,15 +533,16 @@ def interactive_wizard() -> None:
                 inst = resolve_comfy_installation(cfg)
 
     print("\nSeleccioná el Nivel de Hardware / Modelo a configurar:")
-    print("  [1] BASICO   (4-6GB VRAM / Mac 8-16GB) -> DreamShaper 8 (SD 1.5) + LCM LoRA (2.1 GB, ultra rápido)")
+    print("  [0] REALTIME (3GB+ VRAM / Mac 8GB+)    -> StreamDiffusion-RT: DreamShaper 8 + Hyper-SD 1-Step + TAESD TinyVAE")
+    print("  [1] BASICO   (4-6GB VRAM / Mac 8-16GB) -> DreamShaper 8 (SD 1.5) + LCM LoRA + TAESD (2.1 GB, ultra rápido)")
     print("  [2] MEDIO    (8-10GB VRAM / Mac 16GB+) -> SDXL Turbo FP16 (6.6 GB, 4 pasos en alta velocidad)")
     print("  [3] AVANZADO (12GB+ VRAM NVIDIA)       -> Flux.1 Schnell FP8 (16.4 GB, máxima calidad)")
     print("  [4] Saltar descarga de modelos por ahora (usar modelos ya instalados o Modo Práctica)")
 
-    default_opt = {"basico": "1", "medio": "2", "avanzado": "3"}.get(rec_tier, "1")
+    default_opt = {"realtime": "0", "basico": "1", "medio": "2", "avanzado": "3"}.get(rec_tier, "0")
     sel = input(f"\nOpción [Enter para sugerido = {default_opt}]: ").strip() or default_opt
 
-    tier_map = {"1": "basico", "2": "medio", "3": "avanzado"}
+    tier_map = {"0": "realtime", "1": "basico", "2": "medio", "3": "avanzado"}
     if sel in tier_map:
         chosen_tier = tier_map[sel]
         cfg["active_tier"] = chosen_tier
