@@ -1557,6 +1557,12 @@ class Trellis3DHandler(BaseHTTPRequestHandler):
 
 def main() -> None:
     global STUDIO3D
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+        sys.stderr.reconfigure(line_buffering=True)
+    except Exception:
+        pass
+
     parser = argparse.ArgumentParser(description="Módulo 3: TRELLIS v2 + Hunyuan 3D Local Studio")
     parser.add_argument("--port", type=int, default=8082)
     args = parser.parse_args()
@@ -1565,13 +1571,22 @@ def main() -> None:
     ThreadingHTTPServer.allow_reuse_address = True
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Trellis3DHandler)
     server.daemon_threads = True
-    print("==================================================================")
-    print(" MÓDULO 3: TRELLIS v2 + Hunyuan 3D Local Studio Activo")
-    print(f" URL WebApp : http://127.0.0.1:{args.port}")
-    print(f" GPU        : {STUDIO3D.gpu.get('name', 'CPU')} ({STUDIO3D.gpu.get('vram_gb', 0)} GB VRAM)")
-    print(f" Motor Sug. : {STUDIO3D.recommended_engine}")
-    print("==================================================================")
-    server.serve_forever()
+    print("==================================================================", flush=True)
+    print(" MÓDULO 3: TRELLIS v2 + Hunyuan 3D Local Studio Activo", flush=True)
+    print(f" URL WebApp : http://127.0.0.1:{args.port}", flush=True)
+    print(f" GPU        : {STUDIO3D.gpu.get('name', 'CPU')} ({STUDIO3D.gpu.get('vram_gb', 0)} GB VRAM)", flush=True)
+    print(f" Motor Sug. : {STUDIO3D.recommended_engine}", flush=True)
+    print("==================================================================", flush=True)
+
+    while True:
+        try:
+            server.serve_forever()
+        except (KeyboardInterrupt, SystemExit):
+            break
+        except Exception as e:
+            print(f"Error en serve_forever: {e}", file=sys.stderr, flush=True)
+            traceback.print_exc()
+            time.sleep(1)
 
 
 if __name__ == "__main__":

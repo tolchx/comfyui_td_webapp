@@ -719,6 +719,12 @@ class StreamStudioHandler(BaseHTTPRequestHandler):
 
 def main() -> None:
     global STUDIO
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+        sys.stderr.reconfigure(line_buffering=True)
+    except Exception:
+        pass
+
     parser = argparse.ArgumentParser(description="StreamDiffusionV2 + ComfyUI_StreamDiffusion + ScreenDiffusion Studio")
     parser.add_argument("--port", type=int, default=8081)
     args = parser.parse_args()
@@ -727,13 +733,22 @@ def main() -> None:
     ThreadingHTTPServer.allow_reuse_address = True
     server = ThreadingHTTPServer(("127.0.0.1", args.port), StreamStudioHandler)
     server.daemon_threads = True
-    print(f"==================================================================")
-    print(f" MÓDULO 2: StreamDiffusionV2 + ScreenDiffusion Studio Activo")
-    print(f" URL WebApp : http://127.0.0.1:{args.port}")
-    print(f" GPU        : {STUDIO.gpu.get('name', 'CPU')} ({STUDIO.gpu.get('vram_gb', 0)} GB VRAM)")
-    print(f" Motor Init : {STUDIO.active_engine}")
-    print(f"==================================================================")
-    server.serve_forever()
+    print(f"==================================================================", flush=True)
+    print(f" MÓDULO 2: StreamDiffusionV2 + ScreenDiffusion Studio Activo", flush=True)
+    print(f" URL WebApp : http://127.0.0.1:{args.port}", flush=True)
+    print(f" GPU        : {STUDIO.gpu.get('name', 'CPU')} ({STUDIO.gpu.get('vram_gb', 0)} GB VRAM)", flush=True)
+    print(f" Motor Init : {STUDIO.active_engine}", flush=True)
+    print(f"==================================================================", flush=True)
+
+    while True:
+        try:
+            server.serve_forever()
+        except (KeyboardInterrupt, SystemExit):
+            break
+        except Exception as e:
+            print(f"Error en serve_forever: {e}", file=sys.stderr, flush=True)
+            traceback.print_exc()
+            time.sleep(1)
 
 
 if __name__ == "__main__":
