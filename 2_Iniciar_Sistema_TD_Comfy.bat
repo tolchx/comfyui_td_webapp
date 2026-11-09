@@ -18,8 +18,9 @@ if exist "ComfyUI_windows_portable\python_embeded\python.exe" (
     set PYTHON_CMD="D:\ComfyUI\.venv\Scripts\python.exe"
 )
 
-REM Iniciar Modulo 2 (StreamDiffusionV2 + ScreenDiffusion Studio en puerto 8081) en segundo plano
+REM Iniciar Modulo 2 (StreamDiffusionV2 Studio en puerto 8081) y Modulo 3 (Trellis v2 / Hunyuan 3D en puerto 8082) en segundo plano
 start /b "" %PYTHON_CMD% "streamdiffusion_studio\server_stream_studio.py" --port 8081
+start /b "" %PYTHON_CMD% "trellis3d_studio\server_trellis3d.py" --port 8082
 
 REM Abrir la WebApp en el navegador luego de 2 segundos
 start "" cmd /c "timeout /t 2 /nobreak >nul && start http://127.0.0.1:8080"

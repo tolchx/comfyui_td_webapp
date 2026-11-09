@@ -657,8 +657,11 @@
     </div>
 
     <div class="telemetry-bar">
-      <a href="http://127.0.0.1:8081" target="_blank" class="btn" style="padding:6px 14px; font-size:12px; text-decoration:none; box-shadow:0 0 14px rgba(56,189,248,0.35);">
-        🎬 Abrir Módulo 2: StreamDiffusionV2 + ScreenDiffusion (8081) ↗
+      <a href="http://127.0.0.1:8081" target="_blank" class="btn" style="padding:6px 12px; font-size:12px; text-decoration:none; box-shadow:0 0 14px rgba(56,189,248,0.35);">
+        🎬 Módulo 2: StreamDiffusionV2 (8081) ↗
+      </a>
+      <a href="http://127.0.0.1:8082" target="_blank" class="btn" style="padding:6px 12px; font-size:12px; text-decoration:none; background:linear-gradient(135deg,#10b981,#38bdf8); color:#041114; box-shadow:0 0 14px rgba(16,185,129,0.35);">
+        🧊 Módulo 3: Trellis v2 &amp; Hunyuan 3D (8082) ↗
       </a>
       <div class="pill">
         <span id="comfyDot" class="dot offline"></span>
@@ -807,7 +810,12 @@
           <div class="viewport-card">
             <div class="viewport-header">
               <span>Última Salida Generada (`out_ai` en TouchDesigner)</span>
-              <span id="latestBackendLabel" style="color:var(--muted);">--</span>
+              <div style="display:flex; gap:6px; align-items:center;">
+                <span id="latestBackendLabel" style="color:var(--muted);">--</span>
+                <button class="btn" style="padding:3px 9px; font-size:11px; background:linear-gradient(135deg,#10b981,#38bdf8); color:#041114;" onclick="sendCurrentLatestTo3D()">
+                  🧊 Enviar a 3D (Módulo 3)
+                </button>
+              </div>
             </div>
             <div class="viewport-img-wrap">
               <img id="latestImg" src="/api/latest.png" alt="Última generación" />
@@ -846,6 +854,9 @@
         <span id="lbMetaText" style="color:var(--muted);">1024×1024 • 0 ms</span>
       </div>
       <div class="lightbox-actions">
+        <button class="btn" style="padding:6px 12px; font-size:12px; background:linear-gradient(135deg,#10b981,#38bdf8); color:#041114;" onclick="sendLightboxItemTo3D()">
+          🧊 Convertir a Objeto 3D (Trellis v2 / Hunyuan 3D)
+        </button>
         <button class="btn btn-secondary" style="padding:6px 12px; font-size:12px;" onclick="useCurrentLightboxItem()">
           ⚡ Reutilizar este Prompt y Seed
         </button>
@@ -1069,6 +1080,31 @@
       document.getElementById('inputImg').src = `/api/input.png?t=${Date.now()}`;
     }
 
+    async function sendItemTo3D(item, ev) {
+      if (ev) ev.stopPropagation();
+      const fname = item?.file ? item.file.split(/[\\/]/).pop() : (item?.url ? item.url.split('/').pop().split('?')[0] : 'latest.png');
+      const promptText = item?.prompt || document.getElementById('promptInput').value;
+      try {
+        await fetch('http://127.0.0.1:8082/api/import_from_module1', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: fname, image_url: item?.url || '/api/latest.png', prompt: promptText })
+        });
+      } catch (e) {}
+      window.open(`http://127.0.0.1:8082/?import_mod1=${encodeURIComponent(fname)}&prompt=${encodeURIComponent(promptText)}`, '_blank');
+    }
+
+    function sendCurrentLatestTo3D() {
+      const latestItem = staticHistoryItems[0] || { url: '/api/latest.png', prompt: document.getElementById('promptInput').value };
+      sendItemTo3D(latestItem);
+    }
+
+    function sendLightboxItemTo3D() {
+      const list = getGalleryList();
+      const item = list[lightboxIdx];
+      if (item) sendItemTo3D(item);
+    }
+
     function renderHistoryGridDom() {
       const grid = document.getElementById('historyGrid');
       if (staticHistoryItems.length === 0) {
@@ -1078,8 +1114,9 @@
 
       grid.innerHTML = staticHistoryItems.map((item, idx) => {
         const modeLabel = (item.mode || 'txt2img').toUpperCase();
+        const itemJson = JSON.stringify(item).replace(/'/g, "&#39;");
         return `
-          <div class="hist-item" onclick='applyHistoryItem(${JSON.stringify(item).replace(/'/g, "&#39;")})'>
+          <div class="hist-item" onclick='applyHistoryItem(${itemJson})'>
             <div class="hist-thumb-wrap">
               <img src="${item.url}" loading="lazy" alt="Gen #${item.id}" />
               <span class="mode-pill">${modeLabel}</span>
@@ -1087,9 +1124,9 @@
             </div>
             <div class="hist-meta">
               <div class="hist-prompt">${item.prompt}</div>
-              <div class="hist-sub">
-                <span>#${item.id} • ${(item.source || 'webapp').toUpperCase()}</span>
-                <span>${item.latency_ms} ms</span>
+              <div class="hist-sub" style="align-items:center;">
+                <span>#${item.id} • ${item.latency_ms} ms</span>
+                <button class="btn" style="padding:2px 7px; font-size:10px; background:linear-gradient(135deg,#10b981,#38bdf8); color:#041114;" onclick='sendItemTo3D(${itemJson}, event)'>🧊 a 3D</button>
               </div>
             </div>
           </div>

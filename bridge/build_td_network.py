@@ -141,6 +141,7 @@ p_interval.min, p_interval.max = 1.0, 30.0
 
 p_web = page.appendPulse('Openwebapp', label='Abrir WebApp Generador HQ (8080)')[0]
 p_web_rt = page.appendPulse('Openstreamwebapp', label='Abrir WebApp StreamDiffusionV2 (8081)')[0]
+p_web_3d = page.appendPulse('Open3dwebapp', label='Abrir WebApp Trellis v2 / Hunyuan 3D (8082)')[0]
 
 page_stat = comp.appendCustomPage('Estado & Telemetria')
 p_st = page_stat.appendStr('Status', label='Estado Servidor')[0]
@@ -373,6 +374,9 @@ par_exec.text = """def onPulse(par):
         mod('controller_ext').open_webapp(stream_studio=False)
     elif par.name == 'Openstreamwebapp':
         mod('controller_ext').open_webapp(stream_studio=True)
+    elif par.name == 'Open3dwebapp':
+        import webbrowser
+        webbrowser.open('http://127.0.0.1:8082')
 
 def onValueChange(par, prev):
     if par.name == 'Autostream' and par.eval():
@@ -438,6 +442,12 @@ comp_layout.par.align = 'horiz'
 comp_layout.inputConnectors[0].connect(in_null)
 comp_layout.inputConnectors[1].connect(comp.outputConnectors[0])
 comp_layout.viewer = True
+
+# Lector de Malla 3D generada por el Modulo 3 (Trellis v2 / Hunyuan 3D -> .OBJ)
+sop_3d = root.create(td.fileinSOP, 'SOP_ASSET_3D')
+sop_3d.nodeX, sop_3d.nodeY = 500, 120
+sop_3d.par.file.expr = "project.folder + '/../trellis3d_studio/outputs/latest_model.obj'"
+sop_3d.viewer = True
 
 # Configurar valores iniciales en Nivel Avanzado (RTX 4090 Alta Calidad) sin Auto-Stream forzado
 comp.par.Mode = 'txt2img'

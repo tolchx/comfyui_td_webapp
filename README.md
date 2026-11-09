@@ -1,18 +1,26 @@
 # 📘 Sistema Modular TouchDesigner ↔ ComfyUI (Windows & macOS)
-## Módulo 1: Generador de Imágenes Alta Calidad (`8080`) + Módulo 2: StreamDiffusionV2 & ScreenDiffusion Studio (`8081`)
+## Módulo 1: Imágenes HQ (`8080`) + Módulo 2: StreamDiffusionV2 & ScreenDiffusion (`8081`) + Módulo 3: TRELLIS v2 & Hunyuan 3D (`8082`)
 
-Arquitectura **modular, standalone y multiplataforma (Windows & macOS)** diseñada para cátedras y talleres de Inteligencia Artificial Generativa. Separa el sistema en **dos módulos independientes y complementarios** conectados a **ComfyUI** y **TouchDesigner**:
+Arquitectura **modular, standalone y multiplataforma (Windows & macOS)** diseñada para cátedras y talleres de Inteligencia Artificial Generativa. Separa el sistema en **tres módulos independientes y conectados** con **ComfyUI (`127.0.0.1:8188`)** y **TouchDesigner (`TD/v1.toe`)**:
 
 1. **🎨 Módulo 1 — Generador de Imágenes de Alta Calidad (`bridge/` + `webapp/` • Puerto `8080`)**:
    - Dedicado exclusivamente a **Text-to-Image (`txt2img`)** e **Image-to-Image (`img2img`)** de máxima fidelidad visual.
-   - **Auto-detección de Hardware Potente**: Al detectar GPUs de gama alta (ej. **NVIDIA GeForce RTX 4090 24 GB VRAM**), activa automáticamente el nivel **`AVANZADO`** con **Flux.2 Klein 4B / Flux.2 Dev / Qwen Image 2.1** a `1024×1024` y decodificador **Full VAE** (`flux2-vae.safetensors`), evitando los artefactos y deformaciones de los modos de 1 paso.
-   - **Galería e Historial Limpio + Lightbox Pantalla Completa**: El historial almacena únicamente generaciones `txt2img` e `img2img`, e incluye un visor **Lightbox (`⛶`)** con flechas de navegación (`❮` / `❯` y teclado `←` / `→`) y un **carrusel inferior de miniaturas**.
+   - **Auto-detección de Hardware Potente**: Al detectar GPUs de gama alta (ej. **NVIDIA GeForce RTX 4090 24 GB VRAM**), activa automáticamente el nivel **`AVANZADO`** con **Flux.2 Klein 4B / Flux.2 Dev / Qwen Image 2.1** a `1024×1024` y decodificador **Full VAE** (`flux2-vae.safetensors`).
+   - **Galería + Lightbox Pantalla Completa (`⛶`) + Envío Directo a 3D (`🧊 a 3D`)**: Cada imagen del historial y del visor incluye el botón **`🧊 Enviar a 3D`** para mandarla directamente al Módulo 3 y convertirla en un objeto 3D local.
 
 2. **🎬 Módulo 2 — StreamDiffusionV2 + ComfyUI_StreamDiffusion + ScreenDiffusion Studio (`streamdiffusion_studio/` • Puerto `8081`)**:
-   - Módulo separado en la carpeta [`streamdiffusion_studio/`](streamdiffusion_studio/) que fusiona tres tecnologías de tiempo real conectadas directamente a **ComfyUI (`127.0.0.1:8188`)** y **TouchDesigner**:
-     - **[StreamDiffusionV2 (`chenfengxu714/StreamDiffusionV2`)](https://github.com/chenfengxu714/StreamDiffusionV2)**: Escalado dinámico según GPU (`Flux.2 Klein 4B` en 4 pasos con Full VAE a ~610 ms en RTX 4090, o `DreamShaper 8 + Hyper-SD` multi-paso) + **Motion-Aware Temporal Controller** (analiza el delta de movimiento entre fotogramas para estabilizar rostros y detalles sin deformación ni parpadeo).
-     - **[ComfyUI_StreamDiffusion (`jesenzhang/ComfyUI_StreamDiffusion`)](https://github.com/jesenzhang/ComfyUI_StreamDiffusion)**: Integración nativa con los nodos personalizados `StreamDiffusion_Loader` y `StreamDiffusion_Sampler` en `ComfyUI/custom_nodes/ComfyUI_StreamDiffusion`.
-     - **[ScreenDiffusion (`rudyaa-sd/ScreenDiffusion`)](https://github.com/rudyaa-sd/ScreenDiffusion)**: Captura en vivo de cualquier región de tu pantalla o ventana del sistema operativo (`PIL.ImageGrab` nativo + `getDisplayMedia` WebRTC), además de **Webcam en vivo**, **Pizarra de Boceto Interactiva** y entrada desde **TouchDesigner TOP**.
+   - Módulo separado en la carpeta [`streamdiffusion_studio/`](streamdiffusion_studio/) que fusiona tres tecnologías de tiempo real conectadas a **ComfyUI** y **TouchDesigner**:
+     - **[StreamDiffusionV2 (`chenfengxu714/StreamDiffusionV2`)](https://github.com/chenfengxu714/StreamDiffusionV2)**: Escalado dinámico según GPU (`Flux.2 Klein 4B` en 4 pasos con Full VAE a ~610 ms en RTX 4090, o `DreamShaper 8 + Hyper-SD` multi-paso) + **Motion-Aware Temporal Controller**.
+     - **[ComfyUI_StreamDiffusion (`jesenzhang/ComfyUI_StreamDiffusion`)](https://github.com/jesenzhang/ComfyUI_StreamDiffusion)**: Integración nativa con los nodos `StreamDiffusion_Loader` y `StreamDiffusion_Sampler`.
+     - **[ScreenDiffusion (`rudyaa-sd/ScreenDiffusion`)](https://github.com/rudyaa-sd/ScreenDiffusion)**: Captura en vivo de cualquier región de tu pantalla o ventana del sistema operativo (`PIL.ImageGrab` nativo + `getDisplayMedia` WebRTC), además de **Webcam en vivo**, **Pizarra Interactiva** y entrada desde **TouchDesigner TOP**.
+
+3. **🧊 Módulo 3 — TRELLIS v2 + Hunyuan 3D Local Studio (`trellis3d_studio/` • Puerto `8082`)**:
+   - Módulo dedicado en la carpeta [`trellis3d_studio/`](trellis3d_studio/) (lanzador `4_Iniciar_Trellis3D_Studio.bat` en Windows y `4_Iniciar_Trellis3D_Mac.command` en macOS) para convertir cualquier imagen de asset generada en el Módulo 1 en un **objeto 3D local (`.GLB` PBR y `.OBJ` para TouchDesigner `/project1/SOP_ASSET_3D`)** según la compatibilidad de hardware del alumno:
+     - **🔥 Nivel Avanzado (`12 GB – 24 GB+ VRAM`, ej. RTX 4090 / 4080 / 3090)**: **TRELLIS v2 Local (`trellis2_local` — Microsoft / Comfy-Org 4B Sparse Voxel + PBR Texture Stage)** usando los nodos nativos de ComfyUI (`Trellis2Conditioning`, `Trellis2ShapeStage`, `Trellis2TextureStage`, `VaeDecodeShapeTrellis`, `VaeDecodeTextureTrellis`, `PaintMesh`, `SaveGLB`).
+     - **⚡ Nivel Medio (`8 GB – 11 GB VRAM`, ej. RTX 3060 / 3070 / 4060Ti / Mac 16GB+)**: **Hunyuan 3D v2.1 Local (`hunyuan3d_v21`)** en un solo checkpoint nativo (`ImageOnlyCheckpointLoader` -> `Hunyuan3Dv2Conditioning` -> `EmptyLatentHunyuan3Dv2` -> `VAEDecodeHunyuan3D` -> `VoxelToMesh`).
+     - **🪶 Nivel Medio-Ligero (`6 GB – 8 GB VRAM`)**: **Hunyuan 3D v2.0 FP16 (`hunyuan3d_v20_fp16` — 4.59 GB)**.
+     - **🚀 Nivel Universal Instantáneo (`0 GB VRAM Extra • <1.5s en cualquier PC o Mac`)**: **Escultor PBR 3D Instantáneo (`instant_pbr_mesh`)** con recorte automático de silueta Alfa y reconstrucción volumétrica 360° cerrada (`.GLB` con textura PNG embebida + `.OBJ`), permitiendo usar el flujo 3D en clase de forma inmediata incluso antes de descargar los pesos de varios GB.
+   - Incluye un **Visor 3D Orbital WebGL integrado** (rotación 360°, zoom, wireframe, iluminación estudio PBR) sin dependencias externas de internet.
 
 Repositorio oficial: **[https://github.com/tolchx/comfyui_td_webapp](https://github.com/tolchx/comfyui_td_webapp)**
 

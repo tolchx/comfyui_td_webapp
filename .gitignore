@@ -36,3 +36,8 @@ bridge/outputs/history.json
 bridge/inputs/td_input.png
 bridge/extra_model_paths.yaml
 streamdiffusion_studio/inputs/latest_input.png
+trellis3d_studio/outputs/models/asset3d_*.glb
+trellis3d_studio/outputs/models/asset3d_*.obj
+trellis3d_studio/outputs/previews/asset3d_*.png
+trellis3d_studio/outputs/history_3d.json
+trellis3d_studio/inputs/*.png

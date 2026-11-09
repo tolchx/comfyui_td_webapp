@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Módulo 3: TRELLIS v2 + Hunyuan 3D Local Studio | Imagen a Objeto 3D</title>
+  <style>
+    :root {
+      --bg-0: #07090f;
+      --bg-1: #0f1422;
+      --bg-2: #171f34;
+      --bg-3: #222e4a;
+      --accent: #10b981;
+      --accent-2: #38bdf8;
+      --purple: #a855f7;
+      --amber: #fbbf24;
+      --red: #f43f5e;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --border: rgba(148, 163, 184, 0.18);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: radial-gradient(circle at top right, #102a2a 0%, var(--bg-0) 62%);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: rgba(15, 20, 34, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 15px;
+      color: #051014;
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+    }
+    .brand h1 { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; }
+    .brand span { display: block; font-size: 12px; color: var(--muted); }
+
+    .telemetry-bar { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+    .pill {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+    main {
+      max-width: 1540px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 18px 22px;
+      display: grid;
+      grid-template-columns: 440px 1fr;
+      gap: 20px;
+      flex: 1;
+    }
+    @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+
+    .panel {
+      background: rgba(15, 20, 34, 0.88);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .panel-title {
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 9px;
+    }
+    .badge {
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 800;
+      background: rgba(16, 185, 129, 0.16);
+      color: var(--accent);
+    }
+
+    .engine-list { display: flex; flex-direction: column; gap: 8px; }
+    .engine-card {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .engine-card:hover { border-color: var(--accent); }
+    .engine-card.active {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.16), rgba(56, 189, 248, 0.12));
+      border-color: var(--accent);
+      box-shadow: 0 0 14px rgba(16, 185, 129, 0.22);
+    }
+    .engine-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .engine-top strong { font-size: 13px; }
+    .engine-card small { font-size: 11px; color: var(--muted); line-height: 1.35; }
+
+    .compat-card {
+      border-radius: 10px;
+      padding: 11px 13px;
+      font-size: 12px;
+      line-height: 1.4;
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      background: rgba(16, 185, 129, 0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .compat-card.warning {
+      background: rgba(251, 191, 36, 0.1);
+      border-color: rgba(251, 191, 36, 0.45);
+    }
+    .compat-card ul { padding-left: 16px; }
+
+    label { display: block; font-size: 11.5px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+    input, select {
+      width: 100%;
+      background: var(--bg-0);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+    }
+    input:focus, select:focus { border-color: var(--accent); }
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 9px; }
+
+    .btn {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #041114;
+      font-weight: 800;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 13.5px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      text-decoration: none;
+      transition: transform 0.12s, opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.95; transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-secondary {
+      background: var(--bg-3);
+      color: var(--text);
+      border: 1px solid var(--border);
+      font-weight: 600;
+      font-size: 12px;
+      padding: 7px 12px;
+    }
+
+    .asset-compare {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .asset-box {
+      background: var(--bg-0);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      text-align: center;
+    }
+    .asset-box span {
+      display: block;
+      font-size: 11px;
+      padding: 5px;
+      background: var(--bg-2);
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .asset-box img {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      object-fit: contain;
+      background: repeating-conic-gradient(#0b0f18 0% 25%, #131b2e 0% 50%) 50% / 16px 16px;
+      display: block;
+    }
+
+    .mod1-strip {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+    }
+    .mod1-thumb {
+      width: 68px;
+      height: 68px;
+      flex: 0 0 68px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 2px solid var(--border);
+      cursor: pointer;
+      position: relative;
+      transition: all 0.15s;
+    }
+    .mod1-thumb:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+    .mod1-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* VISOR 3D INTERACTIVO */
+    .viewer-wrap {
+      position: relative;
+      width: 100%;
+      height: 520px;
+      background: radial-gradient(circle at center, #162238 0%, #070a12 75%);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    #glCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab;
+    }
+    #glCanvas:active { cursor: grabbing; }
+
+    .viewer-hud-top {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      right: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+    }
+    .viewer-hud-bottom {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      right: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .hud-pill {
+      pointer-events: auto;
+      background: rgba(7, 10, 18, 0.84);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 11px;
+      border-radius: 8px;
+      font-size: 11.5px;
+      font-weight: 600;
+      backdrop-filter: blur(6px);
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .hist3d-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 12px;
+    }
+    .hist3d-card {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .hist3d-card img {
+      width: 100%;
+      height: 140px;
+      object-fit: contain;
+      background: repeating-conic-gradient(#0b0f18 0% 25%, #131b2e 0% 50%) 50% / 16px 16px;
+    }
+    .hist3d-body {
+      padding: 9px 11px;
+      font-size: 11.5px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-logo">3D</div>
+      <div>
+        <h1>Módulo 3: TRELLIS v2 + Hunyuan 3D Local Studio (Imagen a Objeto 3D)</h1>
+        <span>Conversión Local de Assets a `.GLB` (PBR) y `.OBJ` (TouchDesigner SOP) • Detección Automática de Hardware</span>
+      </div>
+    </div>
+
+    <div class="telemetry-bar">
+      <a href="http://127.0.0.1:8080" class="btn btn-secondary">⬅ Módulo 1: Imágenes HQ (8080)</a>
+      <a href="http://127.0.0.1:8081" class="btn btn-secondary">🎬 Módulo 2: StreamDiffusionV2 (8081)</a>
+      <div class="pill">
+        <span class="dot"></span>
+        <span id="stateText">LISTO</span>
+      </div>
+      <div class="pill">
+        <span>GPU: <strong id="gpuName">Detectando...</strong></span>
+      </div>
+      <div class="pill">
+        <span>VRAM: <strong id="vramText">-- GB</strong></span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- COLUMNA IZQUIERDA: MOTOR 3D + COMPATIBILIDAD + CONTROLES -->
+    <div style="display:flex; flex-direction:column; gap:15px;">
+
+      <section class="panel">
+        <div class="panel-title">
+          <span>1. Motor 3D Local (Según tu Hardware)</span>
+          <span id="recEngineBadge" class="badge">Sugerido: TRELLIS.2</span>
+        </div>
+
+        <div class="engine-list">
+          <div class="engine-card active" id="card-trellis2_local" onclick="selectEngine('trellis2_local')">
+            <div class="engine-top">
+              <strong>🔥 TRELLIS v2 Local (4B Sparse Voxel + PBR)</strong>
+              <span class="badge" id="status-trellis2_local">12+ GB VRAM</span>
+            </div>
+            <small>Generación 3D completa con texturas PBR en ComfyUI (`Trellis2Conditioning` + `VaeDecodeShapeTrellis`). Ideal para RTX 3080/4080/4090.</small>
+          </div>
+
+          <div class="engine-card" id="card-hunyuan3d_v21" onclick="selectEngine('hunyuan3d_v21')">
+            <div class="engine-top">
+              <strong>⚡ Hunyuan 3D v2.1 Local (Tencent DiT)</strong>
+              <span class="badge" id="status-hunyuan3d_v21">8+ GB VRAM</span>
+            </div>
+            <small>Modelo 3D de alta precisión en un solo checkpoint (`hunyuan_3d_v2.1.safetensors` • 6.86 GB) nativo en ComfyUI.</small>
+          </div>
+
+          <div class="engine-card" id="card-hunyuan3d_v20_fp16" onclick="selectEngine('hunyuan3d_v20_fp16')">
+            <div class="engine-top">
+              <strong>🪶 Hunyuan 3D v2.0 FP16 Ligero</strong>
+              <span class="badge" id="status-hunyuan3d_v20_fp16">6+ GB VRAM</span>
+            </div>
+            <small>Versión compacta FP16 (4.59 GB) para GPUs de gama media (RTX 3060 / 4060 / Apple Silicon).</small>
+          </div>
+
+          <div class="engine-card" id="card-instant_pbr_mesh" onclick="selectEngine('instant_pbr_mesh')">
+            <div class="engine-top">
+              <strong>🚀 Escultor PBR 3D Instantáneo (360° Depth-to-GLB)</strong>
+              <span class="badge" style="color:#38bdf8;">0 GB EXTRA • &lt;1.5s</span>
+            </div>
+            <small>Funciona al instante en cualquier PC o Mac sin descargar GBs extra. Recorta el fondo Alfa y esculpe un volumen 360° cerrado `.GLB` y `.OBJ`.</small>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button id="btnDownloadWeights" class="btn btn-secondary" style="flex:1;" onclick="downloadSelectedEngineWeights()">
+            ⬇ Descargar / Verificar Pesos de este Motor 3D en ComfyUI
+          </button>
+        </div>
+        <div id="downloadProgressBox" style="display:none; font-size:11.5px; color:var(--amber); background:rgba(251,191,36,0.1); padding:8px 10px; border-radius:8px; border:1px solid rgba(251,191,36,0.35);"></div>
+
+        <div id="compatBox" class="compat-card">
+          <strong id="compatTitle" style="color:var(--accent);">✓ Diagnóstico de Hardware 3D</strong>
+          <ul id="compatIssues"></ul>
+          <ul id="compatSolutions" style="color:var(--muted); margin-top:4px;"></ul>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">
+          <span>2. Asset de Entrada (Desde Módulo 1 o Subir Archivo)</span>
+          <label for="fileUpload" class="btn btn-secondary" style="margin:0; cursor:pointer; padding:4px 9px; font-size:11px;">📂 Subir PNG/JPG</label>
+          <input id="fileUpload" type="file" accept="image/*" style="display:none;" onchange="handleFileUpload(event)" />
+        </div>
+
+        <div class="asset-compare">
+          <div class="asset-box">
+            <span>Imagen Original</span>
+            <img id="inputPreviewImg" src="/api/input_asset.png" alt="Asset Entrada" />
+          </div>
+          <div class="asset-box">
+            <span>Recorte Alfa Automático (Sin Fondo)</span>
+            <img id="alphaPreviewImg" src="/api/alpha_asset.png" alt="Asset Alfa" />
+          </div>
+        </div>
+
+        <div>
+          <label>Galería Rápida: Click en cualquier imagen del Módulo 1 (`8080`) para enviar a 3D</label>
+          <div id="mod1Strip" class="mod1-strip"></div>
+        </div>
+
+        <div class="row-3">
+          <div>
+            <label for="meshResInput">Resolución Malla</label>
+            <input id="meshResInput" type="number" step="16" min="64" max="200" value="136" />
+          </div>
+          <div>
+            <label for="depthScaleInput">Volumen 3D (Z)</label>
+            <input id="depthScaleInput" type="number" step="0.05" min="0.10" max="1.0" value="0.45" />
+          </div>
+          <div>
+            <label for="steps3dInput">Pasos Difusión 3D</label>
+            <input id="steps3dInput" type="number" min="8" max="40" value="16" />
+          </div>
+        </div>
+
+        <div class="row-2" style="align-items:center;">
+          <label style="display:flex; align-items:center; gap:7px; margin:0; cursor:pointer; color:var(--text);">
+            <input id="removeBgCheck" type="checkbox" checked style="width:16px; height:16px;" />
+            Quitar Fondo Automáticamente (Alfa)
+          </label>
+          <label style="display:flex; align-items:center; gap:7px; margin:0; cursor:pointer; color:var(--text);">
+            <input id="doubleSidedCheck" type="checkbox" checked style="width:16px; height:16px;" />
+            Cerrar Volumen 360° (Frente + Dorso)
+          </label>
+        </div>
+
+        <button id="btnConvert3D" class="btn" onclick="triggerConvert3D()">
+          🧊 CONVERTIR ASSET A OBJETO 3D (.GLB + .OBJ)
+        </button>
+      </section>
+
+    </div>
+
+    <!-- COLUMNA DERECHA: VISOR 3D INTERACTIVO WEBGL + EXPORTACIÓN + HISTORIAL -->
+    <div style="display:flex; flex-direction:column; gap:15px;">
+
+      <section class="panel">
+        <div class="panel-title">
+          <span>Visor 3D Interactivo en Tiempo Real (Arrastrar para Rotar • Rueda para Zoom)</span>
+          <span id="meshStatsBadge" class="badge">0 Vértices • 0 Caras</span>
+        </div>
+
+        <div class="viewer-wrap">
+          <canvas id="glCanvas" width="920" height="520"></canvas>
+
+          <div class="viewer-hud-top">
+            <div class="hud-pill">
+              <span id="activeBackendLabel" style="color:var(--accent);">Cargando malla 3D...</span>
+            </div>
+            <div style="display:flex; gap:7px;">
+              <button class="hud-pill" style="cursor:pointer;" onclick="toggleAutoRotate()" id="btnAutoRotate">🔄 Auto-Rotar: ON</button>
+              <button class="hud-pill" style="cursor:pointer;" onclick="toggleWireframe()" id="btnWireframe">🕸️ Wireframe: OFF</button>
+              <button class="hud-pill" style="cursor:pointer;" onclick="resetCamera()">🎯 Centrar Cámara</button>
+            </div>
+          </div>
+
+          <div class="viewer-hud-bottom">
+            <div class="hud-pill" style="color:var(--muted);">
+              🖱️ Click Izq: Rotar 360° • Rueda: Zoom • Sincronizado con TouchDesigner (`/project1/SOP_ASSET_3D`)
+            </div>
+            <div style="display:flex; gap:8px;">
+              <a id="downloadGlbBtn" href="/api/latest_model.glb" download="asset_3d.glb" class="btn" style="padding:7px 13px; font-size:12px; pointer-events:auto;">
+                ⬇ Descargar .GLB (PBR / Blender)
+              </a>
+              <a id="downloadObjBtn" href="/api/latest_model.obj" download="asset_3d.obj" class="btn btn-secondary" style="padding:7px 13px; font-size:12px; pointer-events:auto; text-decoration:none;">
+                ⬇ Descargar .OBJ (TouchDesigner SOP)
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" style="flex:1;">
+        <div class="panel-title">
+          <span>Historial de Objetos 3D Generados (Click para Inspeccionar en el Visor 3D)</span>
+          <span style="font-size:11px; color:var(--muted);">Guardados en `trellis3d_studio/outputs/models/`</span>
+        </div>
+        <div id="hist3dGrid" class="hist3d-grid"></div>
+      </section>
+
+    </div>
+  </main>
+
+  <script>
+    let activeEngine = 'trellis2_local';
+    let currentGenId = -1;
+    let selectedMod1Filename = null;
+    let selectedPrompt = 'Asset 3D';
+
+    // =========================================================================
+    // MOTOR WEBGL 3D ORBITAL EMBEBIDO (CARGA BINARIOS .GLB DIRECTAMENTE SIN CDN)
+    // =========================================================================
+    const canvas = document.getElementById('glCanvas');
+    const gl = canvas.getContext('webgl', { antialias: true, alpha: false });
+    try { gl.getExtension('OES_element_index_uint'); } catch (e) {}
+
+    let autoRotate = true;
+    let showWireframe = false;
+    let camYaw = 0.45;
+    let camPitch = 0.22;
+    let camDist = 2.35;
+    let isDragging = false;
+    let lastMouseX = 0, lastMouseY = 0;
+
+    canvas.addEventListener('pointerdown', (e) => {
+      isDragging = true;
+      autoRotate = false;
+      document.getElementById('btnAutoRotate').textContent = '🔄 Auto-Rotar: OFF';
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+    });
+    window.addEventListener('pointerup', () => { isDragging = false; });
+    window.addEventListener('pointermove', (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - lastMouseX;
+      const dy = e.clientY - lastMouseY;
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+      camYaw += dx * 0.01;
+      camPitch = Math.max(-1.4, Math.min(1.4, camPitch + dy * 0.01));
+    });
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      camDist = Math.max(0.8, Math.min(6.0, camDist + e.deltaY * 0.0018));
+    }, { passive: false });
+
+    function toggleAutoRotate() {
+      autoRotate = !autoRotate;
+      document.getElementById('btnAutoRotate').textContent = autoRotate ? '🔄 Auto-Rotar: ON' : '🔄 Auto-Rotar: OFF';
+    }
+    function toggleWireframe() {
+      showWireframe = !showWireframe;
+      document.getElementById('btnWireframe').textContent = showWireframe ? '🕸️ Wireframe: ON' : '🕸️ Wireframe: OFF';
+    }
+    function resetCamera() {
+      camYaw = 0.45;
+      camPitch = 0.22;
+      camDist = 2.35;
+    }
+
+    const vsSource = `
+      attribute vec3 aPos;
+      attribute vec3 aNorm;
+      attribute vec2 aUV;
+      attribute vec3 aColor;
+      uniform mat4 uMVP;
+      uniform mat4 uModel;
+      varying vec3 vNorm;
+      varying vec2 vUV;
+      varying vec3 vColor;
+      varying vec3 vWorldPos;
+      void main() {
+        vec4 worldPos = uModel * vec4(aPos, 1.0);
+        vWorldPos = worldPos.xyz;
+        vNorm = mat3(uModel) * aNorm;
+        vUV = aUV;
+        vColor = aColor;
+        gl_Position = uMVP * vec4(aPos, 1.0);
+      }
+    `;
+    const fsSource = `
+      precision mediump float;
+      varying vec3 vNorm;
+      varying vec2 vUV;
+      varying vec3 vColor;
+      varying vec3 vWorldPos;
+      uniform sampler2D uTex;
+      uniform int uHasTex;
+      uniform int uWireframePass;
+      void main() {
+        if (uWireframePass == 1) {
+          gl_FragColor = vec4(0.06, 0.92, 0.68, 1.0);
+          return;
+        }
+        vec3 N = normalize(vNorm);
+        if (!gl_FrontFacing) N = -N;
+        vec3 L1 = normalize(vec3(0.65, 0.85, 0.9));
+        vec3 L2 = normalize(vec3(-0.7, -0.3, -0.6));
+        vec3 V = normalize(vec3(0.0, 0.0, 2.5) - vWorldPos);
+        vec3 H = normalize(L1 + V);
+
+        float diff1 = max(dot(N, L1), 0.0);
+        float diff2 = max(dot(N, L2), 0.0) * 0.35;
+        float spec = pow(max(dot(N, H), 0.0), 28.0) * 0.28;
+        float rim = pow(1.0 - max(dot(N, V), 0.0), 3.0) * 0.22;
+
+        vec3 base = vColor;
+        if (uHasTex == 1) {
+          vec4 tCol = texture2D(uTex, vUV);
+          base = tCol.rgb;
+        }
+        vec3 col = base * (0.28 + 0.78 * diff1 + diff2) + vec3(spec) + vec3(0.06, 0.75, 0.65) * rim;
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `;
+
+    function compileShader(type, src) {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      return s;
+    }
+    const prog = gl.createProgram();
+    gl.attachShader(prog, compileShader(gl.VERTEX_SHADER, vsSource));
+    gl.attachShader(prog, compileShader(gl.FRAGMENT_SHADER, fsSource));
+    gl.linkProgram(prog);
+
+    const loc = {
+      aPos: gl.getAttribLocation(prog, 'aPos'),
+      aNorm: gl.getAttribLocation(prog, 'aNorm'),
+      aUV: gl.getAttribLocation(prog, 'aUV'),
+      aColor: gl.getAttribLocation(prog, 'aColor'),
+      uMVP: gl.getUniformLocation(prog, 'uMVP'),
+      uModel: gl.getUniformLocation(prog, 'uModel'),
+      uTex: gl.getUniformLocation(prog, 'uTex'),
+      uHasTex: gl.getUniformLocation(prog, 'uHasTex'),
+      uWireframePass: gl.getUniformLocation(prog, 'uWireframePass'),
+    };
+
+    let meshBuffers = null;
+
+    async function loadGlbIntoViewer(url) {
+      try {
+        const res = await fetch(url + '?t=' + Date.now());
+        if (!res.ok) return;
+        const buf = await res.arrayBuffer();
+        const dv = new DataView(buf);
+        const magic = dv.getUint32(0, true);
+        if (magic !== 0x46546C67) return; // 'glTF'
+
+        const jsonLen = dv.getUint32(12, true);
+        const jsonStr = new TextDecoder('utf-8').decode(new Uint8Array(buf, 20, jsonLen));
+        const gltf = JSON.parse(jsonStr);
+        const binOffset = 20 + jsonLen + 8;
+
+        const prim = gltf.meshes[0].primitives[0];
+        function getAccessorArray(accIdx) {
+          if (accIdx === undefined || accIdx === null) return null;
+          const acc = gltf.accessors[accIdx];
+          const bv = gltf.bufferViews[acc.bufferView];
+          const byteOffset = binOffset + (bv.byteOffset || 0) + (acc.byteOffset || 0);
+          const comps = acc.type === 'VEC3' ? 3 : (acc.type === 'VEC2' ? 2 : (acc.type === 'VEC4' ? 4 : 1));
+          const count = acc.count * comps;
+          if (acc.componentType === 5126) return new Float32Array(buf, byteOffset, count);
+          if (acc.componentType === 5125) return new Uint32Array(buf, byteOffset, count);
+          if (acc.componentType === 5123) return new Uint16Array(buf, byteOffset, count);
+          return null;
+        }
+
+        const positions = getAccessorArray(prim.attributes.POSITION);
+        const indices = getAccessorArray(prim.indices);
+        const vCount = positions.length / 3;
+
+        let normals = getAccessorArray(prim.attributes.NORMAL);
+        if (!normals) {
+          normals = new Float32Array(positions.length);
+          for (let i = 2; i < normals.length; i += 3) normals[i] = 1.0;
+        }
+
+        let uvs = getAccessorArray(prim.attributes.TEXCOORD_0);
+        if (!uvs) uvs = new Float32Array(vCount * 2);
+
+        let colors = getAccessorArray(prim.attributes.COLOR_0);
+        if (!colors) {
+          colors = new Float32Array(vCount * 3);
+          colors.fill(0.85);
+        } else if (colors.length === vCount * 4) {
+          const c3 = new Float32Array(vCount * 3);
+          for (let i = 0; i < vCount; i++) {
+            c3[i * 3] = colors[i * 4];
+            c3[i * 3 + 1] = colors[i * 4 + 1];
+            c3[i * 3 + 2] = colors[i * 4 + 2];
+          }
+          colors = c3;
+        }
+
+        // Centrar y normalizar escala automáticamente para que cualquier modelo de Trellis2/Hunyuan3D encuadre perfecto
+        let minX = 1e9, minY = 1e9, minZ = 1e9, maxX = -1e9, maxY = -1e9, maxZ = -1e9;
+        for (let i = 0; i < positions.length; i += 3) {
+          const x = positions[i], y = positions[i + 1], z = positions[i + 2];
+          if (x < minX) minX = x; if (x > maxX) maxX = x;
+          if (y < minY) minY = y; if (y > maxY) maxY = y;
+          if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+        }
+        const cx = (minX + maxX) * 0.5, cy = (minY + maxY) * 0.5, cz = (minZ + maxZ) * 0.5;
+        const maxSpan = Math.max(0.001, maxX - minX, maxY - minY, maxZ - minZ);
+        const normPos = new Float32Array(positions.length);
+        const scale = 1.65 / maxSpan;
+        for (let i = 0; i < positions.length; i += 3) {
+          normPos[i] = (positions[i] - cx) * scale;
+          normPos[i + 1] = (positions[i + 1] - cy) * scale;
+          normPos[i + 2] = (positions[i + 2] - cz) * scale;
+        }
+
+        const posBuf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+        gl.bufferData(gl.ARRAY_BUFFER, normPos, gl.STATIC_DRAW);
+
+        const normBuf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, normBuf);
+        gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW);
+
+        const uvBuf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, uvBuf);
+        gl.bufferData(gl.ARRAY_BUFFER, uvs, gl.STATIC_DRAW);
+
+        const colBuf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, colBuf);
+        gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
+
+        const idxBuf = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+
+        let texObj = null;
+        let hasTex = 0;
+        if (gltf.images && gltf.images.length > 0 && gltf.images[0].bufferView !== undefined) {
+          const imgBv = gltf.bufferViews[gltf.images[0].bufferView];
+          const imgBytes = new Uint8Array(buf, binOffset + (imgBv.byteOffset || 0), imgBv.byteLength);
+          const blob = new Blob([imgBytes], { type: gltf.images[0].mimeType || 'image/png' });
+          const imgUrl = URL.createObjectURL(blob);
+          const imgEl = new Image();
+          imgEl.onload = () => {
+            texObj = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, texObj);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, imgEl);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            if (meshBuffers) meshBuffers.hasTex = 1;
+            if (meshBuffers) meshBuffers.tex = texObj;
+            URL.revokeObjectURL(imgUrl);
+          };
+          imgEl.src = imgUrl;
+        }
+
+        meshBuffers = {
+          pos: posBuf,
+          norm: normBuf,
+          uv: uvBuf,
+          col: colBuf,
+          idx: idxBuf,
+          count: indices.length,
+          idxType: (indices instanceof Uint32Array) ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT,
+          hasTex: hasTex,
+          tex: texObj,
+        };
+
+        document.getElementById('meshStatsBadge').textContent = `${vCount.toLocaleString()} Vértices • ${(indices.length / 3).toLocaleString()} Caras`;
+      } catch (e) {
+        console.error('Error cargando GLB:', e);
+      }
+    }
+
+    function mat4Perspective(fov, aspect, near, far) {
+      const f = 1.0 / Math.tan(fov / 2);
+      const nf = 1 / (near - far);
+      return new Float32Array([
+        f / aspect, 0, 0, 0,
+        0, f, 0, 0,
+        0, 0, (far + near) * nf, -1,
+        0, 0, (2 * far * near) * nf, 0
+      ]);
+    }
+
+    function mat4Multiply(a, b) {
+      const out = new Float32Array(16);
+      for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+          out[i * 4 + j] =
+            a[i * 4 + 0] * b[0 * 4 + j] +
+            a[i * 4 + 1] * b[1 * 4 + j] +
+            a[i * 4 + 2] * b[2 * 4 + j] +
+            a[i * 4 + 3] * b[3 * 4 + j];
+        }
+      }
+      return out;
+    }
+
+    function buildModelMatrix(yaw, pitch) {
+      const cy = Math.cos(yaw), sy = Math.sin(yaw);
+      const cp = Math.cos(pitch), sp = Math.sin(pitch);
+      return new Float32Array([
+        cy, sp * sy, -cp * sy, 0,
+        0, cp, sp, 0,
+        sy, -sp * cy, cp * cy, 0,
+        0, 0, 0, 1
+      ]);
+    }
+
+    function renderWebGLLoop() {
+      if (autoRotate && !isDragging) {
+        camYaw += 0.0065;
+      }
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.clearColor(0.04, 0.06, 0.11, 1.0);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      gl.enable(gl.DEPTH_TEST);
+
+      if (meshBuffers) {
+        gl.useProgram(prog);
+        const proj = mat4Perspective(0.78, canvas.width / canvas.height, 0.1, 25.0);
+        const view = new Float32Array([
+          1, 0, 0, 0,
+          0, 1, 0, 0,
+          0, 0, 1, 0,
+          0, 0, -camDist, 1
+        ]);
+        const model = buildModelMatrix(camYaw, camPitch);
+        const mv = mat4Multiply(model, view);
+        const mvp = mat4Multiply(mv, proj);
+
+        gl.uniformMatrix4fv(loc.uMVP, false, mvp);
+        gl.uniformMatrix4fv(loc.uModel, false, model);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, meshBuffers.pos);
+        gl.enableVertexAttribArray(loc.aPos);
+        gl.vertexAttribPointer(loc.aPos, 3, gl.FLOAT, false, 0, 0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, meshBuffers.norm);
+        gl.enableVertexAttribArray(loc.aNorm);
+        gl.vertexAttribPointer(loc.aNorm, 3, gl.FLOAT, false, 0, 0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, meshBuffers.uv);
+        gl.enableVertexAttribArray(loc.aUV);
+        gl.vertexAttribPointer(loc.aUV, 2, gl.FLOAT, false, 0, 0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, meshBuffers.col);
+        gl.enableVertexAttribArray(loc.aColor);
+        gl.vertexAttribPointer(loc.aColor, 3, gl.FLOAT, false, 0, 0);
+
+        if (meshBuffers.hasTex && meshBuffers.tex) {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, meshBuffers.tex);
+          gl.uniform1i(loc.uTex, 0);
+          gl.uniform1i(loc.uHasTex, 1);
+        } else {
+          gl.uniform1i(loc.uHasTex, 0);
+        }
+
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, meshBuffers.idx);
+        gl.uniform1i(loc.uWireframePass, 0);
+        gl.drawElements(gl.TRIANGLES, meshBuffers.count, meshBuffers.idxType, 0);
+
+        if (showWireframe) {
+          gl.uniform1i(loc.uWireframePass, 1);
+          gl.drawElements(gl.LINES, meshBuffers.count, meshBuffers.idxType, 0);
+        }
+      }
+      requestAnimationFrame(renderWebGLLoop);
+    }
+    requestAnimationFrame(renderWebGLLoop);
+
+    // =========================================================================
+    // LÓGICA DE CONTROL DE LA WEBAPP MÓDULO 3
+    // =========================================================================
+    function selectEngine(eng) {
+      activeEngine = eng;
+      document.querySelectorAll('.engine-card').forEach(c => c.classList.remove('active'));
+      const el = document.getElementById(`card-${eng}`);
+      if (el) el.classList.add('active');
+    }
+
+    function handleFileUpload(ev) {
+      const file = ev.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        selectedMod1Filename = null;
+        selectedPrompt = file.name;
+        document.getElementById('inputPreviewImg').src = e.target.result;
+        await triggerConvert3D(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function selectMod1Asset(filename, promptText) {
+      selectedMod1Filename = filename;
+      selectedPrompt = promptText || filename;
+      document.getElementById('inputPreviewImg').src = `/api/mod1_image/${filename}?t=${Date.now()}`;
+      await triggerConvert3D();
+    }
+
+    async function triggerConvert3D(customB64 = null) {
+      const btn = document.getElementById('btnConvert3D');
+      btn.disabled = true;
+      btn.textContent = '⏳ Generando Objeto 3D (.GLB + .OBJ)...';
+
+      const payload = {
+        engine: activeEngine,
+        prompt: selectedPrompt,
+        mod1_filename: selectedMod1Filename,
+        image_b64: customB64,
+        remove_bg: document.getElementById('removeBgCheck').checked,
+        double_sided: document.getElementById('doubleSidedCheck').checked,
+        mesh_resolution: parseInt(document.getElementById('meshResInput').value, 10),
+        depth_scale: parseFloat(document.getElementById('depthScaleInput').value),
+        steps: parseInt(document.getElementById('steps3dInput').value, 10),
+      };
+
+      try {
+        const res = await fetch('/api/convert_3d', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.ok && data.result) {
+          apply3DResult(data.result);
+          pollStatus();
+        } else if (data.error) {
+          alert('Aviso: ' + data.error);
+        }
+      } catch (err) {
+        alert('Error al convertir a 3D: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🧊 CONVERTIR ASSET A OBJETO 3D (.GLB + .OBJ)';
+      }
+    }
+
+    function apply3DResult(r) {
+      currentGenId = r.id;
+      document.getElementById('inputPreviewImg').src = `/api/input_asset.png?t=${Date.now()}`;
+      document.getElementById('alphaPreviewImg').src = `/api/alpha_asset.png?t=${Date.now()}`;
+      document.getElementById('activeBackendLabel').textContent = `${r.backend} (${r.latency_ms} ms)`;
+      document.getElementById('downloadGlbBtn').href = r.glb_url;
+      document.getElementById('downloadObjBtn').href = r.obj_url;
+      loadGlbIntoViewer(r.glb_url);
+    }
+
+    async function downloadSelectedEngineWeights() {
+      const res = await fetch('/api/download_3d_models', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ engine: activeEngine })
+      });
+      const data = await res.json();
+      if (data.message) {
+        alert(data.message);
+      } else if (data.ok) {
+        alert(`Descarga de pesos iniciada en segundo plano para "${activeEngine}". Podés ver el progreso aquí mismo.`);
+      } else if (data.error) {
+        alert(data.error);
+      }
+    }
+
+    async function pollStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const st = await res.json();
+
+        if (st.gpu && st.gpu.found) {
+          document.getElementById('gpuName').textContent = st.gpu.name;
+          document.getElementById('vramText').textContent = `${st.gpu.vram_gb} GB`;
+        }
+        document.getElementById('stateText').textContent = st.state;
+        document.getElementById('recEngineBadge').textContent = `Sugerido: ${(st.recommended_engine || 'trellis2_local').toUpperCase()}`;
+
+        // Estado de instalación de pesos 3D
+        if (st.installed) {
+          for (const [engId, info] of Object.entries(st.installed)) {
+            const b = document.getElementById(`status-${engId}`);
+            if (b) {
+              if (info.ready) {
+                b.textContent = '✓ Instalado en ComfyUI';
+                b.style.color = 'var(--accent)';
+              } else {
+                b.textContent = `⬇ Descargar (${info.total_size_gb} GB)`;
+                b.style.color = 'var(--amber)';
+              }
+            }
+          }
+        }
+
+        // Progreso de descarga
+        const dlBox = document.getElementById('downloadProgressBox');
+        if (st.download_state && (st.download_state.active || st.download_state.progress)) {
+          dlBox.style.display = 'block';
+          dlBox.textContent = `📦 ${st.download_state.progress}`;
+        } else {
+          dlBox.style.display = 'none';
+        }
+
+        // Diagnóstico de compatibilidad
+        if (st.compatibility) {
+          const cBox = document.getElementById('compatBox');
+          cBox.className = `compat-card ${st.compatibility.severity || 'ok'}`;
+          document.getElementById('compatIssues').innerHTML = (st.compatibility.issues || []).map(i => `<li>${i}</li>`).join('');
+          document.getElementById('compatSolutions').innerHTML = (st.compatibility.solutions || []).map(s => `<li>${s}</li>`).join('');
+        }
+
+        // Galería de assets del Módulo 1
+        if (st.mod1_assets) {
+          const strip = document.getElementById('mod1Strip');
+          strip.innerHTML = st.mod1_assets.map(a => `
+            <div class="mod1-thumb" title="Click para convertir a 3D: ${a.prompt.replace(/"/g, '&quot;')}" onclick='selectMod1Asset(${JSON.stringify(a.filename)}, ${JSON.stringify(a.prompt)})'>
+              <img src="${a.url}" loading="lazy" alt="${a.filename}" />
+            </div>
+          `).join('');
+        }
+
+        // Historial 3D
+        if (st.history) {
+          const grid = document.getElementById('hist3dGrid');
+          grid.innerHTML = st.history.map(h => `
+            <div class="hist3d-card">
+              <img src="${h.preview_url}" alt="Preview #${h.id}" onclick='loadGlbIntoViewer(${JSON.stringify(h.glb_url)})' style="cursor:pointer;" />
+              <div class="hist3d-body">
+                <strong style="color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">#${h.id} • ${h.prompt}</strong>
+                <span style="color:var(--muted);">${h.vertices.toLocaleString()} vértices • ${h.latency_ms} ms</span>
+                <div style="display:flex; gap:6px; margin-top:2px;">
+                  <button class="btn btn-secondary" style="flex:1; padding:4px 6px; font-size:11px;" onclick='loadGlbIntoViewer(${JSON.stringify(h.glb_url)})'>👁️ Ver 3D</button>
+                  <a href="${h.glb_url}" download="asset_${h.id}.glb" class="btn btn-secondary" style="padding:4px 8px; font-size:11px; text-decoration:none;">.GLB</a>
+                  <a href="${h.obj_url}" download="asset_${h.id}.obj" class="btn btn-secondary" style="padding:4px 8px; font-size:11px; text-decoration:none;">.OBJ</a>
+                </div>
+              </div>
+            </div>
+          `).join('');
+        }
+
+        // Cargar último modelo si cambió
+        if (st.latest && st.latest.id !== currentGenId) {
+          apply3DResult(st.latest);
+        }
+      } catch (e) {}
+    }
+
+    // Revisar si se abrió con ?import_mod1=filename desde el Módulo 1
+    window.addEventListener('DOMContentLoaded', async () => {
+      const params = new URLSearchParams(window.location.search);
+      const fromMod1 = params.get('import_mod1');
+      const promptMod1 = params.get('prompt');
+      if (fromMod1) {
+        await selectMod1Asset(fromMod1, promptMod1 || 'Asset desde Módulo 1');
+      } else {
+        await pollStatus();
+      }
+      setInterval(pollStatus, 2500);
+    });
+  </script>
+</body>
+</html>
