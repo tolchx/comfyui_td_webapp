@@ -1,13 +1,13 @@
 @echo off
 chcp 65001 >nul
-title Modulo 2: StreamDiffusionV2 + ComfyUI_StreamDiffusion + ScreenDiffusion Studio
-cd /d "%~dp0"
+title Módulo 2: StreamDiffusionV2 + ComfyUI_StreamDiffusion + ScreenDiffusion Studio
+cd /d "%~dp0.."
 
 echo ====================================================================
-echo   MODULO 2: STREAMDIFFUSION V2 + SCREENDIFFUSION STUDIO (PUERTO 8081)
+echo   MÓDULO 2: STREAMDIFFUSION V2 + SCREENDIFFUSION STUDIO (PUERTO 8081)
 echo ====================================================================
 echo   - Conectado a ComfyUI (http://127.0.0.1:8188) y TouchDesigner
-echo   - WebApp Fusion en http://127.0.0.1:8081
+echo   - WebApp Fusión en http://127.0.0.1:8081
 echo ====================================================================
 echo.
 

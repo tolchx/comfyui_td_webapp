@@ -1,11 +1,11 @@
 @echo off
 chcp 65001 >nul
 title Curso IA Generativa — Instalador de Modelos y ComfyUI
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 echo ====================================================================
 echo   CURSO INTELIGENCIA ARTIFICIAL: TOUCHDESIGNER ^<--^> COMFYUI
-echo   Asistente de Deteccion de Hardware e Instalacion de Modelos
+echo   Asistente de Detección de Hardware e Instalación de Modelos
 echo ====================================================================
 echo.
 
@@ -20,7 +20,7 @@ if exist "ComfyUI_windows_portable\python_embeded\python.exe" (
 
 echo.
 echo ====================================================================
-echo   Configuracion finalizada.
-echo   Ahora podes hacer doble clic en: 2_Iniciar_Sistema_TD_Comfy.bat
+echo   Configuración finalizada.
+echo   Ahora podés hacer doble clic en: Windows\2_Iniciar_Sistema_TD_Comfy.bat
 echo ====================================================================
 pause

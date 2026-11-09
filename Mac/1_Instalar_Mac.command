@@ -1,10 +1,10 @@
 #!/bin/bash
 # Lanzador de Instalación y Configuración para macOS (Apple Silicon M1/M2/M3/M4 e Intel)
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 echo "===================================================================="
 echo "  CURSO INTELIGENCIA ARTIFICIAL: TOUCHDESIGNER <--> COMFYUI (macOS)"
-echo "  Asistente de Deteccion de Hardware Apple Metal (MPS) y Modelos"
+echo "  Asistente de Detección de Hardware Apple Metal (MPS) y Modelos"
 echo "===================================================================="
 echo ""
 
@@ -19,7 +19,7 @@ fi
 
 echo ""
 echo "===================================================================="
-echo "  Configuracion finalizada en macOS."
-echo "  Ahora podes hacer doble clic en: 2_Iniciar_Sistema_Mac.command"
+echo "  Configuración finalizada en macOS."
+echo "  Ahora podés hacer doble clic en: Mac/2_Iniciar_Sistema_Mac.command"
 echo "===================================================================="
 read -p "Presiona Enter para salir..."

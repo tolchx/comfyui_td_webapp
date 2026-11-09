@@ -15,7 +15,7 @@ Arquitectura **modular, standalone y multiplataforma (Windows & macOS)** diseña
      - **[ScreenDiffusion (`rudyaa-sd/ScreenDiffusion`)](https://github.com/rudyaa-sd/ScreenDiffusion)**: Captura en vivo de cualquier región de tu pantalla o ventana del sistema operativo (`PIL.ImageGrab` nativo + `getDisplayMedia` WebRTC), además de **Webcam en vivo**, **Pizarra Interactiva** y entrada desde **TouchDesigner TOP**.
 
 3. **🧊 Módulo 3 — TRELLIS v2 + Hunyuan 3D Local Studio (`trellis3d_studio/` • Puerto `8082`)**:
-   - Módulo dedicado en la carpeta [`trellis3d_studio/`](trellis3d_studio/) (lanzador `4_Iniciar_Trellis3D_Studio.bat` en Windows y `4_Iniciar_Trellis3D_Mac.command` en macOS) para convertir cualquier imagen de asset generada en el Módulo 1 en un **objeto 3D local (`.GLB` PBR y `.OBJ` para TouchDesigner `/project1/SOP_ASSET_3D`)** según la compatibilidad de hardware del alumno:
+   - Módulo dedicado en la carpeta [`trellis3d_studio/`](trellis3d_studio/) (lanzador `Windows/4_Iniciar_Trellis3D_Studio.bat` en Windows y `Mac/4_Iniciar_Trellis3D_Mac.command` en macOS) para convertir cualquier imagen de asset generada en el Módulo 1 en un **objeto 3D local (`.GLB` PBR y `.OBJ` para TouchDesigner `/project1/SOP_ASSET_3D`)** según la compatibilidad de hardware del alumno:
      - **🔥 Nivel Avanzado (`12 GB – 24 GB+ VRAM`, ej. RTX 4090 / 4080 / 3090)**: **TRELLIS v2 Local (`trellis2_local` — Microsoft / Comfy-Org 4B Sparse Voxel + PBR Texture Stage)** usando los nodos nativos de ComfyUI (`Trellis2Conditioning`, `Trellis2ShapeStage`, `Trellis2TextureStage`, `VaeDecodeShapeTrellis`, `VaeDecodeTextureTrellis`, `PaintMesh`, `SaveGLB`).
      - **⚡ Nivel Medio (`8 GB – 11 GB VRAM`, ej. RTX 3060 / 3070 / 4060Ti / Mac 16GB+)**: **Hunyuan 3D v2.1 Local (`hunyuan3d_v21`)** en un solo checkpoint nativo (`ImageOnlyCheckpointLoader` -> `Hunyuan3Dv2Conditioning` -> `EmptyLatentHunyuan3Dv2` -> `VAEDecodeHunyuan3D` -> `VoxelToMesh`).
      - **🪶 Nivel Medio-Ligero (`6 GB – 8 GB VRAM`)**: **Hunyuan 3D v2.0 FP16 (`hunyuan3d_v20_fp16` — 4.59 GB)**.
@@ -82,17 +82,17 @@ En lugar de depender de un motor TensorRT rígido, implementamos las optimizacio
 ## 🚀 Instalación y Uso en Windows
 
 ### Paso 1: Configurar Hardware y Descargar Modelo
-Hacé doble clic en **`1_Instalar_Modelos.bat`**.
+Hacé doble clic en **`Windows/1_Instalar_Modelos.bat`**.
 - El asistente detectará tu GPU y VRAM, te mostrará el diagnóstico de compatibilidad y te permitirá elegir el nivel (**`[1] BASICO`**, **`[2] MEDIO`** o **`[3] AVANZADO`** para GPUs potentes como RTX 3080/4080/4090).
 - Si no tenés ComfyUI instalado, elegí la opción **`[1]`** para que descargue e instale **ComfyUI Portable** automáticamente dentro de esta carpeta (o la opción **`[2]`** para vincular un ComfyUI que ya tengas en tu PC).
 
 ### Paso 2: Iniciar Módulo 1 (Generador de Imágenes Alta Calidad • Puerto 8080)
-Hacé doble clic en **`2_Iniciar_Sistema_TD_Comfy.bat`**.
+Hacé doble clic en **`Windows/2_Iniciar_Sistema_TD_Comfy.bat`**.
 - Levantará **ComfyUI en segundo plano** (`http://127.0.0.1:8188`).
 - Iniciará el **Módulo 1 (Generador de Imágenes HQ)** en `http://127.0.0.1:8080` y también levantará en segundo plano el **Módulo 2 (StreamDiffusionV2 Studio)** en `http://127.0.0.1:8081`.
 
 ### Paso 3: Iniciar Módulo 2 Independiente (StreamDiffusionV2 + ScreenDiffusion Studio • Puerto 8081)
-Si querés abrir directamente la WebApp de tiempo real (**StreamDiffusionV2 + ComfyUI_StreamDiffusion + ScreenDiffusion**), hacé doble clic en **`3_Iniciar_StreamDiffusion_V2_Studio.bat`** (o en **`3_Iniciar_StreamDiffusion_Mac.command`** en macOS), o abrí `http://127.0.0.1:8081`.
+Si querés abrir directamente la WebApp de tiempo real (**StreamDiffusionV2 + ComfyUI_StreamDiffusion + ScreenDiffusion**), hacé doble clic en **`Windows/3_Iniciar_StreamDiffusion_V2_Studio.bat`** (o en **`Mac/3_Iniciar_StreamDiffusion_Mac.command`** en macOS), o abrí `http://127.0.0.1:8081`.
 
 ---
 
@@ -104,17 +104,17 @@ Sí, **el sistema y el modo StreamDiffusion Realtime son 100% compatibles con ma
 Abrí la aplicación **Terminal** en tu Mac, arrastrá la carpeta del proyecto o entrá en ella y ejecutá:
 
 ```bash
-chmod +x 1_Instalar_Mac.command 2_Iniciar_Sistema_Mac.command
+chmod +x Mac/*.command
 ```
 
 ### Paso 2: Instalar ComfyUI y el Modelo en Mac
-Hacé doble clic en **`1_Instalar_Mac.command`** (o ejecutalo con `./1_Instalar_Mac.command` en Terminal).
+Hacé doble clic en **`Mac/1_Instalar_Mac.command`** (o ejecutalo con `./Mac/1_Instalar_Mac.command` en Terminal).
 - El instalador detectará tu chip Apple Silicon y cuánta Memoria Unificada tenés disponible.
 - Si no tenés ComfyUI instalado (ni la versión Desktop en `/Applications/ComfyUI.app`), elegí **`[1]`**: el script clonará ComfyUI, creará el entorno `.venv` e instalará **PyTorch con soporte Metal (MPS)** automáticamente.
 - **Recomendación para usuarios de Mac**: Elegí el **Nivel 0 (`REALTIME — StreamDiffusion-RT: Hyper-SD 1-Step + TAESD`)** o el **Nivel 1 (`Básico — DreamShaper 8 + LCM`)** para obtener la máxima fluidez en Metal.
 
 ### Paso 3: Iniciar el Sistema en Mac
-Hacé doble clic en **`2_Iniciar_Sistema_Mac.command`** (o ejecutá `./2_Iniciar_Sistema_Mac.command`).
+Hacé doble clic en **`Mac/2_Iniciar_Sistema_Mac.command`** (o ejecutá `./Mac/2_Iniciar_Sistema_Mac.command`).
 - Se iniciará ComfyUI en segundo plano con `--force-fp16` y se abrirá la WebApp en `http://127.0.0.1:8080`.
 
 ---
@@ -196,16 +196,18 @@ La WebApp (`http://127.0.0.1:8080`) incluye en su panel izquierdo la tarjeta **"
 
 ```text
 comfyui_td_webapp/
-├── 1_Instalar_Modelos.bat           # Instalador interactivo para Windows (incluye opción [0] StreamDiffusion RT)
-├── 2_Iniciar_Sistema_TD_Comfy.bat   # Lanzador en 1 clic para Módulo 1 (Imágenes HQ en 8080)
-├── 3_Iniciar_StreamDiffusion_Studio.bat # Lanzador en 1 clic para Módulo 2 (StreamDiffusionV2 en 8081)
-├── 4_Iniciar_Trellis3D_Studio.bat   # Lanzador en 1 clic para Módulo 3 (Trellis v2 + Hunyuan 3D en 8082)
-├── 5_Descargar_Modelos_3D.bat       # Descargador oficial de pesos 3D (Hunyuan 3D v2.1 y TRELLIS.2)
-├── 1_Instalar_Mac.command           # Instalador interactivo para macOS (Apple Silicon / Intel)
-├── 2_Iniciar_Sistema_Mac.command    # Lanzador Módulo 1 para macOS
-├── 3_Iniciar_StreamDiffusion_Mac.command # Lanzador Módulo 2 para macOS
-├── 4_Iniciar_Trellis3D_Mac.command  # Lanzador Módulo 3 para macOS
-├── 5_Descargar_Modelos_3D_Mac.command # Descargador de pesos 3D para macOS
+├── Windows/                         # Lanzadores y scripts para Windows (.bat)
+│   ├── 1_Instalar_Modelos.bat       # Instalador interactivo para Windows (incluye opción [0] StreamDiffusion RT)
+│   ├── 2_Iniciar_Sistema_TD_Comfy.bat # Lanzador en 1 clic para Módulo 1 (Imágenes HQ en 8080)
+│   ├── 3_Iniciar_StreamDiffusion_V2_Studio.bat # Lanzador en 1 clic para Módulo 2 (StreamDiffusionV2 en 8081)
+│   ├── 4_Iniciar_Trellis3D_Studio.bat # Lanzador en 1 clic para Módulo 3 (Trellis v2 + Hunyuan 3D en 8082)
+│   └── 5_Descargar_Modelos_3D.bat   # Descargador oficial de pesos 3D (Hunyuan 3D v2.1 y TRELLIS.2)
+├── Mac/                             # Lanzadores y scripts para macOS (.command)
+│   ├── 1_Instalar_Mac.command       # Instalador interactivo para macOS (Apple Silicon / Intel)
+│   ├── 2_Iniciar_Sistema_Mac.command # Lanzador Módulo 1 para macOS
+│   ├── 3_Iniciar_StreamDiffusion_Mac.command # Lanzador Módulo 2 para macOS
+│   ├── 4_Iniciar_Trellis3D_Mac.command # Lanzador Módulo 3 para macOS
+│   └── 5_Descargar_Modelos_3D_Mac.command # Descargador de pesos 3D para macOS
 ├── README.md                        # Documentación completa + Arquitectura StreamDiffusion + Guía LLM
 ├── TD/
 │   ├── v1.toe                       # Proyecto TouchDesigner configurado a 60 FPS con SOP_ASSET_3D y StreamDiffusion RT
