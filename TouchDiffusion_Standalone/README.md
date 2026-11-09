@@ -9,14 +9,16 @@ Versión **100% Standalone, pre-configurada y de instalación en 1 clic** del pr
 Instalar el repositorio original de `olegchomp/TouchDiffusion` manualmente solía requerir más de 10 pasos propensos a errores en clase:
 1. ❌ **Antes**: Había que instalar Python 3.11 a mano, abrir `webui.bat` con el Bloc de Notas y editar `set PYTHON_PATH=`.
    ✅ **Ahora**: El instalador detecta automáticamente el **Python 3.11 integrado dentro de TouchDesigner 2023/2025** (`C:\Program Files\Derivative\TouchDesigner*\bin\python.exe`), el Python 3.11 del sistema, o **descarga Python 3.11.10 Portable automáticamente** sin tocar el sistema.
-2. ❌ **Antes**: Había que descargar e instalar **NVIDIA CUDA Toolkit 11.8** (más de 3 GB) y reiniciar la PC.
-   ✅ **Ahora**: Los scripts y el componente `.tox` inyectan automáticamente las librerías dinámicas (`torch\lib` y `tensorrt_libs`) en memoria mediante `os.add_dll_directory()`. **No hace falta instalar CUDA Toolkit 11.8 en Windows ni reiniciar la PC**.
-3. ❌ **Antes**: El servidor `pypi.ngc.nvidia.com` usado por el script original dejó de existir y versiones nuevas de `huggingface_hub`, `diffusers`, `onnx-graphsurgeon` y `numpy 2.x` rompían la instalación. Además aparecía un cartel de error de `.dll` (`nvidia-cudnn-cu11`) que obligaba a tocar el botón *"Fix pop up"*.
-   ✅ **Ahora**: Todas las versiones están fijadas y verificadas (`torch==2.1.0+cu118`, `tensorrt==9.0.1.post11.dev4`, `polygraphy==0.49.9`, `onnx-graphsurgeon==0.5.2`, `diffusers==0.24.0`, `huggingface-hub==0.23.5`, `numpy==1.26.4`) y el conflicto de `nvidia-cudnn-cu11` se limpia automáticamente durante la instalación.
-4. ❌ **Antes**: En TouchDesigner había que arrastrar `TouchDiffusion.tox`, configurar a mano la ruta de la carpeta en `Settings`, guardar el proyecto `.toe`, cerrar TouchDesigner y volverlo a abrir, y era obligatorio esperar ~10 minutos compilando un motor TensorRT antes de poder generar una sola imagen.
+2. ❌ **Antes**: Fallaba con `UserWarning: Failed to initialize NumPy: _ARRAY_API not found ... RuntimeError: Numpy is not available` en TouchDesigner 2024 / 2025.
+   ✅ **Ahora**: Se actualizó a **`torch==2.4.1+cu118`** y **`torchvision==0.19.1+cu118`**, garantizando compatibilidad nativa con el **NumPy 2.1.2** bundled en TouchDesigner 2025.
+3. ❌ **Antes**: Había que descargar e instalar **NVIDIA CUDA Toolkit 11.8** (más de 3 GB) y reiniciar la PC.
+   ✅ **Ahora**: Los scripts y el componente `.tox` inyectan automáticamente las librerías dinámicas (`torch\lib`, `tensorrt_libs` y `nvidia\cudnn\bin`) en memoria mediante `os.add_dll_directory()`. **No hace falta instalar CUDA Toolkit 11.8 en Windows ni reiniciar la PC**.
+4. ❌ **Antes**: El servidor `pypi.ngc.nvidia.com` usado por el script original dejó de existir y versiones nuevas de `huggingface_hub`, `diffusers`, `onnx-graphsurgeon` y `numpy 2.x` rompían la instalación. Además aparecía un cartel de error de `.dll` (`nvidia-cudnn-cu11`) que obligaba a tocar el botón *"Fix pop up"*.
+   ✅ **Ahora**: Todas las dependencias están fijadas y verificadas (`torch==2.4.1+cu118`, `tensorrt==9.0.1.post11.dev4`, `nvidia-cudnn-cu11==8.9.4.25`, `polygraphy==0.49.9`, `onnx-graphsurgeon==0.5.2`, `diffusers==0.24.0`, `huggingface-hub==0.23.5`) y `TouchDiffusionExt.py` filtra automáticamente librerías conflictivas de otras versiones de Python (ej. Python 3.13) en `sys.path`.
+5. ❌ **Antes**: En TouchDesigner había que arrastrar `TouchDiffusion.tox`, configurar a mano la ruta de la carpeta en `Settings`, guardar el proyecto `.toe`, cerrar TouchDesigner y volverlo a abrir, y era obligatorio esperar ~10 minutos compilando un motor TensorRT antes de poder generar una sola imagen.
    ✅ **Ahora**:
    - Incluye el proyecto listo **`TD/TouchDiffusion_Clase_IA.toe`** que detecta la carpeta `.venv` y carga las librerías **en caliente sin reiniciar TouchDesigner**.
-   - Incluye tanto el **Modo TensorRT Nivo (50–60 FPS)** como un **Modo `[PyTorch-Direct] sd-turbo-512-512-1 (Sin compilar TensorRT)`** que funciona en el acto apenas termina la instalación.
+   - Incluye tanto el **Modo TensorRT Nivo (35–60 FPS)** como un **Modo `[PyTorch-Direct] sd-turbo-512-512-1 (Sin compilar TensorRT)`** que funciona en el acto apenas termina la instalación.
 
 ---
 

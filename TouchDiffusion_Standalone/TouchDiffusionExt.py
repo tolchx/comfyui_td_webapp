@@ -14,6 +14,14 @@ def _resolve_and_inject_touchdiffusion_env(comp):
     .venv/Lib/site-packages + DLLs de CUDA/TensorRT en caliente sin requerir
     reiniciar TouchDesigner.
     """
+    # 1. Limpiar sys.path de librerías de otras versiones de Python (ej. Python 3.13 / 3.12)
+    # que pueden causar conflictos de C-extensions (como scipy o numpy incompatible).
+    cleaned = [
+        p for p in sys.path
+        if not any(bad in p.replace('\\', '/') for bad in ['/Python313/', '/Python312/', '/Python310/', '/Python39/', '/Python38/'])
+    ]
+    sys.path[:] = cleaned
+
     candidates = []
     try:
         user_val = comp.par.Venvpath.eval().strip()
@@ -70,7 +78,7 @@ def _resolve_and_inject_touchdiffusion_env(comp):
                         except Exception:
                             pass
 
-        # Agregar site-packages y StreamDiffusion a sys.path
+        # Agregar site-packages y StreamDiffusion a sys.path en las primeras posiciones
         for sub in [
             os.path.join(resolved, ".venv", "Lib", "site-packages"),
             os.path.join(resolved, "embedded_python", "Lib", "site-packages"),
@@ -78,7 +86,9 @@ def _resolve_and_inject_touchdiffusion_env(comp):
             os.path.join(resolved, "StreamDiffusion"),
             resolved,
         ]:
-            if os.path.isdir(sub) and sub not in sys.path:
+            if os.path.isdir(sub):
+                while sub in sys.path:
+                    sys.path.remove(sub)
                 sys.path.insert(0, sub)
 
     return resolved
@@ -111,6 +121,12 @@ class TouchDiffusionExt:
 
     def activate_stream(self):
         folder = _resolve_and_inject_touchdiffusion_env(parent())
+        try:
+            import diffusers.utils.import_utils as du
+            du._scipy_available = False
+        except Exception:
+            pass
+
         try:
             from StreamDiffusion.utils.wrapper import StreamDiffusionWrapper
         except Exception as e:

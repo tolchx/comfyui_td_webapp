@@ -14,7 +14,7 @@ if not exist ".venv\Scripts\python.exe" (
     call "1_Instalar_TouchDiffusion.bat"
 )
 
-set "PATH=%~dp0.venv\Lib\site-packages\torch\lib;%~dp0.venv\Lib\site-packages\tensorrt_libs;%PATH%"
+set "PATH=%~dp0.venv\Lib\site-packages\torch\lib;%~dp0.venv\Lib\site-packages\tensorrt_libs;%~dp0.venv\Lib\site-packages\nvidia\cudnn\bin;%PATH%"
 
 start "" cmd /c "timeout /t 2 /nobreak >nul && start http://127.0.0.1:7860"
 ".venv\Scripts\python.exe" "StreamDiffusion\webui.py"

@@ -44,6 +44,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from PIL import Image, ImageFilter, ImageOps
+import scipy.ndimage
+import trimesh
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR))
@@ -143,14 +145,16 @@ MODEL_CATALOG_3D: Dict[str, Dict[str, Any]] = {
 }
 
 
-def remove_background_alpha(img: Image.Image, threshold_tol: int = 28) -> Image.Image:
+def remove_background_alpha(img: Image.Image, threshold_tol: int = 26) -> Image.Image:
     """
-    Aísla automáticamente el objeto principal generando una máscara Alfa limpia:
-    1. Si la imagen ya posee canal RGBA con transparencia real, lo preserva.
-    2. Si es RGB opaca, muestrea el color de fondo en las 4 esquinas y bordes,
-       calcula la distancia cromática + gradiente de luminancia, suaviza los bordes
-       de la silueta y elimina el fondo para que Trellis v2 / Hunyuan 3D / Escultor 3D
-       no conviertan el recuadro de fondo en geometría plana.
+    Aísla limpiamente el objeto principal generando una máscara Alfa perfecta:
+    1. Si la imagen ya tiene canal Alfa con transparencia (ej. PNG con recorte), la respeta.
+    2. Si es RGB opaca (ej. salida de ComfyUI txt2img):
+       - Muestrea el color y varianza del fondo en las 4 esquinas y bordes.
+       - Calcula distancia cromática de cada píxel respecto al fondo mediano.
+       - Aplica umbral adaptativo y rellena huecos internos mediante morfología (binary_fill_holes).
+       - Conserva el componente conexo principal (elimina motas o ruido exterior).
+       - Suaviza el contorno perimetral para evitar bordes dentados.
     """
     rgba = img.convert("RGBA")
     arr = np.array(rgba, dtype=np.float32)
@@ -158,57 +162,65 @@ def remove_background_alpha(img: Image.Image, threshold_tol: int = 28) -> Image.
     if np.min(alpha) < 240 and np.mean(alpha < 128) > 0.05:
         return rgba
 
-    rgb = arr[:, :, :3]
+    rgb = arr[:, :, :3] / 255.0
     h, w, _ = rgb.shape
 
-    # Muestrear píxeles de borde (marco exterior de 6px) para estimar el fondo
+    # Muestrear píxeles de borde (marco perimetral de 8px)
+    b = 8
     border_pixels = np.concatenate([
-        rgb[:6, :, :].reshape(-1, 3),
-        rgb[-6:, :, :].reshape(-1, 3),
-        rgb[:, :6, :].reshape(-1, 3),
-        rgb[:, -6:, :].reshape(-1, 3),
+        rgb[:b, :].reshape(-1, 3),
+        rgb[-b:, :].reshape(-1, 3),
+        rgb[:, :b].reshape(-1, 3),
+        rgb[:, -b:].reshape(-1, 3),
     ], axis=0)
     bg_median = np.median(border_pixels, axis=0)
     bg_std = float(np.mean(np.std(border_pixels, axis=0)))
 
-    # Distancia de cada píxel al color mediano del borde
+    # Distancia cromática al color del fondo
     dist = np.linalg.norm(rgb - bg_median.reshape(1, 1, 3), axis=2)
 
-    # Sesgo radial suave hacia el centro (los assets suelen estar centrados)
-    yy, xx = np.mgrid[0:h, 0:w]
-    cy, cx = h / 2.0, w / 2.0
-    r_norm = np.sqrt(((xx - cx) / (w * 0.5)) ** 2 + ((yy - cy) / (h * 0.5)) ** 2)
-    center_boost = np.clip(1.25 - 0.55 * r_norm, 0.4, 1.2)
+    # Umbral adaptativo según varianza del fondo
+    tol = max(0.09, min(0.28, (threshold_tol / 255.0) + bg_std * 0.8))
+    mask_bin = dist > tol
 
-    tol = max(18.0, min(68.0, threshold_tol + bg_std * 0.45))
-    score = dist * center_boost
-    mask_f = np.clip((score - tol * 0.65) / max(8.0, tol * 0.55), 0.0, 1.0)
+    # Rellenar posibles huecos en el interior del objeto
+    mask_filled = scipy.ndimage.binary_fill_holes(mask_bin)
 
-    # Garantizar que al menos el núcleo central del objeto esté presente si el fondo es complejo
-    if np.mean(mask_f > 0.5) < 0.08:
-        mask_f = np.clip(1.15 - 0.78 * r_norm, 0.0, 1.0)
+    # Conservar el componente conexo más grande (el objeto principal)
+    labels, num_features = scipy.ndimage.label(mask_filled)
+    if num_features > 0:
+        sizes = scipy.ndimage.sum(mask_filled, labels, range(1, num_features + 1))
+        largest_label = int(np.argmax(sizes)) + 1
+        mask_final = (labels == largest_label)
+    else:
+        mask_final = mask_filled
 
-    mask_img = Image.fromarray((mask_f * 255.0).astype(np.uint8), mode="L")
-    mask_img = mask_img.filter(ImageFilter.GaussianBlur(radius=1.5))
+    # Suavizado de bordes anti-aliasing
+    alpha_soft = scipy.ndimage.gaussian_filter(mask_final.astype(np.float32), sigma=1.2)
+    alpha_soft = np.clip(alpha_soft, 0.0, 1.0) * 255.0
 
     out_arr = arr.astype(np.uint8)
-    out_arr[:, :, 3] = np.array(mask_img, dtype=np.uint8)
+    out_arr[:, :, 3] = alpha_soft.astype(np.uint8)
     return Image.fromarray(out_arr, mode="RGBA")
 
 
 def build_3d_mesh_from_rgba(
     rgba_img: Image.Image,
-    grid_res: int = 128,
-    depth_scale: float = 0.42,
+    grid_res: int = 120,
+    depth_scale: float = 0.38,
     double_sided_360: bool = True,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, Image.Image]:
     """
-    Construye una malla 3D cerrada 360° (frente esculpido + dorso orgánico cosido en el contorno)
-    o bajorrelieve a partir de una imagen RGBA de un asset:
-      - Devuelve `(vertices, faces, normals, uvs, vertex_colors, texture_pil)`
-      - Compatible con glTF 2.0 (`.glb` con textura PNG embebida) y Wavefront `.obj` (TouchDesigner SOP).
+    Construye una malla 3D 360° orgánica, suave y cerrada (frente esculpido + dorso curvado)
+    a partir de una imagen RGBA de un asset:
+      - Utiliza la transformada de distancia euclidiana (EDT) sobre la silueta Alfa,
+        generando un inflado armónico sinusoidal que garantiza cota Z=0 exacta en el borde
+        sin escalonamientos ni deformaciones acanaladas.
+      - Agrega micro-relieve textural de alta frecuencia no destructivo (máx 3%).
+      - Cierra herméticamente frente y dorso cosiendo vértices de contorno.
+      - Devuelve (vertices, faces, normals, uvs, vertex_colors, texture_pil).
     """
-    grid_res = max(48, min(220, int(grid_res)))
+    grid_res = max(48, min(180, int(grid_res)))
     tex_img = rgba_img.convert("RGB").resize((512, 512), Image.Resampling.LANCZOS)
 
     work_rgba = rgba_img.resize((grid_res, grid_res), Image.Resampling.BILINEAR)
@@ -216,27 +228,30 @@ def build_3d_mesh_from_rgba(
     rgb = arr[:, :, :3]
     alpha = arr[:, :, 3]
 
-    # Si casi toda la imagen es opaca, usar todo el lienzo; si tiene recorte Alfa, usar máscara
-    mask = alpha > 0.18
-    if np.sum(mask) < 32:
+    mask = alpha > 0.25
+    if np.sum(mask) < 24:
         mask = np.ones((grid_res, grid_res), dtype=bool)
-        alpha = np.ones((grid_res, grid_res), dtype=np.float32)
 
-    # Estimar relieve volumétrico combinando:
-    # 1) Distancia al borde de la silueta (inflado orgánico tipo cúpula 3D en el interior del objeto)
-    # 2) Luminancia + detalle local de alta frecuencia del asset
+    # 1. Inflado volumétrico armónico suave usando EDT (Euclidean Distance Transform)
+    dist = scipy.ndimage.distance_transform_edt(mask)
+    if mask.sum() > 0:
+        max_dist = max(1.0, float(np.percentile(dist[mask], 85)))
+    else:
+        max_dist = 1.0
+    d_norm = np.clip(dist / max_dist, 0.0, 1.0)
+
+    # Cúpula sinusoidal: derivada suave y cero en el contorno perimetral (sin bordes filosos)
+    height_dome = np.sin(d_norm * (np.pi * 0.5)) * float(depth_scale)
+    height_dome = scipy.ndimage.gaussian_filter(height_dome, sigma=1.1)
+
+    # Micro-detalle textural sutil de alta frecuencia (solo 3.5%, sin acanalar la malla)
     lum = 0.299 * rgb[:, :, 0] + 0.587 * rgb[:, :, 1] + 0.114 * rgb[:, :, 2]
+    lum_highpass = lum - scipy.ndimage.gaussian_filter(lum, sigma=3.5)
+    micro_detail = np.clip(lum_highpass * 0.035, -0.015, 0.015)
 
-    # Aproximación rápida de distancia al borde mediante desenfoques sucesivos de la máscara Alfa
-    alpha_pil = Image.fromarray((alpha * 255.0).astype(np.uint8), mode="L")
-    dome_1 = np.array(alpha_pil.filter(ImageFilter.GaussianBlur(radius=max(2, grid_res // 18))), dtype=np.float32) / 255.0
-    dome_2 = np.array(alpha_pil.filter(ImageFilter.GaussianBlur(radius=max(4, grid_res // 7))), dtype=np.float32) / 255.0
-    silhouette_dome = np.sqrt(np.clip(alpha * (0.55 * dome_1 + 0.45 * dome_2), 0.0, 1.0))
-
-    lum_pil = Image.fromarray((lum * 255.0).astype(np.uint8), mode="L")
-    lum_smooth = np.array(lum_pil.filter(ImageFilter.GaussianBlur(radius=1.2)), dtype=np.float32) / 255.0
-
-    height_field = (0.62 * silhouette_dome + 0.38 * lum_smooth) * alpha * float(depth_scale)
+    # El micro-detalle solo se aplica en el núcleo profundo del objeto, nunca en los bordes
+    height_field = np.clip(height_dome + micro_detail * (d_norm > 0.15), 0.0, depth_scale * 1.2)
+    height_field[~mask] = 0.0
 
     # Coordenadas X, Y normalizadas en [-0.85, 0.85] (Y hacia arriba para glTF y TouchDesigner)
     xs = np.linspace(-0.85, 0.85, grid_res, dtype=np.float32)
@@ -247,8 +262,22 @@ def build_3d_mesh_from_rgba(
     vs = np.linspace(0.0, 1.0, grid_res, dtype=np.float32)
     uu, vv = np.meshgrid(us, vs)
 
-    # Mapeo de vértices del frente
+    # Identificar bordes de la silueta
+    is_boundary = np.zeros((grid_res, grid_res), dtype=bool)
+    for r in range(grid_res):
+        for c in range(grid_res):
+            if mask[r, c]:
+                if (
+                    r == 0
+                    or r == grid_res - 1
+                    or c == 0
+                    or c == grid_res - 1
+                    or not (mask[r - 1, c] and mask[r + 1, c] and mask[r, c - 1] and mask[r, c + 1])
+                ):
+                    is_boundary[r, c] = True
+
     front_idx = -np.ones((grid_res, grid_res), dtype=np.int32)
+    back_idx = -np.ones((grid_res, grid_res), dtype=np.int32)
     verts_list: List[List[float]] = []
     uvs_list: List[List[float]] = []
     colors_list: List[List[float]] = []
@@ -256,66 +285,58 @@ def build_3d_mesh_from_rgba(
     for r in range(grid_res):
         for c in range(grid_res):
             if mask[r, c]:
-                front_idx[r, c] = len(verts_list)
-                verts_list.append([float(xx[r, c]), float(yy[r, c]), float(height_field[r, c])])
-                uvs_list.append([float(uu[r, c]), float(vv[r, c])])
-                colors_list.append([float(rgb[r, c, 0]), float(rgb[r, c, 1]), float(rgb[r, c, 2])])
+                if is_boundary[r, c] and double_sided_360:
+                    # Vértice de costura perimetral en Z=0 compartido entre frente y dorso
+                    idx = len(verts_list)
+                    verts_list.append([float(xx[r, c]), float(yy[r, c]), 0.0])
+                    uvs_list.append([float(uu[r, c]), float(vv[r, c])])
+                    colors_list.append([float(rgb[r, c, 0]), float(rgb[r, c, 1]), float(rgb[r, c, 2])])
+                    front_idx[r, c] = idx
+                    back_idx[r, c] = idx
+                else:
+                    # Frente
+                    f_id = len(verts_list)
+                    verts_list.append([float(xx[r, c]), float(yy[r, c]), float(height_field[r, c])])
+                    uvs_list.append([float(uu[r, c]), float(vv[r, c])])
+                    colors_list.append([float(rgb[r, c, 0]), float(rgb[r, c, 1]), float(rgb[r, c, 2])])
+                    front_idx[r, c] = f_id
+
+                    if double_sided_360:
+                        # Dorso orgánico curvado hacia -Z
+                        b_id = len(verts_list)
+                        verts_list.append([float(xx[r, c]), float(yy[r, c]), float(-height_field[r, c] * 0.82)])
+                        uvs_list.append([float(uu[r, c]), float(vv[r, c])])
+                        colors_list.append([
+                            float(rgb[r, c, 0] * 0.85),
+                            float(rgb[r, c, 1] * 0.85),
+                            float(rgb[r, c, 2] * 0.85),
+                        ])
+                        back_idx[r, c] = b_id
 
     faces_list: List[List[int]] = []
     for r in range(grid_res - 1):
         for c in range(grid_res - 1):
-            i00 = front_idx[r, c]
-            i10 = front_idx[r + 1, c]
-            i01 = front_idx[r, c + 1]
-            i11 = front_idx[r + 1, c + 1]
-            if i00 >= 0 and i10 >= 0 and i01 >= 0 and i11 >= 0:
-                faces_list.append([i00, i10, i11])
-                faces_list.append([i00, i11, i01])
+            f00, f10 = front_idx[r, c], front_idx[r + 1, c]
+            f01, f11 = front_idx[r, c + 1], front_idx[r + 1, c + 1]
+            if f00 >= 0 and f10 >= 0 and f11 >= 0 and len({f00, f10, f11}) == 3:
+                faces_list.append([f00, f10, f11])
+            if f00 >= 0 and f11 >= 0 and f01 >= 0 and len({f00, f11, f01}) == 3:
+                faces_list.append([f00, f11, f01])
 
-    if double_sided_360:
-        # Construir cara posterior simétrica esculpida y coser los bordes para cerrar el volumen 360°
-        back_idx = -np.ones((grid_res, grid_res), dtype=np.int32)
-        for r in range(grid_res):
-            for c in range(grid_res):
-                if mask[r, c]:
-                    # Si es un vértice de borde de la máscara, comparte posición Z=0 con el frente para cerrar la malla
-                    is_border = (
-                        r == 0 or r == grid_res - 1 or c == 0 or c == grid_res - 1
-                        or not (mask[r - 1, c] and mask[r + 1, c] and mask[r, c - 1] and mask[r, c + 1])
-                    )
-                    if is_border:
-                        # Forzar Z=0 en el contorno para que frente y dorso cierren herméticamente
-                        verts_list[front_idx[r, c]][2] = 0.0
-                        back_idx[r, c] = front_idx[r, c]
-                    else:
-                        back_idx[r, c] = len(verts_list)
-                        verts_list.append([float(xx[r, c]), float(yy[r, c]), float(-height_field[r, c] * 0.82)])
-                        uvs_list.append([float(uu[r, c]), float(vv[r, c])])
-                        colors_list.append([
-                            float(rgb[r, c, 0] * 0.88),
-                            float(rgb[r, c, 1] * 0.88),
-                            float(rgb[r, c, 2] * 0.88),
-                        ])
-
-        for r in range(grid_res - 1):
-            for c in range(grid_res - 1):
-                b00 = back_idx[r, c]
-                b10 = back_idx[r + 1, c]
-                b01 = back_idx[r, c + 1]
-                b11 = back_idx[r + 1, c + 1]
-                if b00 >= 0 and b10 >= 0 and b01 >= 0 and b11 >= 0:
-                    # Orientación invertida para que las normales del dorso apunten hacia -Z
-                    if not (b00 == b10 or b10 == b11 or b00 == b11):
-                        faces_list.append([b00, b11, b10])
-                    if not (b00 == b11 or b11 == b01 or b00 == b01):
-                        faces_list.append([b00, b01, b11])
+            if double_sided_360:
+                b00, b10 = back_idx[r, c], back_idx[r + 1, c]
+                b01, b11 = back_idx[r, c + 1], back_idx[r + 1, c + 1]
+                if b00 >= 0 and b10 >= 0 and b11 >= 0 and len({b00, b10, b11}) == 3:
+                    faces_list.append([b00, b11, b10])
+                if b00 >= 0 and b11 >= 0 and b01 >= 0 and len({b00, b11, b01}) == 3:
+                    faces_list.append([b00, b01, b11])
 
     vertices_np = np.array(verts_list, dtype=np.float32)
     faces_np = np.array(faces_list, dtype=np.uint32)
     uvs_np = np.array(uvs_list, dtype=np.float32)
     colors_np = np.array(colors_list, dtype=np.float32)
 
-    # Calcular normales por vértice suaves
+    # Normales suaves ponderadas por área
     normals_np = np.zeros_like(vertices_np, dtype=np.float32)
     if len(faces_np) > 0:
         v0 = vertices_np[faces_np[:, 0]]
@@ -501,40 +522,50 @@ def write_obj_file(
 
 def extract_obj_from_glb_bytes(glb_bytes: bytes, obj_path: Path) -> Tuple[int, int]:
     """
-    Si ComfyUI (Trellis2 o Hunyuan3D) genera un archivo .GLB, extrae sus vértices y caras
-    para generar también el `.obj` sincronizado con TouchDesigner `fileinSOP`.
+    Si ComfyUI (Trellis2 o Hunyuan3D) genera un archivo .GLB, extrae su geometría completa
+    (vértices, caras, normales, UVs) y exporta un .OBJ limpio y optimizado para TouchDesigner `fileinSOP`.
     """
     try:
-        if len(glb_bytes) < 28 or glb_bytes[:4] != b"glTF":
+        scene = trimesh.load(io.BytesIO(glb_bytes), file_type="glb")
+        if isinstance(scene, trimesh.Scene):
+            mesh = scene.to_geometry()
+        else:
+            mesh = scene
+        mesh.export(str(obj_path), file_type="obj")
+        return int(len(mesh.vertices)), int(len(mesh.faces))
+    except Exception as e:
+        print(f"[3D Studio] Fallback a extractor gltf manual: {e}")
+        try:
+            if len(glb_bytes) < 28 or glb_bytes[:4] != b"glTF":
+                return 0, 0
+            json_len, _ = struct.unpack("<II", glb_bytes[12:20])
+            gltf = json.loads(glb_bytes[20: 20 + json_len].decode("utf-8"))
+            bin_start = 20 + json_len + 8
+            bin_data = glb_bytes[bin_start:]
+
+            prim = gltf["meshes"][0]["primitives"][0]
+            pos_acc = gltf["accessors"][prim["attributes"]["POSITION"]]
+            pos_bv = gltf["bufferViews"][pos_acc["bufferView"]]
+            v_off = pos_bv.get("byteOffset", 0) + pos_acc.get("byteOffset", 0)
+            v_count = pos_acc["count"]
+            verts = np.frombuffer(bin_data, dtype=np.float32, count=v_count * 3, offset=v_off).reshape(-1, 3)
+
+            idx_acc = gltf["accessors"][prim["indices"]]
+            idx_bv = gltf["bufferViews"][idx_acc["bufferView"]]
+            i_off = idx_bv.get("byteOffset", 0) + idx_acc.get("byteOffset", 0)
+            i_count = idx_acc["count"]
+            dt = np.uint32 if idx_acc["componentType"] == 5125 else np.uint16
+            faces = np.frombuffer(bin_data, dtype=dt, count=i_count, offset=i_off).reshape(-1, 3).astype(np.uint32)
+
+            lines = ["# Extraido de GLB ComfyUI (Trellis2 / Hunyuan3D)\n", "o ComfyMesh3D\n"]
+            for v in verts:
+                lines.append(f"v {v[0]:.5f} {v[1]:.5f} {v[2]:.5f}\n")
+            for f in faces + 1:
+                lines.append(f"f {f[0]} {f[1]} {f[2]}\n")
+            obj_path.write_text("".join(lines), encoding="utf-8")
+            return int(v_count), int(len(faces))
+        except Exception:
             return 0, 0
-        json_len, _ = struct.unpack("<II", glb_bytes[12:20])
-        gltf = json.loads(glb_bytes[20: 20 + json_len].decode("utf-8"))
-        bin_start = 20 + json_len + 8
-        bin_data = glb_bytes[bin_start:]
-
-        prim = gltf["meshes"][0]["primitives"][0]
-        pos_acc = gltf["accessors"][prim["attributes"]["POSITION"]]
-        pos_bv = gltf["bufferViews"][pos_acc["bufferView"]]
-        v_off = pos_bv.get("byteOffset", 0) + pos_acc.get("byteOffset", 0)
-        v_count = pos_acc["count"]
-        verts = np.frombuffer(bin_data, dtype=np.float32, count=v_count * 3, offset=v_off).reshape(-1, 3)
-
-        idx_acc = gltf["accessors"][prim["indices"]]
-        idx_bv = gltf["bufferViews"][idx_acc["bufferView"]]
-        i_off = idx_bv.get("byteOffset", 0) + idx_acc.get("byteOffset", 0)
-        i_count = idx_acc["count"]
-        dt = np.uint32 if idx_acc["componentType"] == 5125 else np.uint16
-        faces = np.frombuffer(bin_data, dtype=dt, count=i_count, offset=i_off).reshape(-1, 3).astype(np.uint32)
-
-        lines = ["# Extraido de GLB ComfyUI (Trellis2 / Hunyuan3D)\n", "o ComfyMesh3D\n"]
-        for v in verts:
-            lines.append(f"v {v[0]:.5f} {v[1]:.5f} {v[2]:.5f}\n")
-        for f in faces + 1:
-            lines.append(f"f {f[0]} {f[1]} {f[2]}\n")
-        obj_path.write_text("".join(lines), encoding="utf-8")
-        return int(v_count), int(len(faces))
-    except Exception:
-        return 0, 0
 
 
 class Trellis3DStudioState:
@@ -551,7 +582,19 @@ class Trellis3DStudioState:
 
         self.comfy_dir = self._find_comfy_root()
         self.state = "READY"
-        self.download_state = {"active": False, "engine": "", "progress": ""}
+        self.download_state = {
+            "active": False,
+            "engine": "",
+            "engine_name": "",
+            "progress": "",
+            "percentage": 0.0,
+            "downloaded_mb": 0.0,
+            "total_mb": 0.0,
+            "speed_mbps": 0.0,
+            "eta_s": 0,
+            "error": "",
+        }
+        self.cancel_download_flag = False
         self.generation_id = 0
         self.latency_ms = 0.0
         self.last_error = ""
@@ -567,7 +610,16 @@ class Trellis3DStudioState:
         else:
             self.recommended_engine = "instant_pbr_mesh"
 
-        self.active_engine = self.recommended_engine
+        # Si ya hay un motor neuronal descargado en ComfyUI, activarlo de inmediato
+        installed_map = self.check_installed_3d_models()
+        if installed_map.get("trellis2_local", {}).get("ready"):
+            self.active_engine = "trellis2_local"
+        elif installed_map.get("hunyuan3d_v21", {}).get("ready"):
+            self.active_engine = "hunyuan3d_v21"
+        elif installed_map.get("hunyuan3d_v20_fp16", {}).get("ready"):
+            self.active_engine = "hunyuan3d_v20_fp16"
+        else:
+            self.active_engine = self.recommended_engine
         self.current_input_image = INPUTS_DIR / "current_asset.png"
         self.current_alpha_image = INPUTS_DIR / "current_asset_alpha.png"
         self.latest_glb = OUTPUTS_DIR / "latest_model.glb"
@@ -689,33 +741,129 @@ class Trellis3DStudioState:
             "solutions": solutions,
         }
 
+    def cancel_download(self) -> Dict[str, Any]:
+        if self.download_state.get("active"):
+            self.cancel_download_flag = True
+            return {"ok": True, "message": "Cancelando descarga..."}
+        return {"ok": False, "message": "No hay descargas activas."}
+
     def start_background_download(self, engine_id: str) -> Dict[str, Any]:
         if engine_id not in MODEL_CATALOG_3D:
             return {"ok": False, "error": f"Motor desconocido: {engine_id}"}
-        if self.download_state["active"]:
-            return {"ok": False, "error": f"Ya hay una descarga en curso ({self.download_state['engine']})"}
+        if self.download_state.get("active"):
+            return {"ok": False, "error": f"Ya hay una descarga en curso ({self.download_state.get('engine')})"}
 
         files = MODEL_CATALOG_3D[engine_id]["files"]
         if not files:
             return {"ok": True, "message": "Este motor no requiere descargas adicionales."}
 
+        self.cancel_download_flag = False
+
         def _worker() -> None:
-            self.download_state = {"active": True, "engine": engine_id, "progress": "Iniciando descarga..."}
+            self.download_state = {
+                "active": True,
+                "engine": engine_id,
+                "engine_name": MODEL_CATALOG_3D[engine_id]["name"],
+                "progress": "Iniciando descarga...",
+                "percentage": 0.0,
+                "downloaded_mb": 0.0,
+                "total_mb": 0.0,
+                "speed_mbps": 0.0,
+                "eta_s": 0,
+                "current_file": "",
+                "file_idx": 0,
+                "total_files": len(files),
+                "error": "",
+            }
             try:
                 models_root = self.comfy_dir / "models"
+                total_expected_bytes = max(1, sum(int(f["size_gb"] * 1024 * 1024 * 1024) for f in files))
+                downloaded_all_files_bytes = 0
+
                 for idx, f in enumerate(files, 1):
+                    if self.cancel_download_flag:
+                        break
                     target_dir = models_root / f["subdir"]
                     target_dir.mkdir(parents=True, exist_ok=True)
                     dest = target_dir / f["name"]
+                    part_dest = dest.with_suffix(dest.suffix + ".part")
+
                     if dest.exists() and dest.stat().st_size > 1024 * 1024:
+                        downloaded_all_files_bytes += dest.stat().st_size
                         continue
-                    self.download_state["progress"] = f"Descargando ({idx}/{len(files)}): {f['name']} ({f['size_gb']} GB)..."
-                    download_file_with_progress(f["url"], dest, f["name"])
-                self.download_state = {"active": False, "engine": engine_id, "progress": "Descarga completada ✓"}
+
+                    existing_bytes = part_dest.stat().st_size if part_dest.exists() else 0
+                    downloaded_all_files_bytes += existing_bytes
+                    headers = {"User-Agent": "TD-ComfyUI-Course-Studio3D/2.0"}
+                    if existing_bytes > 0:
+                        headers["Range"] = f"bytes={existing_bytes}-"
+
+                    self.download_state["current_file"] = f["name"]
+                    self.download_state["file_idx"] = idx
+
+                    req = urllib.request.Request(f["url"], headers=headers)
+                    with urllib.request.urlopen(req, timeout=30) as resp:
+                        status = getattr(resp, "status", 200)
+                        content_len = resp.headers.get("Content-Length")
+                        file_mode = "ab" if status == 206 else "wb"
+
+                        chunk_size = 1024 * 1024  # 1 MB
+                        t_prev = time.time()
+                        bytes_prev = 0
+
+                        with open(part_dest, file_mode) as out_f:
+                            while not self.cancel_download_flag:
+                                chunk = resp.read(chunk_size)
+                                if not chunk:
+                                    break
+                                out_f.write(chunk)
+                                chunk_len = len(chunk)
+                                downloaded_all_files_bytes += chunk_len
+                                bytes_prev += chunk_len
+
+                                t_now = time.time()
+                                dt = t_now - t_prev
+                                if dt >= 0.8:
+                                    speed = (bytes_prev / dt)  # bytes/s
+                                    speed_mb = speed / (1024 * 1024)
+                                    remain = max(0, total_expected_bytes - downloaded_all_files_bytes)
+                                    eta = int(remain / max(1.0, speed))
+                                    pct = min(100.0, round((downloaded_all_files_bytes / total_expected_bytes) * 100.0, 1))
+
+                                    self.download_state.update({
+                                        "percentage": pct,
+                                        "downloaded_mb": round(downloaded_all_files_bytes / (1024 * 1024), 1),
+                                        "total_mb": round(total_expected_bytes / (1024 * 1024), 1),
+                                        "speed_mbps": round(speed_mb, 2),
+                                        "eta_s": eta,
+                                        "progress": f"[{idx}/{len(files)}] {f['name']} ({pct}%) • {speed_mb:.1f} MB/s • ETA: {eta}s",
+                                    })
+                                    t_prev = t_now
+                                    bytes_prev = 0
+
+                    if self.cancel_download_flag:
+                        break
+
+                    if dest.exists():
+                        dest.unlink()
+                    part_dest.rename(dest)
+
+                if self.cancel_download_flag:
+                    self.download_state["active"] = False
+                    self.download_state["progress"] = "Descarga pausada por el usuario."
+                else:
+                    self.download_state["active"] = False
+                    self.download_state["progress"] = "Descarga completada ✓. Pesos listos en ComfyUI."
+                    self.download_state["percentage"] = 100.0
+                    self.active_engine = engine_id
+
             except Exception as e:
-                self.download_state = {"active": False, "engine": engine_id, "progress": f"Error: {e}"}
+                self.download_state["active"] = False
+                self.download_state["error"] = str(e)
+                self.download_state["progress"] = f"Error en descarga: {e}"
 
         threading.Thread(target=_worker, daemon=True).start()
+        return {"ok": True, "started": engine_id}
         return {"ok": True, "started": engine_id}
 
     def list_module1_assets(self) -> List[Dict[str, Any]]:
@@ -1093,8 +1241,11 @@ class Trellis3DStudioState:
                     glb_path.write_bytes(glb_bytes)
                     v_count, f_count = extract_obj_from_glb_bytes(glb_bytes, obj_path)
                     used_backend = "ComfyUI Native TRELLIS.2 (4B Sparse Voxel + PBR)"
-            elif req_engine in ("hunyuan3d_v21", "hunyuan3d_v20_fp16") and installed_map[req_engine]["ready"]:
-                ckpt = MODEL_CATALOG_3D[req_engine]["files"][0]["name"]
+            elif (req_engine in ("hunyuan3d_v21", "hunyuan3d_v20_fp16") or (req_engine == "trellis2_local" and not installed_map["trellis2_local"]["ready"])) and (
+                installed_map.get("hunyuan3d_v21", {}).get("ready") or installed_map.get("hunyuan3d_v20_fp16", {}).get("ready")
+            ):
+                cand_engine = "hunyuan3d_v21" if installed_map.get("hunyuan3d_v21", {}).get("ready") else "hunyuan3d_v20_fp16"
+                ckpt = MODEL_CATALOG_3D[cand_engine]["files"][0]["name"]
                 up_name = self._upload_image_to_comfy(self.current_alpha_image)
                 glb_bytes = self._run_comfy_hunyuan3d_workflow(
                     ckpt_name=ckpt, uploaded_img_name=up_name, steps=steps, octree_res=256, seed=seed
@@ -1102,7 +1253,7 @@ class Trellis3DStudioState:
                 if glb_bytes:
                     glb_path.write_bytes(glb_bytes)
                     v_count, f_count = extract_obj_from_glb_bytes(glb_bytes, obj_path)
-                    used_backend = f"ComfyUI Native {MODEL_CATALOG_3D[req_engine]['name']}"
+                    used_backend = f"ComfyUI Native {MODEL_CATALOG_3D[cand_engine]['name']}"
 
             # 3. Si se seleccionó `instant_pbr_mesh` o si los pesos pesados aún no fueron descargados,
             #    construir la malla 3D PBR cerrada 360° (.GLB + .OBJ) instantáneamente
@@ -1212,7 +1363,7 @@ class Trellis3DHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": "WebApp 3D no encontrada"}, 404)
             return
 
-        if path == "/api/status":
+        if path == "/api/status" or path == "/api/download_status":
             installed = STUDIO3D.check_installed_3d_models()
             compat = STUDIO3D.get_hardware_3d_compatibility(installed)
             self._send_json({
@@ -1321,6 +1472,11 @@ class Trellis3DHandler(BaseHTTPRequestHandler):
         if path == "/api/download_3d_models":
             eng = str(body.get("engine") or "trellis2_local")
             res = STUDIO3D.start_background_download(eng)
+            self._send_json(res, 200)
+            return
+
+        if path == "/api/cancel_download":
+            res = STUDIO3D.cancel_download()
             self._send_json(res, 200)
             return
 

@@ -214,10 +214,10 @@ def install_dependencies(py_exe: str):
 
     subprocess.check_call([py_exe, "-m", "pip", "install", "--upgrade", "pip", "setuptools==69.5.1", "wheel"])
 
-    print("\n[1/5] Instalando PyTorch 2.1.0 + Torchvision 0.16.0 (CUDA 11.8)...")
+    print("\n[1/5] Instalando PyTorch 2.4.1 + Torchvision 0.19.1 (CUDA 11.8 / Compatible con NumPy 2.x)...")
     subprocess.check_call([
         py_exe, "-m", "pip", "install",
-        "torch==2.1.0", "torchvision==0.16.0",
+        "torch==2.4.1+cu118", "torchvision==0.19.1+cu118",
         "--index-url", "https://download.pytorch.org/whl/cu118",
     ])
 
@@ -251,13 +251,23 @@ def install_dependencies(py_exe: str):
         "--extra-index-url", "https://pypi.nvidia.com",
     ])
 
-    print("\n[4/5] Instalando TensorRT 9.0.1 (NVIDIA PyPI)...")
+    print("\n[4/5] Instalando TensorRT 9.0.1 y cuDNN 8 (NVIDIA PyPI)...")
     subprocess.check_call([
         py_exe, "-m", "pip", "install",
         "--pre",
         "--extra-index-url", "https://pypi.nvidia.com",
         "tensorrt==9.0.1.post11.dev4",
+        "nvidia-cudnn-cu11==8.9.4.25",
     ])
+    # Copiar DLLs de cuDNN 8 en tensorrt_libs para enlace inmediato en Windows
+    try:
+        cudnn_bin = BASE_DIR / ".venv" / "Lib" / "site-packages" / "nvidia" / "cudnn" / "bin"
+        trt_libs = BASE_DIR / ".venv" / "Lib" / "site-packages" / "tensorrt_libs"
+        if cudnn_bin.exists() and trt_libs.exists():
+            for dll in cudnn_bin.glob("*.dll"):
+                shutil.copy2(str(dll), str(trt_libs / dll.name))
+    except Exception:
+        pass
 
     print("\n[5/5] Instalando paquete local StreamDiffusion y aplicando Fix de DLLs...")
     subprocess.check_call([
@@ -374,6 +384,19 @@ import sys
 import time
 
 root = os.path.abspath(r"__ROOT__")
+for dll_sub in [
+    os.path.join(root, ".venv", "Lib", "site-packages", "torch", "lib"),
+    os.path.join(root, ".venv", "Lib", "site-packages", "tensorrt_libs"),
+]:
+    if os.path.isdir(dll_sub):
+        if dll_sub not in os.environ.get("PATH", ""):
+            os.environ["PATH"] = dll_sub + os.pathsep + os.environ.get("PATH", "")
+        if hasattr(os, "add_dll_directory"):
+            try:
+                os.add_dll_directory(dll_sub)
+            except Exception:
+                pass
+
 sys.path.insert(0, os.path.join(root, "StreamDiffusion"))
 sys.path.insert(0, os.path.join(root, "StreamDiffusion", "src"))
 sys.path.insert(0, root)

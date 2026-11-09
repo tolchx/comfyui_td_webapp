@@ -22,6 +22,10 @@ Arquitectura **modular, standalone y multiplataforma (Windows & macOS)** diseña
      - **🚀 Nivel Universal Instantáneo (`0 GB VRAM Extra • <1.5s en cualquier PC o Mac`)**: **Escultor PBR 3D Instantáneo (`instant_pbr_mesh`)** con recorte automático de silueta Alfa y reconstrucción volumétrica 360° cerrada (`.GLB` con textura PNG embebida + `.OBJ`), permitiendo usar el flujo 3D en clase de forma inmediata incluso antes de descargar los pesos de varios GB.
    - Incluye un **Visor 3D Orbital WebGL integrado** (rotación 360°, zoom, wireframe, iluminación estudio PBR) sin dependencias externas de internet.
 
+4. **⚡ Módulo Standalone — TouchDiffusion (`TouchDiffusion_Standalone/`)**:
+   - Versión pre-configurada y autónoma del proyecto [TouchDiffusion (`olegchomp/TouchDiffusion`)](https://github.com/olegchomp/TouchDiffusion) para TouchDesigner.
+   - Resuelve de raíz los problemas habituales en clase: **soporte nativo para NumPy 2.x en TouchDesigner 2025 (`torch==2.4.1+cu118`)**, vinculación automática de DLLs de **cuDNN 8 y TensorRT** (sin requerir instalar CUDA Toolkit 11.8 en Windows), aislamiento de `sys.path`, soporte de **doble modo** (`[TensorRT]` a 35–60 FPS o `[PyTorch-Direct]` inmediato) y proyecto listo para usar [`TD/TouchDiffusion_Clase_IA.toe`](TouchDiffusion_Standalone/TD/TouchDiffusion_Clase_IA.toe).
+
 Repositorio oficial: **[https://github.com/tolchx/comfyui_td_webapp](https://github.com/tolchx/comfyui_td_webapp)**
 
 ---
@@ -193,20 +197,24 @@ La WebApp (`http://127.0.0.1:8080`) incluye en su panel izquierdo la tarjeta **"
 ```text
 comfyui_td_webapp/
 ├── 1_Instalar_Modelos.bat           # Instalador interactivo para Windows (incluye opción [0] StreamDiffusion RT)
-├── 2_Iniciar_Sistema_TD_Comfy.bat   # Lanzador en 1 clic para Windows
+├── 2_Iniciar_Sistema_TD_Comfy.bat   # Lanzador en 1 clic para Módulo 1 (Imágenes HQ en 8080)
+├── 3_Iniciar_StreamDiffusion_Studio.bat # Lanzador en 1 clic para Módulo 2 (StreamDiffusionV2 en 8081)
+├── 4_Iniciar_Trellis3D_Studio.bat   # Lanzador en 1 clic para Módulo 3 (Trellis v2 + Hunyuan 3D en 8082)
+├── 5_Descargar_Modelos_3D.bat       # Descargador oficial de pesos 3D (Hunyuan 3D v2.1 y TRELLIS.2)
 ├── 1_Instalar_Mac.command           # Instalador interactivo para macOS (Apple Silicon / Intel)
-├── 2_Iniciar_Sistema_Mac.command    # Lanzador en 1 clic para macOS
+├── 2_Iniciar_Sistema_Mac.command    # Lanzador Módulo 1 para macOS
+├── 3_Iniciar_StreamDiffusion_Mac.command # Lanzador Módulo 2 para macOS
+├── 4_Iniciar_Trellis3D_Mac.command  # Lanzador Módulo 3 para macOS
+├── 5_Descargar_Modelos_3D_Mac.command # Descargador de pesos 3D para macOS
 ├── README.md                        # Documentación completa + Arquitectura StreamDiffusion + Guía LLM
 ├── TD/
-│   ├── v1.toe                       # Proyecto TouchDesigner configurado a 60 FPS con StreamDiffusion RT activo
+│   ├── v1.toe                       # Proyecto TouchDesigner configurado a 60 FPS con SOP_ASSET_3D y StreamDiffusion RT
 │   └── ComfyUI_Studio_Bridge.tox    # Componente .tox portable con interpolador GPU 60 FPS
-├── bridge/
-│   ├── config.json                  # Configuración de niveles (Realtime, Básico, Medio, Avanzado) y rutas
-│   ├── installer.py                 # Detector de GPU/VRAM/Mac MPS, diagnóstico y descargador HF + TAESD
-│   ├── workflows.py                 # Generador dinámico de workflows API (StreamDiffusion 1-Step + TAESD, SDXL, Flux, Qwen)
-│   ├── server.py                    # Servidor HTTP puente de baja latencia + filtro de similitud StreamDiffusion
-│   ├── selftest.py                  # Suite de autodiagnóstico y auto-reparación para agentes LLM
-│   └── build_td_network.py          # Script constructor de la red TouchDesigner vía TDMCP
-└── webapp/
-    └── index.html                   # WebApp con modo StreamDiffusion RT, diagnóstico de hardware, visor dual e historial
+├── bridge/                          # Módulo 1: Generador de Imágenes HQ (8080)
+├── streamdiffusion_studio/          # Módulo 2: StreamDiffusionV2 + ScreenDiffusion (8081)
+├── trellis3d_studio/                # Módulo 3: TRELLIS v2 + Hunyuan 3D Local Studio (8082)
+│   ├── download_3d_models.py        # Descargador CLI con resume (.part) y cálculo de velocidad
+│   ├── server_trellis3d.py          # Servidor 3D (Hunyuan 3D DiT + Trellis2 + Escultor EDT suave)
+│   └── webapp/index.html            # WebApp 3D con visor orbital WebGL y gestor de descargas en vivo
+└── webapp/                          # WebApp Módulo 1 con galería, lightbox y botón "🧊 Enviar a 3D"
 ```

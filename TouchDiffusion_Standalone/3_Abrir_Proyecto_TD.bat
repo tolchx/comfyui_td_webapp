@@ -13,7 +13,7 @@ if not exist ".venv\Scripts\python.exe" (
     call "1_Instalar_TouchDiffusion.bat"
 )
 
-set "PATH=%~dp0.venv\Lib\site-packages\torch\lib;%~dp0.venv\Lib\site-packages\tensorrt_libs;%PATH%"
+set "PATH=%~dp0.venv\Lib\site-packages\torch\lib;%~dp0.venv\Lib\site-packages\tensorrt_libs;%~dp0.venv\Lib\site-packages\nvidia\cudnn\bin;%PATH%"
 
 set TD_EXE=
 for /d %%D in ("C:\Program Files\Derivative\TouchDesigner*") do (
