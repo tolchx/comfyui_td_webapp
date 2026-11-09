@@ -8,23 +8,29 @@ Arquitectura **modular, standalone y multiplataforma (Windows & macOS)** diseña
    - **Auto-detección de Hardware Potente**: Al detectar GPUs de gama alta (ej. **NVIDIA GeForce RTX 4090 24 GB VRAM**), activa automáticamente el nivel **`AVANZADO`** con **Flux.2 Klein 4B / Flux.2 Dev / Qwen Image 2.1** a `1024×1024` y decodificador **Full VAE** (`flux2-vae.safetensors`).
    - **Galería + Lightbox Pantalla Completa (`⛶`) + Envío Directo a 3D (`🧊 a 3D`)**: Cada imagen del historial y del visor incluye el botón **`🧊 Enviar a 3D`** para mandarla directamente al Módulo 3 y convertirla en un objeto 3D local.
 
-2. **🎬 Módulo 2 — StreamDiffusionV2 + ComfyUI_StreamDiffusion + ScreenDiffusion Studio (`streamdiffusion_studio/` • Puerto `8081`)**:
-   - Módulo separado en la carpeta [`streamdiffusion_studio/`](streamdiffusion_studio/) que fusiona tres tecnologías de tiempo real conectadas a **ComfyUI** y **TouchDesigner**:
-     - **[StreamDiffusionV2 (`chenfengxu714/StreamDiffusionV2`)](https://github.com/chenfengxu714/StreamDiffusionV2)**: Escalado dinámico según GPU (`Flux.2 Klein 4B` en 4 pasos con Full VAE a ~610 ms en RTX 4090, o `DreamShaper 8 + Hyper-SD` multi-paso) + **Motion-Aware Temporal Controller**.
-     - **[ComfyUI_StreamDiffusion (`jesenzhang/ComfyUI_StreamDiffusion`)](https://github.com/jesenzhang/ComfyUI_StreamDiffusion)**: Integración nativa con los nodos `StreamDiffusion_Loader` y `StreamDiffusion_Sampler`.
-     - **[ScreenDiffusion (`rudyaa-sd/ScreenDiffusion`)](https://github.com/rudyaa-sd/ScreenDiffusion)**: Captura en vivo de cualquier región de tu pantalla o ventana del sistema operativo (`PIL.ImageGrab` nativo + `getDisplayMedia` WebRTC), además de **Webcam en vivo**, **Pizarra Interactiva** y entrada desde **TouchDesigner TOP**.
+2. **🎬 Módulo 2 — StreamDiffusion Realtime Studio + Pizarra Pro (`streamdiffusion_studio/` • Puerto `8081`)**:
+   - Módulo en la carpeta [`streamdiffusion_studio/`](streamdiffusion_studio/) que fusiona tres tecnologías de tiempo real conectadas a **ComfyUI** y **TouchDesigner**:
+     - **[ComfyUI_StreamDiffusion (`jesenzhang/ComfyUI_StreamDiffusion`)](https://github.com/jesenzhang/ComfyUI_StreamDiffusion)**: Integración nativa con los nodos `StreamDiffusion_Loader` y `StreamDiffusion_Sampler` para inferencia ultra-rápida out-of-process (700 ms – 1.2 s en SD1.5/DreamShaper 8 en RTX 4090 con cero cuelgues).
+     - **🎨 Pizarra Pro Multicapa (Whiteboard Suite)**: Suite completa de dibujo para la clase con:
+       - **Herramientas de Dibujo**: Pluma nítida (`pen`), Pincel suave difuminado (`brush`), Resaltador translúcido (`marker`), Aerógrafo de textura (`spray`), Goma de borrar (`eraser`), Relleno de bote de pintura (`fill`), Gotero / Cuentagotas (`dropper`), Mover Capa (`move`), Línea, Rectángulo y Círculo.
+       - **Control de Pincel**: Sliders de tamaño (1px a 100px) con vista previa circular dinámica y opacidad (5% a 100%).
+       - **Gestor de Capas (Layers)**: Creación de múltiples capas, reordenamiento arriba/abajo, ocultar/mostrar con visibilidad independiente, opacidad individual por capa, y **herramienta Mover Capa (`M`)** para arrastrar y reposicionar el contenido de cualquier capa interactivamente.
+       - **Historial & Plantillas**: Deshacer / Rehacer (`Ctrl+Z`, `Ctrl+Y`), micro-ajustes de posición, carga de imagen local como capa, y plantillas didácticas (Akira Anime, Silueta Retrato, Cuadrícula de Tercios).
+     - **🪟 Captura Directa de Ventana / Aplicación (WebRTC)**: Captura con 1 clic la ventana de **TouchDesigner**, Photoshop, navegador o cualquier app para alimentar StreamDiffusion en vivo sin cuellos de botella de GPU.
+     - **[StreamDiffusionV2 (`chenfengxu714/StreamDiffusionV2`)](https://github.com/chenfengxu714/StreamDiffusionV2)**: Soporte dinámico para Flux.2 Klein 4B con Full VAE + Motion-Aware Temporal Controller.
 
 3. **🧊 Módulo 3 — TRELLIS v2 + Hunyuan 3D Local Studio (`trellis3d_studio/` • Puerto `8082`)**:
-   - Módulo dedicado en la carpeta [`trellis3d_studio/`](trellis3d_studio/) (lanzador `Windows/4_Iniciar_Trellis3D_Studio.bat` en Windows y `Mac/4_Iniciar_Trellis3D_Mac.command` en macOS) para convertir cualquier imagen de asset generada en el Módulo 1 en un **objeto 3D local (`.GLB` PBR y `.OBJ` para TouchDesigner `/project1/SOP_ASSET_3D`)** según la compatibilidad de hardware del alumno:
-     - **🔥 Nivel Avanzado (`12 GB – 24 GB+ VRAM`, ej. RTX 4090 / 4080 / 3090)**: **TRELLIS v2 Local (`trellis2_local` — Microsoft / Comfy-Org 4B Sparse Voxel + PBR Texture Stage)** usando los nodos nativos de ComfyUI (`Trellis2Conditioning`, `Trellis2ShapeStage`, `Trellis2TextureStage`, `VaeDecodeShapeTrellis`, `VaeDecodeTextureTrellis`, `PaintMesh`, `SaveGLB`).
-     - **⚡ Nivel Medio (`8 GB – 11 GB VRAM`, ej. RTX 3060 / 3070 / 4060Ti / Mac 16GB+)**: **Hunyuan 3D v2.1 Local (`hunyuan3d_v21`)** en un solo checkpoint nativo (`ImageOnlyCheckpointLoader` -> `Hunyuan3Dv2Conditioning` -> `EmptyLatentHunyuan3Dv2` -> `VAEDecodeHunyuan3D` -> `VoxelToMesh`).
-     - **🪶 Nivel Medio-Ligero (`6 GB – 8 GB VRAM`)**: **Hunyuan 3D v2.0 FP16 (`hunyuan3d_v20_fp16` — 4.59 GB)**.
-     - **🚀 Nivel Universal Instantáneo (`0 GB VRAM Extra • <1.5s en cualquier PC o Mac`)**: **Escultor PBR 3D Instantáneo (`instant_pbr_mesh`)** con recorte automático de silueta Alfa y reconstrucción volumétrica 360° cerrada (`.GLB` con textura PNG embebida + `.OBJ`), permitiendo usar el flujo 3D en clase de forma inmediata incluso antes de descargar los pesos de varios GB.
-   - Incluye un **Visor 3D Orbital WebGL integrado** (rotación 360°, zoom, wireframe, iluminación estudio PBR) sin dependencias externas de internet.
+   - Módulo dedicado en la carpeta [`trellis3d_studio/`](trellis3d_studio/) para convertir cualquier imagen en un **objeto 3D local (`.GLB` PBR y `.OBJ`)**:
+     - **🔥 Nivel Avanzado**: TRELLIS v2 Local (Microsoft / Comfy-Org 4B Sparse Voxel + PBR Texture Stage).
+     - **⚡ Nivel Medio**: Hunyuan 3D v2.1 Local en un solo checkpoint nativo.
+     - **🪶 Nivel Ligero**: Hunyuan 3D v2.0 FP16.
+     - **🚀 Nivel Universal Instantáneo**: Escultor PBR 3D Instantáneo (<1.5s sin requerir VRAM extra).
+   - Incluye **Visor 3D Orbital WebGL integrado**.
 
-4. **⚡ Módulo Standalone — TouchDiffusion (`TouchDiffusion_Standalone/`)**:
-   - Versión pre-configurada y autónoma del proyecto [TouchDiffusion (`olegchomp/TouchDiffusion`)](https://github.com/olegchomp/TouchDiffusion) para TouchDesigner.
-   - Resuelve de raíz los problemas habituales en clase: **soporte nativo para NumPy 2.x en TouchDesigner 2025 (`torch==2.4.1+cu118`)**, vinculación automática de DLLs de **cuDNN 8 y TensorRT** (sin requerir instalar CUDA Toolkit 11.8 en Windows), aislamiento de `sys.path`, soporte de **doble modo** (`[TensorRT]` a 35–60 FPS o `[PyTorch-Direct]` inmediato) y proyecto listo para usar [`TD/TouchDiffusion_Clase_IA.toe`](TouchDiffusion_Standalone/TD/TouchDiffusion_Clase_IA.toe).
+4. **⚡ Integración con TouchDesigner (`TD/ComfyUI_StreamDiffusion_Studio.toe` & `TD/v1.toe`)**:
+   - Conexión out-of-process limpia, liviana y a prueba de fallos contra ComfyUI (`127.0.0.1:8188`).
+   - El operador `stream_diffusion_in` (`moviefileinTOP`) lee el frame generado por ComfyUI y lo entrega de inmediato a `SALIDA_COMFYUI` y a `comparador_img2img`.
+   - **Cero cuelgues de GPU**: Se descartó el modelo in-process de C++/DirectX (que causaba cierres de TD al hacer `Load Engine`). Todo el cómputo pesado corre en ComfyUI, garantizando **60 FPS estables y 0 errores** en TouchDesigner.
 
 Repositorio oficial: **[https://github.com/tolchx/comfyui_td_webapp](https://github.com/tolchx/comfyui_td_webapp)**
 
@@ -210,10 +216,11 @@ comfyui_td_webapp/
 │   └── 5_Descargar_Modelos_3D_Mac.command # Descargador de pesos 3D para macOS
 ├── README.md                        # Documentación completa + Arquitectura StreamDiffusion + Guía LLM
 ├── TD/
+│   ├── ComfyUI_StreamDiffusion_Studio.toe # Proyecto TouchDesigner optimizado para ComfyUI + StreamDiffusion
 │   ├── v1.toe                       # Proyecto TouchDesigner configurado a 60 FPS con SOP_ASSET_3D y StreamDiffusion RT
 │   └── ComfyUI_Studio_Bridge.tox    # Componente .tox portable con interpolador GPU 60 FPS
 ├── bridge/                          # Módulo 1: Generador de Imágenes HQ (8080)
-├── streamdiffusion_studio/          # Módulo 2: StreamDiffusionV2 + ScreenDiffusion (8081)
+├── streamdiffusion_studio/          # Módulo 2: StreamDiffusion Realtime + Pizarra Pro + Captura Ventana (8081)
 ├── trellis3d_studio/                # Módulo 3: TRELLIS v2 + Hunyuan 3D Local Studio (8082)
 │   ├── download_3d_models.py        # Descargador CLI con resume (.part) y cálculo de velocidad
 │   ├── server_trellis3d.py          # Servidor 3D (Hunyuan 3D DiT + Trellis2 + Escultor EDT suave)

@@ -357,10 +357,20 @@ class StreamStudioState:
             source_type = str(job.get("source") or "webapp")
             input_mode = str(job.get("input_mode") or "img2img")
 
-            # 1. Obtener imagen de entrada (desde base64, ScreenDiffusion nativo o último frame)
+            # 1. Obtener imagen de entrada (prioriza base64 del canvas/WebRTC, luego captura OS, con fallback seguro)
             input_pil: Optional["Image.Image"] = None
             if PIL_AVAILABLE:
-                if job.get("capture_screen"):
+                if job.get("image_b64"):
+                    try:
+                        b64_str = str(job["image_b64"])
+                        if "," in b64_str:
+                            b64_str = b64_str.split(",", 1)[1]
+                        raw_bytes = base64.b64decode(b64_str)
+                        input_pil = Image.open(io.BytesIO(raw_bytes)).convert("RGB")
+                    except Exception as e:
+                        self.last_error = f"Error decodificando image_b64: {e}"
+
+                if input_pil is None and job.get("capture_screen"):
                     sx = int(job.get("screen_x", self.screen_bbox[0]))
                     sy = int(job.get("screen_y", self.screen_bbox[1]))
                     sw = int(job.get("screen_w", self.screen_bbox[2] - self.screen_bbox[0]))
@@ -368,12 +378,12 @@ class StreamStudioState:
                     raw_grab = self.capture_desktop_region(sx, sy, sw, sh)
                     if raw_grab:
                         input_pil = Image.open(io.BytesIO(raw_grab)).convert("RGB")
-                elif job.get("image_b64"):
-                    b64_str = str(job["image_b64"])
-                    if "," in b64_str:
-                        b64_str = b64_str.split(",", 1)[1]
-                    raw_bytes = base64.b64decode(b64_str)
-                    input_pil = Image.open(io.BytesIO(raw_bytes)).convert("RGB")
+
+                if input_pil is None and self.latest_input_file.exists():
+                    try:
+                        input_pil = Image.open(self.latest_input_file).convert("RGB")
+                    except Exception:
+                        pass
 
                 if input_pil is not None:
                     input_pil = input_pil.resize((width, height), Image.Resampling.BILINEAR)

@@ -28,15 +28,15 @@ TD/*.8.toe
 TD/*.9.toe
 TD/Backup/
 TD/.agents/
+TD/.tdmcp/
 *.dir/
 *.toc
 
 # Historial local de generaciones (conservar solo latest.png de muestra si se desea, o ignorar gen_*.png)
 bridge/outputs/
 bridge/inputs/
-TouchDiffusion_Standalone/TD/.tdmcp/
-bridge/extra_model_paths.yaml
-streamdiffusion_studio/inputs/latest_input.png
+streamdiffusion_studio/outputs/
+streamdiffusion_studio/inputs/
 trellis3d_studio/outputs/models/
 trellis3d_studio/outputs/previews/
 trellis3d_studio/outputs/history_3d.json
