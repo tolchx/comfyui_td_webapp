@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Módulo 4: AI Video Studio (T2V & I2V) | TD ↔ ComfyUI</title>
+  <style>
+    :root {
+      --bg-0: #060911;
+      --bg-1: #0e1320;
+      --bg-2: #151b2c;
+      --bg-3: #1f273d;
+      --accent: #f43f5e;
+      --accent-glow: rgba(244, 63, 94, 0.35);
+      --accent-cyan: #38bdf8;
+      --green: #34d399;
+      --amber: #fbbf24;
+      --red: #f87171;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --border: rgba(148, 163, 184, 0.16);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: radial-gradient(circle at top right, #1e1327 0%, var(--bg-0) 65%);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* BARRA DE NAVEGACIÓN GLOBAL ENTRE MÓDULOS */
+    .module-nav {
+      background: #04060a;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 6px 20px;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      align-items: center;
+    }
+    .module-nav-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      color: var(--muted);
+      margin-right: 6px;
+      white-space: nowrap;
+    }
+    .nav-tab {
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 700;
+      text-decoration: none;
+      color: var(--muted);
+      border: 1px solid transparent;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .nav-tab:hover {
+      color: var(--text);
+      background: var(--bg-2);
+    }
+    .nav-tab.active {
+      background: linear-gradient(135deg, var(--accent), #e11d48);
+      color: #fff;
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    header {
+      background: rgba(14, 19, 32, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), #e11d48);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 0 16px var(--accent-glow);
+    }
+    .brand h1 {
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+    }
+    .brand span {
+      display: block;
+      font-size: 11.5px;
+      color: var(--muted);
+    }
+
+    .telemetry-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .pill {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .dot.online { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .dot.busy { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+
+    main {
+      max-width: 1540px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: 460px 1fr;
+      gap: 20px;
+      flex: 1;
+    }
+    @media (max-width: 1100px) {
+      main { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: rgba(14, 19, 32, 0.88);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .panel-title {
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+
+    .source-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .source-card {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      cursor: pointer;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+      transition: all 0.15s;
+    }
+    .source-card:hover { border-color: var(--accent); }
+    .source-card.active {
+      background: var(--accent-glow);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .thumb-preview-box {
+      width: 100%;
+      height: 180px;
+      background: #04060a;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .thumb-preview-box img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .engine-card {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .engine-card:hover { border-color: var(--accent); }
+    .engine-card.active {
+      background: rgba(244, 63, 94, 0.12);
+      border-color: var(--accent);
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+    .engine-card strong { font-size: 12.5px; display: block; margin-bottom: 2px; }
+    .engine-card small { font-size: 11px; color: var(--muted); }
+
+    label {
+      display: block;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 5px;
+    }
+    input, select, textarea {
+      width: 100%;
+      background: var(--bg-0);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 11px;
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 60px; }
+
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+    .btn {
+      background: linear-gradient(135deg, var(--accent), #e11d48);
+      color: #fff;
+      font-weight: 800;
+      border: none;
+      border-radius: 10px;
+      padding: 13px 18px;
+      font-size: 14px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.15s;
+      box-shadow: 0 0 16px var(--accent-glow);
+    }
+    .btn:hover { opacity: 0.95; transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-secondary {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-weight: 600;
+      box-shadow: none;
+    }
+    .btn-secondary:hover { border-color: var(--accent); }
+
+    /* VISOR DE VIDEO */
+    .viewport-box {
+      background: #020408;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .viewport-header {
+      padding: 10px 14px;
+      background: var(--bg-2);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .video-container {
+      aspect-ratio: 16 / 9;
+      width: 100%;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    video {
+      max-width: 100%;
+      max-height: 100%;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .history-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 10px;
+      max-height: 220px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .history-card {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .history-card:hover { border-color: var(--accent); transform: scale(1.02); }
+    .history-card video, .history-card img {
+      width: 100%;
+      height: 80px;
+      object-fit: cover;
+      display: block;
+    }
+    .history-info {
+      padding: 6px;
+      font-size: 10.5px;
+      color: var(--muted);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- BARRA DE NAVEGACIÓN GLOBAL ENTRE LOS 6 MÓDULOS -->
+  <nav class="module-nav">
+    <span class="module-nav-title">Suite TD ↔ AI:</span>
+    <a href="http://127.0.0.1:8080" class="nav-tab">🎨 1. Imágenes HQ</a>
+    <a href="http://127.0.0.1:8081" class="nav-tab">⚡ 2. Realtime Studio</a>
+    <a href="http://127.0.0.1:8082" class="nav-tab">🧊 3. 3D Studio</a>
+    <a href="http://127.0.0.1:8083" class="nav-tab active">🎬 4. Video Studio</a>
+    <a href="http://127.0.0.1:8084" class="nav-tab">✂️ 5. Alfa &amp; Inpaint</a>
+    <a href="http://127.0.0.1:8085" class="nav-tab">🌌 6. Parallax 2.5D</a>
+  </nav>
+
+  <!-- CABECERA PRINCIPAL -->
+  <header>
+    <div class="brand">
+      <div class="brand-logo">🎬</div>
+      <div>
+        <h1>Módulo 4: AI Video Studio (T2V &amp; I2V)</h1>
+        <span>Animación Temporal Cinemática &bull; TouchDesigner ↔ ComfyUI</span>
+      </div>
+    </div>
+
+    <div class="telemetry-bar">
+      <div class="pill">
+        <span class="dot online" id="dotComfy"></span>
+        <span id="txtComfy">ComfyUI: Verificando...</span>
+      </div>
+      <div class="pill">
+        <span style="color:var(--accent);">🖥️</span>
+        <span id="txtGpu">GPU: Detectando...</span>
+      </div>
+      <div class="pill">
+        <span style="color:var(--green);">⚡ TD Sync:</span>
+        <span id="txtTdSync">latest_video.mp4</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main>
+    <!-- COLUMNA IZQUIERDA: CONTROLES & CONFIGURACIÓN -->
+    <div style="display:flex; flex-direction:column; gap:16px;">
+
+      <!-- 1. ORIGEN DE LA IMAGEN (IMAGE-TO-VIDEO) -->
+      <section class="panel">
+        <div class="panel-title">
+          <span>1. Imagen de Entrada (Image-to-Video)</span>
+          <span style="font-size:11px; color:var(--muted);" id="lblSourceStatus">Listo</span>
+        </div>
+
+        <div class="source-grid">
+          <button class="source-card active" onclick="fetchFromModule('module1')">
+            🎨 De Módulo 1 (Imágenes HQ)
+          </button>
+          <button class="source-card" onclick="fetchFromModule('module2')">
+            🖌️ De Módulo 2 (Pizarra en Vivo)
+          </button>
+        </div>
+
+        <div class="thumb-preview-box" id="thumbBox">
+          <img id="inputThumb" src="/api/current_input.png" onerror="this.src='https://placehold.co/600x400/0f172a/38bdf8?text=Cargar+o+Traer+Imagen'" alt="Imagen de entrada" />
+        </div>
+
+        <div style="display:flex; gap:8px;">
+          <label class="btn btn-secondary" style="flex:1; margin:0; cursor:pointer;">
+            📁 Cargar Imagen Local
+            <input type="file" id="localFileInput" accept="image/*" style="display:none;" onchange="uploadLocalImage(event)" />
+          </label>
+          <button class="btn btn-secondary" onclick="refreshInputThumb()" title="Refrescar">🔄</button>
+        </div>
+      </section>
+
+      <!-- 2. MOTOR ADAPTATIVO & MOVIMIENTO CINEMÁTICO -->
+      <section class="panel">
+        <div class="panel-title">
+          <span>2. Motor &amp; Movimiento de Cámara</span>
+        </div>
+
+        <!-- Motores de Video -->
+        <div>
+          <label>Motor de Animación</label>
+          <div class="engine-card active" id="cardWan" onclick="selectEngine('wan_i2v_lightning')">
+            <strong>Wan 2.2 / 2.1 14B (4-Steps Lightning LoRA)</strong>
+            <small>Generación DiT ultra-cinemática en 4 pasos. Ideal para tu GPU de 24 GB.</small>
+          </div>
+          <div class="engine-card" id="cardMotionSynth" onclick="selectEngine('motion_synth_camera')">
+            <strong>Camera Motion Synth 3D &amp; Parallax (Cero VRAM)</strong>
+            <small>Animación instantánea (&lt;1.5s) a 60 FPS sin consumo extra de GPU. Ideal para clase.</small>
+          </div>
+        </div>
+
+        <!-- Tipo de Movimiento de Cámara -->
+        <div>
+          <label for="motionSelect">Trayectoria de Cámara (Motion Path)</label>
+          <select id="motionSelect">
+            <option value="zoom_in" selected>🔍 Zoom In (Acercamiento Progresivo)</option>
+            <option value="zoom_out">🔭 Zoom Out (Alejamiento Revelador)</option>
+            <option value="pan_left">⬅️ Pan Left (Barrido Izquierda)</option>
+            <option value="pan_right">➡️ Pan Right (Barrido Derecha)</option>
+            <option value="orbit_3d">🌀 Órbita 3D (Giro Cinemático de Cámara)</option>
+            <option value="pulse_vortex">💓 Pulso Vórtice Dinámico</option>
+          </select>
+        </div>
+
+        <div class="row-3">
+          <div>
+            <label for="numFrames">Frames</label>
+            <select id="numFrames">
+              <option value="24">24 (1s)</option>
+              <option value="36" selected>36 (1.5s)</option>
+              <option value="48">48 (2s)</option>
+              <option value="72">72 (3s)</option>
+            </select>
+          </div>
+          <div>
+            <label for="fpsSelect">FPS</label>
+            <select id="fpsSelect">
+              <option value="16">16 fps</option>
+              <option value="24" selected>24 fps (Cine)</option>
+              <option value="30">30 fps</option>
+              <option value="60">60 fps (Fluido)</option>
+            </select>
+          </div>
+          <div>
+            <label for="motionStrength">Fuerza Movimiento</label>
+            <select id="motionStrength">
+              <option value="0.6">Sutil (0.6x)</option>
+              <option value="1.0" selected>Normal (1.0x)</option>
+              <option value="1.5">Intenso (1.5x)</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label for="promptInput">Prompt de Dirección de Arte (Opcional)</label>
+          <textarea id="promptInput" placeholder="cinematic motion, fluid camera trajectory, dynamic lighting, 8k...">cinematic camera movement, dynamic lighting, ultra-detailed 8k video</textarea>
+        </div>
+
+        <button id="btnGenerate" class="btn" onclick="triggerVideoGeneration()">
+          🎬 GENERAR VIDEO Y ENVIAR A TOUCHDESIGNER
+        </button>
+
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span id="lblStatusMsg" style="font-size:12px; color:var(--muted);">Listo para animar</span>
+          <button class="btn btn-secondary" style="padding:6px 10px; font-size:11px;" onclick="openFolder()">
+            📂 Abrir Carpeta
+          </button>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- COLUMNA DERECHA: REPRODUCTOR DE VIDEO & INTEGRACIÓN TD -->
+    <div style="display:flex; flex-direction:column; gap:16px;">
+
+      <!-- REPRODUCTOR EN TIEMPO REAL -->
+      <section class="panel" style="flex:1;">
+        <div class="panel-title">
+          <span>Monitor de Salida en Vivo &bull; latest_video.mp4</span>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-secondary" style="padding:4px 9px; font-size:11px;" onclick="toggleLoop()">🔁 Loop: Activo</button>
+            <button class="btn btn-secondary" style="padding:4px 9px; font-size:11px;" onclick="downloadCurrentVideo()">⬇️ Descargar MP4</button>
+          </div>
+        </div>
+
+        <div class="viewport-box">
+          <div class="viewport-header">
+            <span id="videoTitle">Esperando generación...</span>
+            <span id="videoMeta" style="color:var(--muted); font-size:11px;">MP4 H.264 &bull; YUV420P</span>
+          </div>
+
+          <div class="video-container">
+            <video id="mainVideoPlayer" autoplay loop muted playsinline controls>
+              <source id="videoSource" src="/api/latest_video.mp4" type="video/mp4" />
+              Tu navegador no soporta video HTML5.
+            </video>
+          </div>
+        </div>
+
+        <!-- GUÍA DE INTEGRACIÓN RÁPIDA CON TOUCHDESIGNER -->
+        <div style="background:rgba(56, 189, 248, 0.08); border:1px solid rgba(56, 189, 248, 0.22); border-radius:8px; padding:12px; font-size:12px; line-height:1.5;">
+          <strong style="color:var(--accent-cyan); display:block; margin-bottom:4px;">⚡ Conexión con TouchDesigner:</strong>
+          TouchDesigner puede reproducir este video de forma continua y en loop agregando un operador <code>moviefileinTOP</code> apuntando a la ruta del archivo:<br/>
+          <code style="background:#090d16; padding:3px 7px; border-radius:4px; display:inline-block; margin-top:5px; color:#38bdf8;">
+            video_studio/outputs/latest_video.mp4
+          </code>
+        </div>
+      </section>
+
+      <!-- HISTORIAL DE VIDEOS GENERADOS -->
+      <section class="panel">
+        <div class="panel-title">
+          <span>Historial de Videos Recientes</span>
+          <button class="btn btn-secondary" style="padding:4px 9px; font-size:11px;" onclick="loadHistory()">🔄 Refrescar</button>
+        </div>
+
+        <div class="history-grid" id="historyGrid">
+          <div style="grid-column:1/-1; text-align:center; color:var(--muted); padding:20px; font-size:12px;">
+            Aún no has generado videos en esta sesión.
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <script>
+    let activeEngine = 'wan_i2v_lightning';
+
+    async function checkStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+
+        // Actualizar telemetría
+        const dot = document.getElementById('dotComfy');
+        const txtComfy = document.getElementById('txtComfy');
+        if (data.comfyui_online) {
+          dot.className = 'dot online';
+          txtComfy.textContent = 'ComfyUI: Online (8188)';
+        } else {
+          dot.className = 'dot busy';
+          txtComfy.textContent = 'ComfyUI: Modo Motion Synth';
+        }
+
+        if (data.gpu) {
+          document.getElementById('txtGpu').textContent = `${data.gpu.name || 'GPU'} (${data.gpu.vram_gb || 0} GB)`;
+        }
+
+        const btnGen = document.getElementById('btnGenerate');
+        const lblStatus = document.getElementById('lblStatusMsg');
+        if (data.status === 'GENERATING') {
+          btnGen.disabled = true;
+          btnGen.textContent = '⏳ GENERANDO VIDEO... (' + Math.round(data.progress * 100) + '%)';
+          lblStatus.textContent = data.status_msg || 'Generando frames...';
+        } else {
+          btnGen.disabled = false;
+          btnGen.textContent = '🎬 GENERAR VIDEO Y ENVIAR A TOUCHDESIGNER';
+          lblStatus.textContent = data.status_msg || 'Listo para animar';
+        }
+
+        // Si hay video y acaba de terminar
+        if (data.has_latest_video) {
+          document.getElementById('videoTitle').textContent = 'Salida Lista & Sincronizada';
+        }
+      } catch (e) {
+        console.warn('Error en status:', e);
+      }
+    }
+
+    function selectEngine(id) {
+      activeEngine = id;
+      document.querySelectorAll('.engine-card').forEach(el => el.classList.remove('active'));
+      if (id === 'wan_i2v_lightning') document.getElementById('cardWan').classList.add('active');
+      else if (id === 'motion_synth_camera') document.getElementById('cardMotionSynth').classList.add('active');
+    }
+
+    async function fetchFromModule(mod) {
+      document.getElementById('lblSourceStatus').textContent = 'Importando...';
+      try {
+        const res = await fetch('/api/fetch_from_image_studio', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source: mod })
+        });
+        const data = await res.json();
+        if (data.success) {
+          refreshInputThumb();
+          document.getElementById('lblSourceStatus').textContent = 'Importado ✓';
+        } else {
+          alert(data.error || 'No se pudo importar');
+          document.getElementById('lblSourceStatus').textContent = 'Error';
+        }
+      } catch (e) {
+        alert('Error conectando con servidor: ' + e);
+      }
+    }
+
+    function refreshInputThumb() {
+      const img = document.getElementById('inputThumb');
+      img.src = '/api/current_input.png?t=' + Date.now();
+    }
+
+    function uploadLocalImage(evt) {
+      const file = evt.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const res = await fetch('/api/upload_image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image_b64: e.target.result })
+          });
+          const data = await res.json();
+          if (data.success) {
+            refreshInputThumb();
+          }
+        } catch (err) {
+          alert('Error subiendo imagen: ' + err);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function triggerVideoGeneration() {
+      const motion = document.getElementById('motionSelect').value;
+      const numFrames = parseInt(document.getElementById('numFrames').value, 10);
+      const fps = parseInt(document.getElementById('fpsSelect').value, 10);
+      const strength = parseFloat(document.getElementById('motionStrength').value);
+      const prompt = document.getElementById('promptInput').value;
+
+      try {
+        const res = await fetch('/api/generate_video', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mode: 'i2v',
+            engine: activeEngine,
+            motion_type: motion,
+            num_frames: numFrames,
+            fps: fps,
+            motion_strength: strength,
+            prompt: prompt
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          checkStatus();
+        } else {
+          alert(data.error || 'Error iniciando generación');
+        }
+      } catch (e) {
+        alert('Error de conexión: ' + e);
+      }
+    }
+
+    function reloadVideoPlayer() {
+      const v = document.getElementById('mainVideoPlayer');
+      const src = document.getElementById('videoSource');
+      src.src = '/api/latest_video.mp4?t=' + Date.now();
+      v.load();
+      v.play().catch(() => {});
+    }
+
+    async function loadHistory() {
+      try {
+        const res = await fetch('/api/history');
+        const list = await res.json();
+        const container = document.getElementById('historyGrid');
+        if (!list || list.length === 0) {
+          container.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:var(--muted); padding:20px; font-size:12px;">Aún no has generado videos en esta sesión.</div>';
+          return;
+        }
+        container.innerHTML = '';
+        list.forEach(item => {
+          const card = document.createElement('div');
+          card.className = 'history-card';
+          card.onclick = () => {
+            const v = document.getElementById('mainVideoPlayer');
+            const src = document.getElementById('videoSource');
+            src.src = item.video_url + '?t=' + Date.now();
+            v.load();
+            v.play().catch(() => {});
+            document.getElementById('videoTitle').textContent = `Video: ${item.motion_type} (${item.frames}f @ ${item.fps}fps)`;
+          };
+          card.innerHTML = `
+            <img src="${item.thumb_url || '/api/latest_thumb.png'}" alt="Thumb" onerror="this.src='/api/current_input.png'" />
+            <div class="history-info">
+              <strong>${item.motion_type}</strong><br/>
+              ${item.frames}f &bull; ${item.fps}fps
+            </div>
+          `;
+          container.appendChild(card);
+        });
+      } catch (e) {
+        console.warn('Error cargando historial:', e);
+      }
+    }
+
+    function openFolder() {
+      fetch('/api/open_folder', { method: 'POST' });
+    }
+
+    function downloadCurrentVideo() {
+      window.open('/api/latest_video.mp4', '_blank');
+    }
+
+    function toggleLoop() {
+      const v = document.getElementById('mainVideoPlayer');
+      v.loop = !v.loop;
+      alert('Modo bucle: ' + (v.loop ? 'Activado' : 'Desactivado'));
+    }
+
+    // Polling inicial
+    setInterval(checkStatus, 1500);
+    checkStatus();
+    loadHistory();
+
+    // Auto-recargar video cuando termine generación
+    let prevStatus = 'IDLE';
+    setInterval(async () => {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        if (prevStatus === 'GENERATING' && data.status === 'READY') {
+          reloadVideoPlayer();
+          loadHistory();
+        }
+        prevStatus = data.status;
+      } catch(e) {}
+    }, 1200);
+  </script>
+</body>
+</html>

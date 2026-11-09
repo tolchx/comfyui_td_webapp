@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Módulo 5: Segmentación Alfa & Inpainting | TD ↔ ComfyUI</title>
+  <style>
+    :root {
+      --bg-0: #07090e;
+      --bg-1: #0f1422;
+      --bg-2: #161e31;
+      --bg-3: #222d47;
+      --accent: #10b981;
+      --accent-glow: rgba(16, 185, 129, 0.35);
+      --accent-cyan: #38bdf8;
+      --green: #34d399;
+      --amber: #fbbf24;
+      --red: #f87171;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --border: rgba(148, 163, 184, 0.16);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: radial-gradient(circle at top right, #09261d 0%, var(--bg-0) 65%);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* BARRA DE NAVEGACIÓN GLOBAL ENTRE MÓDULOS */
+    .module-nav {
+      background: #04060a;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 6px 20px;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      align-items: center;
+    }
+    .module-nav-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      color: var(--muted);
+      margin-right: 6px;
+      white-space: nowrap;
+    }
+    .nav-tab {
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 700;
+      text-decoration: none;
+      color: var(--muted);
+      border: 1px solid transparent;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .nav-tab:hover {
+      color: var(--text);
+      background: var(--bg-2);
+    }
+    .nav-tab.active {
+      background: linear-gradient(135deg, var(--accent), #059669);
+      color: #fff;
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    header {
+      background: rgba(15, 20, 34, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), #059669);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 0 16px var(--accent-glow);
+    }
+    .brand h1 {
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+    }
+    .brand span {
+      display: block;
+      font-size: 11.5px;
+      color: var(--muted);
+    }
+
+    .telemetry-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .pill {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    main {
+      max-width: 1540px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: 460px 1fr;
+      gap: 20px;
+      flex: 1;
+    }
+    @media (max-width: 1100px) {
+      main { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: rgba(15, 20, 34, 0.88);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .panel-title {
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+
+    .source-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .source-card {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      cursor: pointer;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+      transition: all 0.15s;
+    }
+    .source-card:hover { border-color: var(--accent); }
+
+    .btn {
+      background: linear-gradient(135deg, var(--accent), #059669);
+      color: #fff;
+      font-weight: 800;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 18px;
+      font-size: 13.5px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.15s;
+      box-shadow: 0 0 16px var(--accent-glow);
+    }
+    .btn:hover { opacity: 0.95; transform: translateY(-1px); }
+    .btn-secondary {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-weight: 600;
+      box-shadow: none;
+    }
+
+    /* CANVAS INTERACTIVO DE PUNTOS */
+    .canvas-container {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      max-height: 400px;
+      background: #000;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+      cursor: crosshair;
+    }
+    .canvas-container canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: contain;
+    }
+
+    /* RESULTADOS LADO A LADO */
+    .results-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .result-card {
+      background: #03060c;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .result-header {
+      padding: 9px 12px;
+      background: var(--bg-2);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .result-body {
+      aspect-ratio: 1 / 1;
+      width: 100%;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: repeating-conic-gradient(#0b0f18 0% 25%, #131a29 0% 50%) 50% / 20px 20px;
+    }
+    .result-body img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- BARRA DE NAVEGACIÓN GLOBAL ENTRE LOS 6 MÓDULOS -->
+  <nav class="module-nav">
+    <span class="module-nav-title">Suite TD ↔ AI:</span>
+    <a href="http://127.0.0.1:8080" class="nav-tab">🎨 1. Imágenes HQ</a>
+    <a href="http://127.0.0.1:8081" class="nav-tab">⚡ 2. Realtime Studio</a>
+    <a href="http://127.0.0.1:8082" class="nav-tab">🧊 3. 3D Studio</a>
+    <a href="http://127.0.0.1:8083" class="nav-tab">🎬 4. Video Studio</a>
+    <a href="http://127.0.0.1:8084" class="nav-tab active">✂️ 5. Alfa &amp; Inpaint</a>
+    <a href="http://127.0.0.1:8085" class="nav-tab">🌌 6. Parallax 2.5D</a>
+  </nav>
+
+  <!-- CABECERA -->
+  <header>
+    <div class="brand">
+      <div class="brand-logo">✂️</div>
+      <div>
+        <h1>Módulo 5: Segmentación Alfa &amp; Inpainting</h1>
+        <span>Aislamiento de Sujetos, Matting Sub-Píxel &bull; TouchDesigner ↔ ComfyUI</span>
+      </div>
+    </div>
+
+    <div class="telemetry-bar">
+      <div class="pill">
+        <span style="color:var(--accent);">🟢 Estado:</span>
+        <span id="txtStatus">Listo</span>
+      </div>
+      <div class="pill">
+        <span style="color:var(--accent-cyan);">⚡ TD Sync:</span>
+        <span>latest_subject_alpha.png</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- COLUMNA IZQUIERDA: CONTROLES & CANVAS DE PUNTOS -->
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <section class="panel">
+        <div class="panel-title">
+          <span>1. Cargar Imagen de Entrada</span>
+        </div>
+
+        <div class="source-grid">
+          <button class="source-card" onclick="fetchFromModule('module1')">
+            🎨 De Módulo 1 (Imágenes)
+          </button>
+          <button class="source-card" onclick="fetchFromModule('module2')">
+            🖌️ De Módulo 2 (Pizarra)
+          </button>
+        </div>
+
+        <label class="btn btn-secondary" style="margin:0; cursor:pointer;">
+          📁 Cargar Imagen Local
+          <input type="file" id="localFile" accept="image/*" style="display:none;" onchange="uploadLocal(event)" />
+        </label>
+      </section>
+
+      <!-- CANVAS INTERACTIVO -->
+      <section class="panel">
+        <div class="panel-title">
+          <span>2. Puntos Guiados (SAM 2) o Auto-Segmentar</span>
+          <button class="btn btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="clearPoints()">Limpiar Puntos</button>
+        </div>
+
+        <p style="font-size:11.5px; color:var(--muted); line-height:1.4;">
+          • <b>Clic Izquierdo:</b> Punto <span style="color:var(--green); font-weight:700;">Verde (+ Incluir Sujeto)</span><br/>
+          • <b>Clic Derecho / Alt+Clic:</b> Punto <span style="color:var(--red); font-weight:700;">Rojo (- Excluir Fondo)</span>
+        </p>
+
+        <div class="canvas-container" id="canvasBox">
+          <canvas id="pointCanvas" width="512" height="512"></canvas>
+        </div>
+
+        <div style="display:flex; gap:8px;">
+          <button class="btn" style="flex:1;" onclick="processSegmentation()">
+            ✂️ AISLAR SUJETO &amp; RECONSTRUIR FONDO
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <!-- COLUMNA DERECHA: RESULTADOS EN TIEMPO REAL -->
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <section class="panel" style="flex:1;">
+        <div class="panel-title">
+          <span>Salidas Listas para TouchDesigner</span>
+          <button class="btn btn-secondary" style="padding:4px 9px; font-size:11px;" onclick="openFolder()">📂 Abrir Carpeta</button>
+        </div>
+
+        <div class="results-grid">
+          <!-- 1. SUJETO RGBA TRANSPARENTE -->
+          <div class="result-card">
+            <div class="result-header">
+              <span>🎭 Sujeto con Canal Alfa</span>
+              <a href="/api/latest_subject_alpha.png" download class="btn btn-secondary" style="padding:2px 7px; font-size:10px;">⬇️ PNG</a>
+            </div>
+            <div class="result-body">
+              <img id="imgSubject" src="/api/latest_subject_alpha.png" onerror="this.src='https://placehold.co/400x400/090d16/10b981?text=Sujeto+Alpha'" alt="Sujeto Alfa" />
+            </div>
+          </div>
+
+          <!-- 2. FONDO INPAINTED -->
+          <div class="result-card">
+            <div class="result-header">
+              <span>🌄 Fondo Reconstruido (Inpainted)</span>
+              <a href="/api/latest_background_inpainted.png" download class="btn btn-secondary" style="padding:2px 7px; font-size:10px;">⬇️ PNG</a>
+            </div>
+            <div class="result-body">
+              <img id="imgBg" src="/api/latest_background_inpainted.png" onerror="this.src='https://placehold.co/400x400/090d16/38bdf8?text=Fondo+Inpainted'" alt="Fondo Inpainted" />
+            </div>
+          </div>
+        </div>
+
+        <!-- GUÍA DIDÁCTICA TOUCHDESIGNER -->
+        <div style="background:rgba(16, 185, 129, 0.08); border:1px solid rgba(16, 185, 129, 0.25); border-radius:8px; padding:12px; font-size:12px; line-height:1.5;">
+          <strong style="color:var(--accent); display:block; margin-bottom:4px;">⚡ Cómo Usar en TouchDesigner:</strong>
+          Cargá ambos archivos en TouchDesigner con dos operadores <code>moviefileinTOP</code>:<br/>
+          1. <code>segmentation_studio/outputs/latest_subject_alpha.png</code><br/>
+          2. <code>segmentation_studio/outputs/latest_background_inpainted.png</code><br/>
+          Conéctalos a un operador <code>overTOP</code> (colocando textos, partículas o geometría 3D en medio de ambos) para lograr un efecto multicapa con profundidad cinematográfica.
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const canvas = document.getElementById('pointCanvas');
+    const ctx = canvas.getContext('2d');
+    let points = [];
+    let bgImg = new Image();
+
+    function redrawCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (bgImg.complete && bgImg.naturalWidth > 0) {
+        ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+      }
+      points.forEach(p => {
+        const px = p.x * canvas.width;
+        const py = p.y * canvas.height;
+        ctx.beginPath();
+        ctx.arc(px, py, 7, 0, Math.PI * 2);
+        ctx.fillStyle = (p.label === 1) ? '#10b981' : '#f43f5e';
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      });
+    }
+
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width;
+      const y = (e.clientY - rect.top) / rect.height;
+      const label = e.altKey ? 0 : 1;
+      points.push({ x, y, label });
+      redrawCanvas();
+    });
+
+    canvas.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width;
+      const y = (e.clientY - rect.top) / rect.height;
+      points.push({ x, y, label: 0 });
+      redrawCanvas();
+    });
+
+    function clearPoints() {
+      points = [];
+      redrawCanvas();
+    }
+
+    function loadInputImage() {
+      bgImg.src = '/api/current_input.png?t=' + Date.now();
+      bgImg.onload = () => redrawCanvas();
+    }
+
+    async function fetchFromModule(mod) {
+      const res = await fetch('/api/fetch_from_module', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: mod })
+      });
+      const data = await res.json();
+      if (data.success) {
+        clearPoints();
+        loadInputImage();
+      } else {
+        alert(data.error);
+      }
+    }
+
+    function uploadLocal(evt) {
+      const file = evt.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        await fetch('/api/upload_image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image_b64: e.target.result })
+        });
+        clearPoints();
+        loadInputImage();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function processSegmentation() {
+      document.getElementById('txtStatus').textContent = 'Procesando...';
+      try {
+        const res = await fetch('/api/segment_subject', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ points: points })
+        });
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('imgSubject').src = '/api/latest_subject_alpha.png?t=' + Date.now();
+          document.getElementById('imgBg').src = '/api/latest_background_inpainted.png?t=' + Date.now();
+          document.getElementById('txtStatus').textContent = 'Completado ✓';
+        } else {
+          alert(data.error || 'Error procesando segmentación');
+          document.getElementById('txtStatus').textContent = 'Error';
+        }
+      } catch (err) {
+        alert('Error conectando: ' + err);
+        document.getElementById('txtStatus').textContent = 'Error';
+      }
+    }
+
+    function openFolder() {
+      fetch('/api/open_folder', { method: 'POST' });
+    }
+
+    loadInputImage();
+  </script>
+</body>
+</html>

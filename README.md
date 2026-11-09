@@ -1,36 +1,45 @@
-# 📘 Sistema Modular TouchDesigner ↔ ComfyUI (Windows & macOS)
-## Módulo 1: Imágenes HQ (`8080`) + Módulo 2: StreamDiffusionV2 & ScreenDiffusion (`8081`) + Módulo 3: TRELLIS v2 & Hunyuan 3D (`8082`)
+# 📘 Suite Modular TouchDesigner ↔ ComfyUI (Windows & macOS)
+## 6 Módulos Autónomos: Imágenes HQ + Realtime + 3D + Video + Alfa & Inpaint + Parallax 2.5D
 
-Arquitectura **modular, standalone y multiplataforma (Windows & macOS)** diseñada para cátedras y talleres de Inteligencia Artificial Generativa. Separa el sistema en **tres módulos independientes y conectados** con **ComfyUI (`127.0.0.1:8188`)** y **TouchDesigner (`TD/v1.toe`)**:
+Arquitectura **modular, standalone y multiplataforma (Windows & macOS)** diseñada para cátedras y talleres de Inteligencia Artificial Generativa. Separa el sistema en **seis módulos independientes y conectados** con **ComfyUI (`127.0.0.1:8188`)** y **TouchDesigner (`TD/v1.toe` & `TD/ComfyUI_StreamDiffusion_Studio.toe`)**:
 
 1. **🎨 Módulo 1 — Generador de Imágenes de Alta Calidad (`bridge/` + `webapp/` • Puerto `8080`)**:
    - Dedicado exclusivamente a **Text-to-Image (`txt2img`)** e **Image-to-Image (`img2img`)** de máxima fidelidad visual.
    - **Auto-detección de Hardware Potente**: Al detectar GPUs de gama alta (ej. **NVIDIA GeForce RTX 4090 24 GB VRAM**), activa automáticamente el nivel **`AVANZADO`** con **Flux.2 Klein 4B / Flux.2 Dev / Qwen Image 2.1** a `1024×1024` y decodificador **Full VAE** (`flux2-vae.safetensors`).
-   - **Galería + Lightbox Pantalla Completa (`⛶`) + Envío Directo a 3D (`🧊 a 3D`)**: Cada imagen del historial y del visor incluye el botón **`🧊 Enviar a 3D`** para mandarla directamente al Módulo 3 y convertirla en un objeto 3D local.
+   - **Galería + Lightbox Pantalla Completa (`⛶`) + Envío Directo a 3D (`🧊 a 3D`) y Video (`🎬 a Video`)**.
 
 2. **🎬 Módulo 2 — StreamDiffusion Realtime Studio + Pizarra Pro (`streamdiffusion_studio/` • Puerto `8081`)**:
-   - Módulo en la carpeta [`streamdiffusion_studio/`](streamdiffusion_studio/) que fusiona tres tecnologías de tiempo real conectadas a **ComfyUI** y **TouchDesigner**:
-     - **[ComfyUI_StreamDiffusion (`jesenzhang/ComfyUI_StreamDiffusion`)](https://github.com/jesenzhang/ComfyUI_StreamDiffusion)**: Integración nativa con los nodos `StreamDiffusion_Loader` y `StreamDiffusion_Sampler` para inferencia ultra-rápida out-of-process (700 ms – 1.2 s en SD1.5/DreamShaper 8 en RTX 4090 con cero cuelgues).
-     - **🎨 Pizarra Pro Multicapa (Whiteboard Suite)**: Suite completa de dibujo para la clase con:
-       - **Herramientas de Dibujo**: Pluma nítida (`pen`), Pincel suave difuminado (`brush`), Resaltador translúcido (`marker`), Aerógrafo de textura (`spray`), Goma de borrar (`eraser`), Relleno de bote de pintura (`fill`), Gotero / Cuentagotas (`dropper`), Mover Capa (`move`), Línea, Rectángulo y Círculo.
-       - **Control de Pincel**: Sliders de tamaño (1px a 100px) con vista previa circular dinámica y opacidad (5% a 100%).
-       - **Gestor de Capas (Layers)**: Creación de múltiples capas, reordenamiento arriba/abajo, ocultar/mostrar con visibilidad independiente, opacidad individual por capa, y **herramienta Mover Capa (`M`)** para arrastrar y reposicionar el contenido de cualquier capa interactivamente.
-       - **Historial & Plantillas**: Deshacer / Rehacer (`Ctrl+Z`, `Ctrl+Y`), micro-ajustes de posición, carga de imagen local como capa, y plantillas didácticas (Akira Anime, Silueta Retrato, Cuadrícula de Tercios).
-     - **🪟 Captura Directa de Ventana / Aplicación (WebRTC)**: Captura con 1 clic la ventana de **TouchDesigner**, Photoshop, navegador o cualquier app para alimentar StreamDiffusion en vivo sin cuellos de botella de GPU.
-     - **[StreamDiffusionV2 (`chenfengxu714/StreamDiffusionV2`)](https://github.com/chenfengxu714/StreamDiffusionV2)**: Soporte dinámico para Flux.2 Klein 4B con Full VAE + Motion-Aware Temporal Controller.
+   - Módulo en [`streamdiffusion_studio/`](streamdiffusion_studio/) para generación en tiempo real con latencia out-of-process sub-segundo:
+     - **[ComfyUI_StreamDiffusion (`jesenzhang/ComfyUI_StreamDiffusion`)](https://github.com/jesenzhang/ComfyUI_StreamDiffusion)**: Nodos nativos `StreamDiffusion_Loader` y `StreamDiffusion_Sampler` (700 ms – 1.2 s en SD1.5/DreamShaper 8 en RTX 4090 con cero cuelgues de GPU).
+     - **🎨 Pizarra Pro Multicapa**: Herramientas profesionales de pluma, pincel suave, marcador, spray, borrador, bote de pintura, gotero, selector de tamaño/opacidad, capas reordenables, plantillas de cielo/paisaje y sol, y herramienta mover capa (`M`).
+     - **🪟 Captura Directa de Ventana / Aplicación (WebRTC)**: Captura con 1 clic la ventana de **TouchDesigner**, Photoshop o navegador.
 
 3. **🧊 Módulo 3 — TRELLIS v2 + Hunyuan 3D Local Studio (`trellis3d_studio/` • Puerto `8082`)**:
-   - Módulo dedicado en la carpeta [`trellis3d_studio/`](trellis3d_studio/) para convertir cualquier imagen en un **objeto 3D local (`.GLB` PBR y `.OBJ`)**:
-     - **🔥 Nivel Avanzado**: TRELLIS v2 Local (Microsoft / Comfy-Org 4B Sparse Voxel + PBR Texture Stage).
-     - **⚡ Nivel Medio**: Hunyuan 3D v2.1 Local en un solo checkpoint nativo.
-     - **🪶 Nivel Ligero**: Hunyuan 3D v2.0 FP16.
-     - **🚀 Nivel Universal Instantáneo**: Escultor PBR 3D Instantáneo (<1.5s sin requerir VRAM extra).
+   - Convierte cualquier imagen en un **objeto 3D local (`.GLB` PBR y `.OBJ`)**:
+     - **Nivel Avanzado**: TRELLIS v2 Local (Microsoft / Comfy-Org 4B Sparse Voxel + PBR Texture Stage).
+     - **Nivel Medio**: Hunyuan 3D v2.1 Local DiT.
+     - **Nivel Universal Instantáneo**: Escultor PBR 3D Instantáneo (<1.5s sin requerir VRAM extra).
    - Incluye **Visor 3D Orbital WebGL integrado**.
 
-4. **⚡ Integración con TouchDesigner (`TD/ComfyUI_StreamDiffusion_Studio.toe` & `TD/v1.toe`)**:
-   - Conexión out-of-process limpia, liviana y a prueba de fallos contra ComfyUI (`127.0.0.1:8188`).
-   - El operador `stream_diffusion_in` (`moviefileinTOP`) lee el frame generado por ComfyUI y lo entrega de inmediato a `SALIDA_COMFYUI` y a `comparador_img2img`.
-   - **Cero cuelgues de GPU**: Se descartó el modelo in-process de C++/DirectX (que causaba cierres de TD al hacer `Load Engine`). Todo el cómputo pesado corre en ComfyUI, garantizando **60 FPS estables y 0 errores** en TouchDesigner.
+4. **🎬 Módulo 4 — AI Video Studio T2V & I2V (`video_studio/` • Puerto `8083`)**:
+   - Generación de animación temporal e Image-to-Video conectada a TouchDesigner:
+     - **Motor Wan 2.2 / 2.1 14B High Noise + 4-Step Lightning LoRA**: Inferencia cinemática HD en solo 4 pasos.
+     - **Motor Wan 2.2 14B Q4_K_M GGUF**: Optimizado para GPUs de 8 a 12 GB VRAM.
+     - **Camera Motion Synth 3D & Parallax**: Animación instantánea (<2s) a 60 FPS con zoom, pan, órbita 3D y vórtice (0 VRAM extra).
+   - Sincroniza automáticamente `outputs/latest_video.mp4` para reproducción continua en loop con `moviefileinTOP` en TouchDesigner.
+
+5. **✂️ Módulo 5 — Segmentación Alfa & Inpainting Studio (`segmentation_studio/` • Puerto `8084`)**:
+   - Aislamiento de sujetos y reconstrucción de fondos:
+     - **Modo 1-Click Auto**: Detección y extracción de silueta principal.
+     - **Modo Puntos Interactivos (SAM 2)**: Clic izquierdo (verde +) para incluir y clic derecho (rojo -) para excluir.
+     - **Desoclusión e Inpainting de Fondo**: Rellena el fondo detrás del sujeto para colocar textos o partículas intermedias.
+   - Entrega `latest_subject_alpha.png` (RGBA transparente) y `latest_background_inpainted.png` listos para `overTOP` en TD.
+
+6. **🌌 Módulo 6 — 2.5D Parallax & Depth Studio (`parallax25d_studio/` • Puerto `8085`)**:
+   - Convierte imágenes 2D en escenarios tridimensionales interactivos:
+     - **Estimación de Profundidad**: Depth maps suaves y continuos de 8/16-bit.
+     - **Visor 3D WebGL con Parallax**: Mové el mouse en el navegador para ver la perspectiva en tiempo real.
+     - **Malla 3D Desplazada (`.OBJ` y `.GLB`)**: Cuadrícula deformable con UVs lista para `fileinSOP` o `displaceTOP` a 60 FPS en TouchDesigner.
 
 Repositorio oficial: **[https://github.com/tolchx/comfyui_td_webapp](https://github.com/tolchx/comfyui_td_webapp)**
 
