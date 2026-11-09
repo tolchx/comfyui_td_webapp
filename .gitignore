@@ -1,0 +1,32 @@
+# Ignorar instalaciones locales de ComfyUI y modelos pesados (.safetensors / .ckpt / .gguf / .7z)
+ComfyUI/
+ComfyUI_windows_portable/
+*.7z
+*.zip
+*.safetensors
+*.ckpt
+*.pth
+*.gguf
+*.part
+
+# Archivos temporales y caches Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.DS_Store
+
+# Backups automaticos de TouchDesigner (.1.toe, .2.toe, etc.)
+TD/*.1.toe
+TD/*.2.toe
+TD/*.3.toe
+TD/*.4.toe
+TD/*.5.toe
+TD/Backup/
+TD/.agents/
+
+# Historial local de generaciones (conservar solo latest.png de muestra si se desea, o ignorar gen_*.png)
+bridge/outputs/gen_*.png
+bridge/outputs/history.json
+bridge/inputs/td_input.png
+bridge/extra_model_paths.yaml

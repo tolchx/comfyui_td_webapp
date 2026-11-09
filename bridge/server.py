@@ -1,0 +1,781 @@
+#!/usr/bin/env python3
+"""
+Servidor Puente Standalone (TouchDesigner <-> ComfyUI + WebApp Monitor & Control)
+Puerto por defecto: http://127.0.0.1:8080
+
+Características:
+  - Sirve la WebApp interactiva para los alumnos en `/`
+  - Gestiona el proceso de ComfyUI en segundo plano (auto-inicio, logs, reinicio, extra_model_paths)
+  - Provee endpoints simples y deterministas para TouchDesigner (`webclientDAT` + `moviefileinTOP`):
+      * GET  /api/status       -> Estado completo (GPU, VRAM, ComfyUI, cola, última generación)
+      * GET  /api/td_poll      -> JSON ultraligero para polling de TD a 2-5 Hz
+      * POST /api/generate     -> Encola generación (txt2img o img2img) en ComfyUI o fallback procedural
+      * POST /api/upload_input -> Recibe un PNG desde TouchDesigner (`input_frame.saveByteArray('.png')`)
+      * GET  /api/latest.png   -> Devuelve siempre la última imagen generada
+      * GET  /api/input.png    -> Devuelve el último frame recibido desde TouchDesigner
+      * GET  /api/history      -> Lista el historial persistente de generaciones con metadatos
+      * GET  /outputs/<file>   -> Sirve cualquier imagen del historial
+      * POST /api/tier         -> Cambia el Tier activo o inicia descarga de modelos
+      * POST /api/comfy/start  -> Levanta ComfyUI en segundo plano si está apagado
+"""
+
+import base64
+import hashlib
+import io
+import json
+import math
+import os
+import subprocess
+import sys
+import threading
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+import uuid
+from datetime import datetime
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+
+try:
+    from PIL import Image, ImageDraw, ImageFilter, ImageFont
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
+
+BRIDGE_DIR = Path(__file__).resolve().parent
+BASE_DIR = BRIDGE_DIR.parent
+WEBAPP_DIR = BASE_DIR / "webapp"
+OUTPUTS_DIR = BRIDGE_DIR / "outputs"
+INPUTS_DIR = BRIDGE_DIR / "inputs"
+HISTORY_FILE = OUTPUTS_DIR / "history.json"
+LATEST_IMG_PATH = OUTPUTS_DIR / "latest.png"
+LATEST_INPUT_PATH = INPUTS_DIR / "td_input.png"
+
+OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+INPUTS_DIR.mkdir(parents=True, exist_ok=True)
+
+sys.path.insert(0, str(BRIDGE_DIR))
+import installer
+import workflows
+
+
+class BridgeState:
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.cfg = installer.load_config()
+        self.client_id = f"td-bridge-{uuid.uuid4().hex[:8]}"
+        self.history: list[dict] = self._load_history()
+        self.status_state = "IDLE"  # IDLE, QUEUED, GENERATING, READY, ERROR
+        self.last_error = ""
+        self.active_job: dict | None = None
+        self.generation_counter = len(self.history)
+        self.last_latency_ms = 0.0
+        self.comfy_proc: subprocess.Popen | None = None
+        self.comfy_starting = False
+        self.comfy_logs: list[str] = []
+        self.gpu_cache = installer.detect_gpu()
+        self.gpu_cache_ts = time.time()
+
+        # Asegurar una imagen inicial latest.png para que TouchDesigner nunca falle al cargar
+        if not LATEST_IMG_PATH.exists():
+            self._create_initial_placeholder()
+
+    def _load_history(self) -> list[dict]:
+        if HISTORY_FILE.exists():
+            try:
+                with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if isinstance(data, list):
+                        return data
+            except Exception:
+                pass
+        return []
+
+    def save_history(self):
+        try:
+            with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+                json.dump(self.history[:100], f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"[WARN] No se pudo guardar history.json: {e}")
+
+    def _create_initial_placeholder(self):
+        self.render_procedural_image(
+            prompt="TouchDesigner <-> ComfyUI Bridge Ready",
+            seed=42,
+            width=512,
+            height=512,
+            dest_path=LATEST_IMG_PATH,
+        )
+
+    def get_gpu_info(self) -> dict:
+        now = time.time()
+        if now - self.gpu_cache_ts > 4.0:
+            self.gpu_cache = installer.detect_gpu()
+            self.gpu_cache_ts = now
+        return self.gpu_cache
+
+    def comfy_base_url(self) -> str:
+        host = self.cfg.get("comfy_host", "127.0.0.1")
+        port = self.cfg.get("comfy_port", 8188)
+        return f"http://{host}:{port}"
+
+    def check_comfy_online(self) -> tuple[bool, dict]:
+        """Verifica si ComfyUI responde en su puerto HTTP."""
+        for port in [self.cfg.get("comfy_port", 8188), 8000, 8188]:
+            url = f"http://127.0.0.1:{port}/system_stats"
+            try:
+                req = urllib.request.Request(url, method="GET")
+                with urllib.request.urlopen(req, timeout=1.2) as resp:
+                    if resp.status == 200:
+                        data = json.loads(resp.read().decode("utf-8"))
+                        if self.cfg.get("comfy_port") != port:
+                            self.cfg["comfy_port"] = port
+                        return True, data
+            except Exception:
+                continue
+        return False, {}
+
+    def get_comfy_available_models(self) -> dict:
+        """Consulta /object_info de ComfyUI para saber exactamente qué checkpoints y LoRAs están disponibles."""
+        base = self.comfy_base_url()
+        result = {"checkpoints": [], "unet": [], "loras": []}
+        try:
+            with urllib.request.urlopen(f"{base}/object_info/CheckpointLoaderSimple", timeout=2.0) as r:
+                d = json.loads(r.read().decode("utf-8"))
+                ckpts = d.get("CheckpointLoaderSimple", {}).get("input", {}).get("required", {}).get("ckpt_name", [[]])[0]
+                if isinstance(ckpts, list):
+                    result["checkpoints"] = ckpts
+        except Exception:
+            pass
+        try:
+            with urllib.request.urlopen(f"{base}/object_info/UNETLoader", timeout=2.0) as r:
+                d = json.loads(r.read().decode("utf-8"))
+                unets = d.get("UNETLoader", {}).get("input", {}).get("required", {}).get("unet_name", [[]])[0]
+                if isinstance(unets, list):
+                    result["unet"] = unets
+        except Exception:
+            pass
+        try:
+            with urllib.request.urlopen(f"{base}/object_info/LoraLoader", timeout=2.0) as r:
+                d = json.loads(r.read().decode("utf-8"))
+                loras = d.get("LoraLoader", {}).get("input", {}).get("required", {}).get("lora_name", [[]])[0]
+                if isinstance(loras, list):
+                    result["loras"] = loras
+        except Exception:
+            pass
+        return result
+
+    def start_comfy_background(self) -> dict:
+        online, _ = self.check_comfy_online()
+        if online:
+            return {"ok": True, "message": "ComfyUI ya está corriendo.", "port": self.cfg.get("comfy_port", 8188)}
+
+        if self.comfy_starting and self.comfy_proc and self.comfy_proc.poll() is None:
+            return {"ok": True, "message": "ComfyUI se está iniciando en segundo plano..."}
+
+        inst = installer.resolve_comfy_installation(self.cfg)
+        if not inst:
+            return {"ok": False, "error": "No se encontró instalación de ComfyUI en esta máquina."}
+
+        # Generar archivo extra_model_paths.yaml para vincular modelos en E:\ComfyUI_Models o carpeta del curso
+        extra_yaml_path = BRIDGE_DIR / "extra_model_paths.yaml"
+        yaml_lines = [
+            "course_models:",
+            f"  base_path: {inst['models_dir']}",
+            "  checkpoints: checkpoints",
+            "  loras: loras",
+            "  vae: vae",
+            "  unet: unet",
+            "  diffusion_models: diffusion_models",
+            "  text_encoders: text_encoders",
+            "  clip: clip",
+        ]
+        if Path("E:/ComfyUI_Models").exists():
+            yaml_lines.extend([
+                "external_drive_e:",
+                "  base_path: E:/ComfyUI_Models",
+                "  checkpoints: .",
+                "  diffusion_models: .",
+                "  unet: .",
+                "  text_encoders: .",
+                "  clip: .",
+                "  vae: models/vae",
+                "  loras: models/loras",
+            ])
+        extra_yaml_path.write_text("\n".join(yaml_lines) + "\n", encoding="utf-8")
+
+        tier_id = self.cfg.get("active_tier", "basico")
+        tier_cfg = self.cfg.get("tiers", {}).get(tier_id, {})
+        gpu_info = self.get_gpu_info()
+        if gpu_info.get("os") == "darwin":
+            flags = list(tier_cfg.get("mac_flags", ["--force-fp16"]))
+            if gpu_info.get("vendor") == "mac_intel":
+                flags = ["--cpu"]
+        elif gpu_info.get("vendor") not in ("nvidia", "apple_mps"):
+            flags = ["--cpu"]
+        else:
+            flags = list(tier_cfg.get("comfy_flags", []))
+        port = self.cfg.get("comfy_port", 8188)
+
+        cmd = [
+            inst["python_exe"],
+            inst["main_py"],
+            "--listen",
+            "127.0.0.1",
+            "--port",
+            str(port),
+            "--extra-model-paths-config",
+            str(extra_yaml_path),
+            *flags,
+        ]
+
+        print(f"[BRIDGE] Iniciando ComfyUI en segundo plano: {' '.join(cmd)}")
+        self.comfy_starting = True
+        try:
+            creation_flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+            self.comfy_proc = subprocess.Popen(
+                cmd,
+                cwd=str(Path(inst["main_py"]).parent),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                creationflags=creation_flags,
+            )
+            threading.Thread(target=self._tail_comfy_logs, daemon=True).start()
+            return {"ok": True, "message": "Iniciando ComfyUI en segundo plano...", "cmd": cmd}
+        except Exception as e:
+            self.comfy_starting = False
+            return {"ok": False, "error": str(e)}
+
+    def _tail_comfy_logs(self):
+        proc = self.comfy_proc
+        if not proc or not proc.stdout:
+            return
+        for line in proc.stdout:
+            clean = line.rstrip()
+            if clean:
+                self.comfy_logs.append(clean)
+                if len(self.comfy_logs) > 120:
+                    self.comfy_logs = self.comfy_logs[-120:]
+                if "To see the GUI go to" in clean:
+                    self.comfy_starting = False
+        self.comfy_starting = False
+
+    def render_procedural_image(
+        self,
+        prompt: str,
+        seed: int,
+        width: int,
+        height: int,
+        dest_path: Path,
+        input_img_path: Path | None = None,
+        denoise: float = 1.0,
+    ) -> None:
+        """
+        Generador visual procedural instantáneo para Modo Práctica / Sin Modelo o mientras se descarga ComfyUI.
+        Crea arte generativo reactivo al prompt, al seed y a la imagen de entrada de TouchDesigner (img2img),
+        garantizando que los alumnos puedan probar todo el flujo TD <-> WebApp desde el minuto 0.
+        """
+        if not HAS_PIL:
+            # Minimal valid 1x1 PNG fallback
+            png_1x1 = base64.b64decode(
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+            )
+            dest_path.write_bytes(png_1x1)
+            return
+
+        h_digest = hashlib.sha256(f"{prompt}:{seed}".encode("utf-8")).digest()
+        c1 = (h_digest[0], h_digest[1], h_digest[2])
+        c2 = (h_digest[3], h_digest[4], h_digest[5])
+        c3 = (h_digest[6], h_digest[7], h_digest[8])
+
+        img = Image.new("RGB", (width, height), (14, 16, 24))
+        draw = ImageDraw.Draw(img, "RGBA")
+
+        # Si hay imagen de entrada desde TouchDesigner (img2img), mezclarla como base
+        if input_img_path and input_img_path.exists():
+            try:
+                base_in = Image.open(input_img_path).convert("RGB").resize((width, height), Image.Resampling.BILINEAR)
+                stylized = base_in.filter(ImageFilter.CONTOUR).filter(ImageFilter.GaussianBlur(radius=1.5))
+                img = Image.blend(base_in, stylized, min(0.85, max(0.2, denoise)))
+                draw = ImageDraw.Draw(img, "RGBA")
+            except Exception:
+                pass
+
+        # Dibujar geometría generativa basada en el hash del prompt y seed
+        cx, cy = width // 2, height // 2
+        num_rings = 14 + (h_digest[9] % 16)
+        for i in range(num_rings):
+            t = i / max(1, num_rings - 1)
+            r = int(min(width, height) * 0.45 * (1.0 - t * 0.8))
+            angle = (seed * 0.13 + i * 0.45) % (math.pi * 2)
+            ox = int(cx + math.cos(angle) * (t * width * 0.18))
+            oy = int(cy + math.sin(angle) * (t * height * 0.18))
+            col = (
+                int(c1[0] * (1 - t) + c2[0] * t),
+                int(c1[1] * (1 - t) + c2[1] * t),
+                int(c1[2] * (1 - t) + c2[2] * t),
+                int(95 + 110 * t),
+            )
+            draw.ellipse([ox - r, oy - r, ox + r, oy + r], outline=col, width=3)
+
+        # Líneas de campo armónico
+        num_lines = 36
+        for i in range(num_lines):
+            ang = (i / num_lines) * math.pi * 2 + (seed % 360) * 0.017
+            x1 = cx + math.cos(ang) * (width * 0.08)
+            y1 = cy + math.sin(ang) * (height * 0.08)
+            x2 = cx + math.cos(ang + 0.35) * (width * 0.46)
+            y2 = cy + math.sin(ang + 0.35) * (height * 0.46)
+            draw.line([(x1, y1), (x2, y2)], fill=(c3[0], c3[1], c3[2], 130), width=2)
+
+        # HUD sutil abajo indicando prompt y seed
+        banner_h = 44
+        draw.rectangle([0, height - banner_h, width, height], fill=(8, 10, 16, 210))
+        short_p = (prompt[:58] + "...") if len(prompt) > 61 else prompt
+        draw.text((14, height - 34), f"PROMPT: {short_p}", fill=(120, 230, 255, 255))
+        draw.text((14, height - 18), f"SEED: {seed} | RES: {width}x{height} | TD-BRIDGE SYNTH", fill=(160, 175, 200, 230))
+
+        img.save(dest_path, format="PNG")
+
+
+STATE = BridgeState()
+
+
+def _upload_image_to_comfy(base_url: str, img_path: Path) -> str | None:
+    """Sube un PNG al endpoint /upload/image de ComfyUI para usarlo en LoadImage (img2img)."""
+    boundary = f"----TDBridgeBoundary{uuid.uuid4().hex}"
+    filename = f"td_in_{int(time.time()*1000)}.png"
+    file_bytes = img_path.read_bytes()
+
+    body = (
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="image"; filename="{filename}"\r\n'
+        f"Content-Type: image/png\r\n\r\n"
+    ).encode("utf-8") + file_bytes + (
+        f"\r\n--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="overwrite"\r\n\r\ntrue\r\n'
+        f"--{boundary}--\r\n"
+    ).encode("utf-8")
+
+    req = urllib.request.Request(
+        f"{base_url}/upload/image",
+        data=body,
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        res_data = json.loads(resp.read().decode("utf-8"))
+        return res_data.get("name", filename)
+
+
+def _execute_generation_worker(job: dict):
+    """Hilo de ejecución de generación en ComfyUI (con fallback limpio si no hay checkpoint aún)."""
+    t0 = time.time()
+    STATE.status_state = "GENERATING"
+    STATE.last_error = ""
+
+    prompt = job["prompt"]
+    negative_prompt = job["negative_prompt"]
+    tier_id = job["tier"]
+    tier_cfg = STATE.cfg["tiers"].get(tier_id, STATE.cfg["tiers"]["basico"])
+    width = int(job["width"])
+    height = int(job["height"])
+    steps = int(job["steps"])
+    cfg_val = float(job["cfg"])
+    seed = int(job["seed"])
+    if seed < 0:
+        seed = int(time.time() * 1000) % 999999999
+    denoise = float(job["denoise"])
+    mode = job["mode"]  # txt2img o img2img
+
+    online, _ = STATE.check_comfy_online()
+    used_backend = "comfyui"
+    out_filename = f"gen_{int(time.time())}_{seed}.png"
+    out_path = OUTPUTS_DIR / out_filename
+
+    try:
+        if online:
+            base_url = STATE.comfy_base_url()
+            avail = STATE.get_comfy_available_models()
+            all_ckpts = avail["checkpoints"] + avail["unet"]
+
+            # Determinar qué checkpoint usar
+            chosen_ckpt = job.get("checkpoint") or tier_cfg.get("checkpoint")
+            if chosen_ckpt not in all_ckpts:
+                # Si tiene Flux.2 Klein 4B o Qwen Image 2.1 o Flux.2 Dev instalados localmente, usarlos automáticamente
+                if "flux-2-klein-4b.safetensors" in all_ckpts:
+                    chosen_ckpt = "flux-2-klein-4b.safetensors"
+                elif "qwen_image_2.1_int8_convrot.safetensors" in all_ckpts:
+                    chosen_ckpt = "qwen_image_2.1_int8_convrot.safetensors"
+                elif "flux2_dev_fp8mixed.safetensors" in all_ckpts:
+                    chosen_ckpt = "flux2_dev_fp8mixed.safetensors"
+                elif "flux1-dev-fp8.safetensors" in all_ckpts:
+                    chosen_ckpt = "flux1-dev-fp8.safetensors"
+                elif avail["checkpoints"]:
+                    chosen_ckpt = avail["checkpoints"][0]
+                else:
+                    chosen_ckpt = None
+
+            if chosen_ckpt:
+                uploaded_name = None
+                if mode == "img2img" and LATEST_INPUT_PATH.exists():
+                    uploaded_name = _upload_image_to_comfy(base_url, LATEST_INPUT_PATH)
+
+                wf = workflows.build_workflow(
+                    tier_id=tier_id,
+                    tier_cfg=tier_cfg,
+                    prompt=prompt,
+                    negative_prompt=negative_prompt,
+                    width=width,
+                    height=height,
+                    steps=steps,
+                    cfg=cfg_val,
+                    seed=seed,
+                    denoise=denoise,
+                    input_image_name=uploaded_name,
+                    checkpoint_override=chosen_ckpt,
+                    available_loras=avail["loras"],
+                )
+
+                payload = json.dumps({"prompt": wf, "client_id": STATE.client_id}).encode("utf-8")
+                req = urllib.request.Request(
+                    f"{base_url}/prompt",
+                    data=payload,
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    p_res = json.loads(resp.read().decode("utf-8"))
+                    prompt_id = p_res["prompt_id"]
+
+                # Esperar resultado en /history/<prompt_id>
+                img_bytes = None
+                deadline = time.time() + 180.0
+                while time.time() < deadline:
+                    time.sleep(0.35)
+                    with urllib.request.urlopen(f"{base_url}/history/{prompt_id}", timeout=5) as h_resp:
+                        h_data = json.loads(h_resp.read().decode("utf-8"))
+                        if prompt_id in h_data:
+                            outputs = h_data[prompt_id].get("outputs", {})
+                            for _, node_out in outputs.items():
+                                if "images" in node_out and node_out["images"]:
+                                    img_info = node_out["images"][0]
+                                    q = urllib.parse.urlencode({
+                                        "filename": img_info["filename"],
+                                        "subfolder": img_info.get("subfolder", ""),
+                                        "type": img_info.get("type", "output"),
+                                    })
+                                    with urllib.request.urlopen(f"{base_url}/view?{q}", timeout=10) as v_resp:
+                                        img_bytes = v_resp.read()
+                                    break
+                            break
+
+                if img_bytes:
+                    out_path.write_bytes(img_bytes)
+                    LATEST_IMG_PATH.write_bytes(img_bytes)
+                    used_backend = f"ComfyUI ({chosen_ckpt})"
+                else:
+                    raise RuntimeError("Tiempo de espera agotado esperando imagen de ComfyUI.")
+            else:
+                # ComfyUI está online pero el alumno aún no descargó checkpoints -> usar sintetizador procedural
+                used_backend = "Synth Procedural (Sin Checkpoint en ComfyUI)"
+                STATE.render_procedural_image(
+                    prompt=prompt,
+                    seed=seed,
+                    width=width,
+                    height=height,
+                    dest_path=out_path,
+                    input_img_path=LATEST_INPUT_PATH if mode == "img2img" else None,
+                    denoise=denoise,
+                )
+                LATEST_IMG_PATH.write_bytes(out_path.read_bytes())
+        else:
+            # Modo Práctica Instantáneo (cuando ComfyUI está apagado o instalándose)
+            used_backend = "Synth Procedural (Modo Práctica Offline)"
+            STATE.render_procedural_image(
+                prompt=prompt,
+                seed=seed,
+                width=width,
+                height=height,
+                dest_path=out_path,
+                input_img_path=LATEST_INPUT_PATH if mode == "img2img" else None,
+                denoise=denoise,
+            )
+            LATEST_IMG_PATH.write_bytes(out_path.read_bytes())
+
+        elapsed_ms = round((time.time() - t0) * 1000.0, 1)
+        with STATE.lock:
+            STATE.generation_counter += 1
+            STATE.last_latency_ms = elapsed_ms
+            STATE.status_state = "READY"
+            entry = {
+                "id": STATE.generation_counter,
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "prompt": prompt,
+                "negative_prompt": negative_prompt,
+                "tier": tier_id,
+                "mode": mode,
+                "width": width,
+                "height": height,
+                "steps": steps,
+                "cfg": cfg_val,
+                "seed": seed,
+                "denoise": denoise,
+                "latency_ms": elapsed_ms,
+                "backend": used_backend,
+                "filename": out_filename,
+                "url": f"/outputs/{out_filename}",
+                "source": job.get("source", "webapp"),
+            }
+            STATE.history.insert(0, entry)
+            STATE.save_history()
+            STATE.active_job = None
+
+    except Exception as e:
+        elapsed_ms = round((time.time() - t0) * 1000.0, 1)
+        print(f"[BRIDGE ERROR] {e}")
+        with STATE.lock:
+            STATE.status_state = "ERROR"
+            STATE.last_error = str(e)
+            STATE.last_latency_ms = elapsed_ms
+            STATE.active_job = None
+
+
+class BridgeHTTPHandler(BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        # Silenciar el spam de polling frecuente de TouchDesigner
+        if "/api/td_poll" in self.path or "/api/status" in self.path:
+            return
+        sys.stderr.write(f"[HTTP] {self.address_string()} - {format % args}\n")
+
+    def _send_json(self, data: dict | list, status: int = 200):
+        raw = json.dumps(data, ensure_ascii=False).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(raw)))
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(raw)
+
+    def _send_file(self, path: Path, content_type: str):
+        if not path.exists():
+            self.send_error(404, "Archivo no encontrado")
+            return
+        data = path.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(data)
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
+
+    def do_GET(self):
+        parsed = urllib.parse.urlparse(self.path)
+        route = parsed.path
+
+        if route == "/" or route == "/index.html":
+            self._send_file(WEBAPP_DIR / "index.html", "text/html; charset=utf-8")
+            return
+
+        if route == "/api/td_poll":
+            online, _ = STATE.check_comfy_online()
+            latest = STATE.history[0] if STATE.history else None
+            self._send_json({
+                "ok": True,
+                "state": STATE.status_state,
+                "comfy_online": 1 if online else 0,
+                "generation_id": STATE.generation_counter,
+                "latency_ms": STATE.last_latency_ms,
+                "latest_file": str(LATEST_IMG_PATH),
+                "latest_url": f"http://127.0.0.1:{STATE.cfg.get('bridge_port', 8080)}/api/latest.png?v={STATE.generation_counter}",
+                "latest_prompt": latest["prompt"] if latest else "",
+                "tier": STATE.cfg.get("active_tier", "basico"),
+                "error": STATE.last_error,
+            })
+            return
+
+        if route == "/api/status":
+            online, comfy_stats = STATE.check_comfy_online()
+            gpu = STATE.get_gpu_info()
+            inst = installer.resolve_comfy_installation(STATE.cfg)
+            avail = STATE.get_comfy_available_models() if online else {
+                "checkpoints": installer.list_installed_checkpoints(STATE.cfg),
+                "unet": [],
+                "loras": [],
+            }
+            all_installed = (avail.get("checkpoints") or []) + (avail.get("unet") or [])
+            active_tier = STATE.cfg.get("active_tier", "basico")
+            rec_tier = installer.recommend_tier(gpu["vram_gb"], gpu.get("vendor", "nvidia"))
+            compat = installer.diagnose_hardware_compatibility(gpu, active_tier, inst, all_installed)
+
+            self._send_json({
+                "ok": True,
+                "state": STATE.status_state,
+                "last_error": STATE.last_error,
+                "generation_id": STATE.generation_counter,
+                "latency_ms": STATE.last_latency_ms,
+                "active_job": STATE.active_job,
+                "comfy": {
+                    "online": online,
+                    "starting": STATE.comfy_starting,
+                    "url": STATE.comfy_base_url(),
+                    "installation": inst,
+                    "available_models": avail,
+                    "logs": STATE.comfy_logs[-25:],
+                    "stats": comfy_stats,
+                },
+                "gpu": gpu,
+                "compatibility": compat,
+                "recommended_tier": rec_tier,
+                "active_tier": active_tier,
+                "tiers": STATE.cfg.get("tiers", {}),
+                "latest": STATE.history[0] if STATE.history else None,
+                "has_td_input": LATEST_INPUT_PATH.exists(),
+            })
+            return
+
+        if route == "/api/history":
+            self._send_json({"ok": True, "items": STATE.history[:60]})
+            return
+
+        if route == "/api/latest.png":
+            self._send_file(LATEST_IMG_PATH, "image/png")
+            return
+
+        if route == "/api/input.png":
+            if LATEST_INPUT_PATH.exists():
+                self._send_file(LATEST_INPUT_PATH, "image/png")
+            else:
+                self._send_file(LATEST_IMG_PATH, "image/png")
+            return
+
+        if route.startswith("/outputs/"):
+            fname = Path(route).name
+            self._send_file(OUTPUTS_DIR / fname, "image/png")
+            return
+
+        self.send_error(404, "Endpoint no encontrado")
+
+    def do_POST(self):
+        parsed = urllib.parse.urlparse(self.path)
+        route = parsed.path
+        length = int(self.headers.get("Content-Length", 0))
+        body_bytes = self.rfile.read(length) if length > 0 else b"{}"
+
+        if route == "/api/upload_input":
+            # Puede recibir PNG crudo o JSON con base64
+            ctype = self.headers.get("Content-Type", "")
+            if "image/png" in ctype or body_bytes.startswith(b"\x89PNG"):
+                LATEST_INPUT_PATH.write_bytes(body_bytes)
+                self._send_json({"ok": True, "path": str(LATEST_INPUT_PATH), "bytes": len(body_bytes)})
+                return
+            try:
+                data = json.loads(body_bytes.decode("utf-8"))
+                b64 = data.get("image_b64", "")
+                if "," in b64:
+                    b64 = b64.split(",", 1)[1]
+                raw_png = base64.b64decode(b64)
+                LATEST_INPUT_PATH.write_bytes(raw_png)
+                self._send_json({"ok": True, "path": str(LATEST_INPUT_PATH), "bytes": len(raw_png)})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)}, status=400)
+            return
+
+        try:
+            payload = json.loads(body_bytes.decode("utf-8") or "{}")
+        except Exception:
+            payload = {}
+
+        if route == "/api/generate":
+            with STATE.lock:
+                if STATE.status_state == "GENERATING":
+                    self._send_json({"ok": False, "error": "Ya hay una generación en curso."}, status=409)
+                    return
+
+                tier_id = payload.get("tier") or STATE.cfg.get("active_tier", "basico")
+                tier_cfg = STATE.cfg["tiers"].get(tier_id, STATE.cfg["tiers"]["basico"])
+
+                # Si viene imagen en base64 junto con el pedido img2img, guardarla
+                if payload.get("image_b64"):
+                    b64 = payload["image_b64"]
+                    if "," in b64:
+                        b64 = b64.split(",", 1)[1]
+                    LATEST_INPUT_PATH.write_bytes(base64.b64decode(b64))
+
+                job = {
+                    "prompt": str(payload.get("prompt") or "masterpiece, abstract organic bioluminescent sculpture, 8k").strip(),
+                    "negative_prompt": str(payload.get("negative_prompt") or "low quality, blurry, watermark, deformed").strip(),
+                    "tier": tier_id,
+                    "mode": str(payload.get("mode") or "txt2img").strip().lower(),
+                    "width": int(payload.get("width") or tier_cfg.get("default_width", 512)),
+                    "height": int(payload.get("height") or tier_cfg.get("default_height", 512)),
+                    "steps": int(payload.get("steps") or tier_cfg.get("default_steps", 6)),
+                    "cfg": float(payload.get("cfg") or tier_cfg.get("default_cfg", 1.8)),
+                    "seed": int(payload.get("seed") if payload.get("seed") is not None else -1),
+                    "denoise": float(payload.get("denoise") if payload.get("denoise") is not None else 0.75),
+                    "checkpoint": payload.get("checkpoint") or None,
+                    "source": str(payload.get("source") or "webapp"),
+                }
+                STATE.active_job = job
+                STATE.status_state = "QUEUED"
+
+            threading.Thread(target=_execute_generation_worker, args=(job,), daemon=True).start()
+            self._send_json({"ok": True, "status": "QUEUED", "job": job})
+            return
+
+        if route == "/api/tier":
+            tier_id = payload.get("tier", "basico")
+            if tier_id in STATE.cfg.get("tiers", {}):
+                STATE.cfg["active_tier"] = tier_id
+                installer.save_config(STATE.cfg)
+                if payload.get("download_models"):
+                    threading.Thread(
+                        target=installer.ensure_tier_models,
+                        args=(STATE.cfg, tier_id, True),
+                        daemon=True,
+                    ).start()
+                self._send_json({"ok": True, "active_tier": tier_id})
+            else:
+                self._send_json({"ok": False, "error": "Tier inválido"}, status=400)
+            return
+
+        if route == "/api/comfy/start":
+            res = STATE.start_comfy_background()
+            self._send_json(res)
+            return
+
+        self.send_error(404, "Endpoint POST no encontrado")
+
+
+def main():
+    port = int(STATE.cfg.get("bridge_port", 8080))
+    if "--autostart-comfy" in sys.argv:
+        STATE.start_comfy_background()
+
+    server = ThreadingHTTPServer(("127.0.0.1", port), BridgeHTTPHandler)
+    print("=" * 68)
+    print(f"  [OK] Puente TouchDesigner <-> ComfyUI activo en: http://127.0.0.1:{port}")
+    print(f"  [OK] WebApp Monitor y Control en            : http://127.0.0.1:{port}/")
+    print(f"  [OK] Endpoint TouchDesigner en              : http://127.0.0.1:{port}/api/generate")
+    print("=" * 68)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nCerrando servidor puente...")
+        server.server_close()
+
+
+if __name__ == "__main__":
+    main()

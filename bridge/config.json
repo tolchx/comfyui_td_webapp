@@ -1,0 +1,126 @@
+{
+  "bridge_port": 8080,
+  "comfy_port": 8188,
+  "comfy_host": "127.0.0.1",
+  "active_tier": "basico",
+  "comfy_installations": [
+    {
+      "name": "ComfyUI Portable (Windows Curso)",
+      "python_exe": "ComfyUI_windows_portable/python_embeded/python.exe",
+      "main_py": "ComfyUI_windows_portable/ComfyUI/main.py",
+      "models_dir": "ComfyUI_windows_portable/ComfyUI/models"
+    },
+    {
+      "name": "ComfyUI Local Venv (macOS / Linux / Windows)",
+      "python_exe": "ComfyUI/.venv/bin/python",
+      "main_py": "ComfyUI/main.py",
+      "models_dir": "ComfyUI/models"
+    },
+    {
+      "name": "ComfyUI Local Venv Windows",
+      "python_exe": "ComfyUI/.venv/Scripts/python.exe",
+      "main_py": "ComfyUI/main.py",
+      "models_dir": "ComfyUI/models"
+    },
+    {
+      "name": "ComfyUI Desktop macOS",
+      "python_exe": "~/Documents/ComfyUI/.venv/bin/python",
+      "main_py": "/Applications/ComfyUI.app/Contents/Resources/ComfyUI/main.py",
+      "models_dir": "~/Documents/ComfyUI/models"
+    },
+    {
+      "name": "ComfyUI D:\\ Drive",
+      "python_exe": "D:/ComfyUI/.venv/Scripts/python.exe",
+      "main_py": "D:/ComfyUI/main.py",
+      "models_dir": "D:/ComfyUI/models"
+    },
+    {
+      "name": "ComfyUI Desktop Windows",
+      "python_exe": "~/Documents/ComfyUI/.venv/Scripts/python.exe",
+      "main_py": "~/AppData/Local/Programs/ComfyUI/resources/ComfyUI/main.py",
+      "models_dir": "~/Documents/ComfyUI/models"
+    }
+  ],
+  "extra_models_dirs": [
+    "E:/ComfyUI_Models",
+    "E:/ComfyUI_Models/models",
+    "~/Documents/ComfyUI/models"
+  ],
+  "tiers": {
+    "basico": {
+      "id": "basico",
+      "label": "Básico (4GB - 6GB VRAM / Mac 8GB-16GB) — SD 1.5 + LCM LoRA (Rápido / 4-6 pasos)",
+      "min_vram_gb": 4,
+      "comfy_flags": ["--lowvram"],
+      "mac_flags": ["--force-fp16"],
+      "default_width": 512,
+      "default_height": 512,
+      "default_steps": 6,
+      "default_cfg": 1.8,
+      "sampler_name": "lcm",
+      "scheduler": "sgm_uniform",
+      "checkpoint": "DreamShaper_8_pruned.safetensors",
+      "lora": "lcm_lora_sd15.safetensors",
+      "files": [
+        {
+          "filename": "DreamShaper_8_pruned.safetensors",
+          "subdir": "checkpoints",
+          "size_mb": 2034,
+          "url": "https://huggingface.co/Lykon/DreamShaper/resolve/main/DreamShaper_8_pruned.safetensors"
+        },
+        {
+          "filename": "lcm_lora_sd15.safetensors",
+          "subdir": "loras",
+          "size_mb": 128,
+          "url": "https://huggingface.co/latent-consistency/lcm-lora-sdv1-5/resolve/main/pytorch_lora_weights.safetensors"
+        }
+      ]
+    },
+    "medio": {
+      "id": "medio",
+      "label": "Medio (8GB - 10GB VRAM / Mac 16GB-24GB) — SDXL Turbo FP16 (Alta Velocidad / 4 pasos)",
+      "min_vram_gb": 8,
+      "comfy_flags": ["--normalvram"],
+      "mac_flags": ["--force-fp16"],
+      "default_width": 768,
+      "default_height": 768,
+      "default_steps": 4,
+      "default_cfg": 1.5,
+      "sampler_name": "euler_ancestral",
+      "scheduler": "normal",
+      "checkpoint": "sd_xl_turbo_1.0_fp16.safetensors",
+      "lora": null,
+      "files": [
+        {
+          "filename": "sd_xl_turbo_1.0_fp16.safetensors",
+          "subdir": "checkpoints",
+          "size_mb": 6617,
+          "url": "https://huggingface.co/stabilityai/sdxl-turbo/resolve/main/sd_xl_turbo_1.0_fp16.safetensors"
+        }
+      ]
+    },
+    "avanzado": {
+      "id": "avanzado",
+      "label": "Avanzado (12GB+ VRAM / Mac 32GB+) — Flux.1 Schnell FP8 (Máxima Calidad / 4 pasos)",
+      "min_vram_gb": 12,
+      "comfy_flags": ["--normalvram"],
+      "mac_flags": ["--force-fp16"],
+      "default_width": 1024,
+      "default_height": 1024,
+      "default_steps": 4,
+      "default_cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "checkpoint": "flux1-schnell-fp8.safetensors",
+      "lora": null,
+      "files": [
+        {
+          "filename": "flux1-schnell-fp8.safetensors",
+          "subdir": "checkpoints",
+          "size_mb": 16438,
+          "url": "https://huggingface.co/Comfy-Org/flux1-schnell/resolve/main/flux1-schnell-fp8.safetensors"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TD ↔ ComfyUI Studio | Monitor & Control de Cátedra</title>
+  <style>
+    :root {
+      --bg-0: #090b10;
+      --bg-1: #111520;
+      --bg-2: #181e2e;
+      --bg-3: #222a40;
+      --accent: #38bdf8;
+      --accent-2: #818cf8;
+      --green: #34d399;
+      --amber: #fbbf24;
+      --red: #f87171;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --border: rgba(148, 163, 184, 0.16);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: radial-gradient(circle at top right, #161f35 0%, var(--bg-0) 65%);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: rgba(17, 21, 32, 0.88);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 14px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-logo {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 16px;
+      color: #090b10;
+      box-shadow: 0 0 18px rgba(56, 189, 248, 0.35);
+    }
+    .brand h1 {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    .brand span {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .telemetry-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .pill {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .dot.online { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .dot.busy { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+    .dot.offline { background: var(--red); }
+
+    main {
+      max-width: 1480px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 20px 24px;
+      display: grid;
+      grid-template-columns: 400px 1fr;
+      gap: 22px;
+      flex: 1;
+    }
+    @media (max-width: 1080px) {
+      main { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: rgba(17, 21, 32, 0.85);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .panel-title {
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+    }
+
+    .tier-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .tier-card {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      text-align: center;
+    }
+    .tier-card:hover { border-color: var(--accent); }
+    .tier-card.active {
+      background: rgba(56, 189, 248, 0.14);
+      border-color: var(--accent);
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.18);
+    }
+    .tier-card strong { display: block; font-size: 13px; margin-bottom: 3px; }
+    .tier-card small { font-size: 11px; color: var(--muted); display: block; }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    textarea, input, select {
+      width: 100%;
+      background: var(--bg-0);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+    }
+    textarea:focus, input:focus, select:focus {
+      border-color: var(--accent);
+    }
+    textarea { resize: vertical; min-height: 76px; }
+
+    .row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .row-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #090b10;
+      font-weight: 700;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: transform 0.12s, opacity 0.15s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn:hover { opacity: 0.94; transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+    .btn-secondary {
+      background: var(--bg-3);
+      color: var(--text);
+      border: 1px solid var(--border);
+      font-weight: 600;
+      font-size: 12px;
+      padding: 8px 12px;
+    }
+
+    .preview-stage {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 780px) {
+      .preview-stage { grid-template-columns: 1fr; }
+    }
+    .viewport-card {
+      background: var(--bg-0);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .viewport-header {
+      padding: 10px 14px;
+      background: var(--bg-2);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .viewport-img-wrap {
+      aspect-ratio: 1 / 1;
+      max-height: 410px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: repeating-conic-gradient(#0d111a 0% 25%, #121826 0% 50%) 50% / 24px 24px;
+      position: relative;
+    }
+    .viewport-img-wrap img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .history-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+      gap: 14px;
+    }
+    .hist-item {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.15s, border-color 0.15s;
+      display: flex;
+      flex-direction: column;
+    }
+    .hist-item:hover {
+      transform: translateY(-2px);
+      border-color: var(--accent);
+    }
+    .hist-item img {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      object-fit: cover;
+      background: #090b10;
+    }
+    .hist-meta {
+      padding: 8px 10px;
+      font-size: 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .hist-prompt {
+      color: var(--text);
+      font-weight: 600;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .hist-sub {
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .log-box {
+      background: #06080c;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      font-family: 'Cascadia Code', Consolas, monospace;
+      font-size: 11px;
+      color: #94a3b8;
+      max-height: 135px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+    .badge {
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent);
+    }
+    .compat-card {
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 12px;
+      line-height: 1.45;
+      border: 1px solid var(--border);
+      background: rgba(52, 211, 153, 0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .compat-card.warning {
+      background: rgba(251, 191, 36, 0.10);
+      border-color: rgba(251, 191, 36, 0.45);
+    }
+    .compat-card.critical {
+      background: rgba(248, 113, 113, 0.12);
+      border-color: rgba(248, 113, 113, 0.55);
+    }
+    .compat-card ul {
+      padding-left: 16px;
+      margin: 0;
+    }
+    .compat-card li { margin-bottom: 3px; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-logo">TD</div>
+      <div>
+        <h1>TouchDesigner ↔ ComfyUI Bridge</h1>
+        <span>Sistema Standalone de Generación Local • Monitor & Control de Cátedra</span>
+      </div>
+    </div>
+
+    <div class="telemetry-bar">
+      <div class="pill">
+        <span id="comfyDot" class="dot offline"></span>
+        <span id="comfyStatusText">ComfyUI: Verificando...</span>
+        <button id="btnStartComfy" class="btn btn-secondary" style="padding:3px 8px; font-size:11px;" onclick="startComfy()">Iniciar ComfyUI</button>
+      </div>
+      <div class="pill">
+        <span>GPU: <strong id="gpuName">Detectando...</strong></span>
+      </div>
+      <div class="pill">
+        <span>VRAM: <strong id="vramText">-- / -- GB</strong></span>
+      </div>
+      <div class="pill">
+        <span>Estado: <strong id="bridgeStateText" style="color:var(--accent)">IDLE</strong></span>
+      </div>
+      <div class="pill">
+        <span>Última Latencia: <strong id="latencyText">0 ms</strong></span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- COLUMNA IZQUIERDA: CONTROLES Y HARDWARE TIER -->
+    <div style="display:flex; flex-direction:column; gap:18px;">
+      <section class="panel">
+        <div class="panel-title">
+          <span>1. Nivel de Hardware (Model Tier)</span>
+          <span id="recBadge" class="badge">Sugerido: --</span>
+        </div>
+
+        <div class="tier-grid">
+          <div class="tier-card" id="tier-basico" onclick="selectTier('basico')">
+            <strong>Básico</strong>
+            <small>4–6 GB VRAM</small>
+            <small style="color:var(--accent);margin-top:2px;">SD 1.5 + LCM</small>
+          </div>
+          <div class="tier-card" id="tier-medio" onclick="selectTier('medio')">
+            <strong>Medio</strong>
+            <small>8–10 GB VRAM</small>
+            <small style="color:var(--accent);margin-top:2px;">SDXL Turbo</small>
+          </div>
+          <div class="tier-card" id="tier-avanzado" onclick="selectTier('avanzado')">
+            <strong>Avanzado</strong>
+            <small>12+ GB VRAM</small>
+            <small style="color:var(--accent);margin-top:2px;">Flux.1 / Flux.2</small>
+          </div>
+        </div>
+
+        <div>
+          <label for="ckptSelect">Checkpoint / Modelo Detectado</label>
+          <select id="ckptSelect">
+            <option value="">Automático según Tier seleccionado</option>
+          </select>
+        </div>
+
+        <button class="btn btn-secondary" onclick="downloadActiveTierModels()">
+          ⬇ Descargar / Verificar Modelo de este Nivel en ComfyUI
+        </button>
+
+        <div id="compatBox" class="compat-card">
+          <strong id="compatTitle" style="color:var(--green);">✓ Diagnóstico de Hardware y Soluciones</strong>
+          <ul id="compatIssues"></ul>
+          <div style="font-weight:600; color:var(--accent); margin-top:4px;">Soluciones / Recomendaciones:</div>
+          <ul id="compatSolutions" style="color:var(--muted);"></ul>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">
+          <span>2. Generador Interactivo (WebApp & TD)</span>
+          <span class="badge" id="modeBadge">TXT2IMG</span>
+        </div>
+
+        <div>
+          <label for="modeSelect">Modo de Generación</label>
+          <select id="modeSelect" onchange="updateModeBadge()">
+            <option value="txt2img">Text-to-Image (Solo texto)</option>
+            <option value="img2img">Image-to-Image (Usa textura enviada desde TouchDesigner)</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="promptInput">Prompt Positivo</label>
+          <textarea id="promptInput">masterpiece, abstract organic bioluminescent cyberpunk architecture, neon subsurface scattering, octane render, 8k</textarea>
+        </div>
+
+        <div>
+          <label for="negInput">Prompt Negativo</label>
+          <input id="negInput" type="text" value="low quality, blurry, watermark, text, deformed, ugly" />
+        </div>
+
+        <div class="row-2">
+          <div>
+            <label for="widthInput">Ancho (px)</label>
+            <input id="widthInput" type="number" step="64" value="512" />
+          </div>
+          <div>
+            <label for="heightInput">Alto (px)</label>
+            <input id="heightInput" type="number" step="64" value="512" />
+          </div>
+        </div>
+
+        <div class="row-3">
+          <div>
+            <label for="stepsInput">Pasos (Steps)</label>
+            <input id="stepsInput" type="number" min="1" max="50" value="6" />
+          </div>
+          <div>
+            <label for="cfgInput">CFG Scale</label>
+            <input id="cfgInput" type="number" step="0.1" value="1.8" />
+          </div>
+          <div>
+            <label for="denoiseInput">Denoise (Img2Img)</label>
+            <input id="denoiseInput" type="number" step="0.05" min="0.05" max="1.0" value="0.75" />
+          </div>
+        </div>
+
+        <div>
+          <label for="seedInput">Semilla (Seed: -1 = Aleatorio)</label>
+          <input id="seedInput" type="number" value="-1" />
+        </div>
+
+        <button id="btnGenerate" class="btn" onclick="triggerGenerate()">
+          ⚡ Generar Imagen (Se actualiza en TouchDesigner)
+        </button>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">
+          <span>Consola ComfyUI / Servidor Puente</span>
+          <a href="http://127.0.0.1:8188" target="_blank" id="comfyGuiLink" style="color:var(--accent); font-size:11px; text-decoration:none;">Abrir GUI Nativa ↗</a>
+        </div>
+        <div id="logBox" class="log-box">Esperando telemetría del servidor puente...</div>
+      </section>
+    </div>
+
+    <!-- COLUMNA DERECHA: MONITOR EN VIVO E HISTORIAL -->
+    <div style="display:flex; flex-direction:column; gap:18px;">
+      <section class="panel">
+        <div class="panel-title">
+          <span>Monitor en Tiempo Real (Sincronizado con TouchDesigner `v1.toe`)</span>
+          <span id="genCounterBadge" class="badge">Generación #0</span>
+        </div>
+
+        <div class="preview-stage">
+          <div class="viewport-card">
+            <div class="viewport-header">
+              <span>Última Salida Generada (`out_ai` en TouchDesigner)</span>
+              <span id="latestBackendLabel" style="color:var(--muted);">--</span>
+            </div>
+            <div class="viewport-img-wrap">
+              <img id="latestImg" src="/api/latest.png" alt="Última generación" />
+            </div>
+          </div>
+
+          <div class="viewport-card">
+            <div class="viewport-header">
+              <span>Entrada desde TouchDesigner (`input_frame` TOP)</span>
+              <button class="btn btn-secondary" style="padding:2px 8px; font-size:11px;" onclick="refreshInputImg()">Refrescar</button>
+            </div>
+            <div class="viewport-img-wrap">
+              <img id="inputImg" src="/api/input.png" alt="Entrada TouchDesigner" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" style="flex:1;">
+        <div class="panel-title">
+          <span>Historial de Generaciones (Click para reutilizar Prompt y Seed)</span>
+          <button class="btn btn-secondary" style="padding:4px 10px; font-size:11px;" onclick="loadHistory()">↻ Actualizar</button>
+        </div>
+        <div id="historyGrid" class="history-grid"></div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    let currentGenId = -1;
+    let currentTier = 'basico';
+    let tiersMeta = {};
+    let knownModels = [];
+
+    function updateModeBadge() {
+      const m = document.getElementById('modeSelect').value;
+      document.getElementById('modeBadge').textContent = m.toUpperCase();
+    }
+
+    async function selectTier(tierId) {
+      currentTier = tierId;
+      document.querySelectorAll('.tier-card').forEach(el => el.classList.remove('active'));
+      const activeEl = document.getElementById(`tier-${tierId}`);
+      if (activeEl) activeEl.classList.add('active');
+
+      const tCfg = tiersMeta[tierId];
+      if (tCfg) {
+        document.getElementById('widthInput').value = tCfg.default_width || 512;
+        document.getElementById('heightInput').value = tCfg.default_height || 512;
+        document.getElementById('stepsInput').value = tCfg.default_steps || 6;
+        document.getElementById('cfgInput').value = tCfg.default_cfg || 1.8;
+      }
+
+      await fetch('/api/tier', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tier: tierId })
+      });
+    }
+
+    async function downloadActiveTierModels() {
+      const res = await fetch('/api/tier', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tier: currentTier, download_models: true })
+      });
+      const data = await res.json();
+      alert(`Descarga iniciada en segundo plano para el nivel "${currentTier.toUpperCase()}". Podés ver el progreso en la ventana de consola del servidor.`);
+    }
+
+    async function startComfy() {
+      document.getElementById('btnStartComfy').disabled = true;
+      document.getElementById('comfyStatusText').textContent = 'ComfyUI: Iniciando...';
+      const res = await fetch('/api/comfy/start', { method: 'POST' });
+      const data = await res.json();
+      if (!data.ok && data.error) {
+        alert('Aviso: ' + data.error);
+      }
+      setTimeout(() => { document.getElementById('btnStartComfy').disabled = false; }, 3000);
+    }
+
+    async function triggerGenerate() {
+      const btn = document.getElementById('btnGenerate');
+      btn.disabled = true;
+      btn.textContent = '⏳ Generando imagen...';
+
+      const payload = {
+        prompt: document.getElementById('promptInput').value,
+        negative_prompt: document.getElementById('negInput').value,
+        mode: document.getElementById('modeSelect').value,
+        tier: currentTier,
+        width: parseInt(document.getElementById('widthInput').value, 10),
+        height: parseInt(document.getElementById('heightInput').value, 10),
+        steps: parseInt(document.getElementById('stepsInput').value, 10),
+        cfg: parseFloat(document.getElementById('cfgInput').value),
+        denoise: parseFloat(document.getElementById('denoiseInput').value),
+        seed: parseInt(document.getElementById('seedInput').value, 10),
+        checkpoint: document.getElementById('ckptSelect').value || null,
+        source: 'webapp'
+      };
+
+      try {
+        const res = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!data.ok) {
+          alert('Error: ' + (data.error || 'No se pudo iniciar generación'));
+          btn.disabled = false;
+          btn.textContent = '⚡ Generar Imagen (Se actualiza en TouchDesigner)';
+        }
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = '⚡ Generar Imagen (Se actualiza en TouchDesigner)';
+      }
+    }
+
+    function refreshInputImg() {
+      document.getElementById('inputImg').src = `/api/input.png?t=${Date.now()}`;
+    }
+
+    async function loadHistory() {
+      try {
+        const res = await fetch('/api/history');
+        const data = await res.json();
+        const grid = document.getElementById('historyGrid');
+        if (!data.items || data.items.length === 0) {
+          grid.innerHTML = '<div style="color:var(--muted); font-size:13px;">Aún no hay generaciones registradas.</div>';
+          return;
+        }
+        grid.innerHTML = data.items.map(item => `
+          <div class="hist-item" onclick='applyHistoryItem(${JSON.stringify(item).replace(/'/g, "&#39;")})'>
+            <img src="${item.url}" loading="lazy" alt="Gen #${item.id}" />
+            <div class="hist-meta">
+              <div class="hist-prompt">${item.prompt}</div>
+              <div class="hist-sub">
+                <span>#${item.id} • ${item.source.toUpperCase()}</span>
+                <span>${item.latency_ms} ms</span>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      } catch (e) {}
+    }
+
+    function applyHistoryItem(item) {
+      document.getElementById('promptInput').value = item.prompt || '';
+      document.getElementById('negInput').value = item.negative_prompt || '';
+      document.getElementById('seedInput').value = item.seed ?? -1;
+      document.getElementById('widthInput').value = item.width || 512;
+      document.getElementById('heightInput').value = item.height || 512;
+      document.getElementById('stepsInput').value = item.steps || 6;
+      document.getElementById('cfgInput').value = item.cfg || 1.8;
+      document.getElementById('latestImg').src = item.url;
+    }
+
+    async function pollStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const st = await res.json();
+        tiersMeta = st.tiers || {};
+
+        // GPU
+        if (st.gpu && st.gpu.found) {
+          document.getElementById('gpuName').textContent = st.gpu.name;
+          const usedGb = ((st.gpu.vram_total_mb - st.gpu.vram_free_mb) / 1024).toFixed(1);
+          document.getElementById('vramText').textContent = `${usedGb} / ${st.gpu.vram_gb} GB`;
+        } else {
+          document.getElementById('gpuName').textContent = 'Modo CPU / Integrada';
+          document.getElementById('vramText').textContent = 'N/A';
+        }
+
+        document.getElementById('recBadge').textContent = `Sugerido: ${(st.recommended_tier || 'basico').toUpperCase()}`;
+
+        // Diagnóstico de Compatibilidad de Hardware
+        if (st.compatibility) {
+          const cBox = document.getElementById('compatBox');
+          const cTitle = document.getElementById('compatTitle');
+          const cIssues = document.getElementById('compatIssues');
+          const cSols = document.getElementById('compatSolutions');
+          const sev = st.compatibility.severity || 'ok';
+          cBox.className = `compat-card ${sev}`;
+          if (sev === 'critical') {
+            cTitle.style.color = 'var(--red)';
+            cTitle.textContent = '⚠ Alerta Crítica de Compatibilidad de Hardware';
+          } else if (sev === 'warning') {
+            cTitle.style.color = 'var(--amber)';
+            cTitle.textContent = '⚡ Aviso de Compatibilidad de Hardware / Modelos';
+          } else {
+            cTitle.style.color = 'var(--green)';
+            cTitle.textContent = '✓ Compatibilidad de Hardware Verificada';
+          }
+          cIssues.innerHTML = (st.compatibility.issues || []).map(i => `<li>${i}</li>`).join('');
+          cSols.innerHTML = (st.compatibility.solutions || []).map(s => `<li>${s}</li>`).join('');
+        }
+
+        // Tier activo
+        if (st.active_tier && st.active_tier !== currentTier && currentGenId === -1) {
+          currentTier = st.active_tier;
+        }
+        document.querySelectorAll('.tier-card').forEach(el => el.classList.remove('active'));
+        const activeCard = document.getElementById(`tier-${currentTier}`);
+        if (activeCard) activeCard.classList.add('active');
+
+        // Estado ComfyUI
+        const dot = document.getElementById('comfyDot');
+        const cText = document.getElementById('comfyStatusText');
+        const btnStart = document.getElementById('btnStartComfy');
+        if (st.comfy && st.comfy.online) {
+          dot.className = 'dot online';
+          cText.textContent = `ComfyUI: ONLINE (${st.comfy.url})`;
+          btnStart.style.display = 'none';
+          document.getElementById('comfyGuiLink').href = st.comfy.url;
+        } else if (st.comfy && st.comfy.starting) {
+          dot.className = 'dot busy';
+          cText.textContent = 'ComfyUI: Iniciando motor...';
+          btnStart.style.display = 'none';
+        } else {
+          dot.className = 'dot offline';
+          cText.textContent = 'ComfyUI: Apagado (Modo Práctica Activo)';
+          btnStart.style.display = 'inline-flex';
+        }
+
+        // Lista de checkpoints disponibles
+        const allModels = [
+          ...((st.comfy?.available_models?.checkpoints) || []),
+          ...((st.comfy?.available_models?.unet) || [])
+        ];
+        if (JSON.stringify(allModels) !== JSON.stringify(knownModels)) {
+          knownModels = allModels;
+          const sel = document.getElementById('ckptSelect');
+          const prev = sel.value;
+          sel.innerHTML = '<option value="">Automático según Tier seleccionado</option>' +
+            allModels.map(m => `<option value="${m}">${m}</option>`).join('');
+          sel.value = prev;
+        }
+
+        // Estado del Bridge
+        document.getElementById('bridgeStateText').textContent = st.state;
+        document.getElementById('latencyText').textContent = `${st.latency_ms || 0} ms`;
+        document.getElementById('genCounterBadge').textContent = `Generación #${st.generation_id || 0}`;
+
+        const btnGen = document.getElementById('btnGenerate');
+        if (st.state === 'GENERATING' || st.state === 'QUEUED') {
+          btnGen.disabled = true;
+          btnGen.textContent = '⏳ Generando en curso...';
+        } else {
+          btnGen.disabled = false;
+          btnGen.textContent = '⚡ Generar Imagen (Se actualiza en TouchDesigner)';
+        }
+
+        // Logs
+        if (st.comfy && st.comfy.logs && st.comfy.logs.length > 0) {
+          document.getElementById('logBox').textContent = st.comfy.logs.slice(-15).join('\n');
+        } else if (st.last_error) {
+          document.getElementById('logBox').textContent = `[ERROR] ${st.last_error}`;
+        } else {
+          document.getElementById('logBox').textContent = `[OK] Servidor Puente Activo en 127.0.0.1:8080 | Nivel: ${currentTier.toUpperCase()} | Esperando pedidos desde TouchDesigner o WebApp...`;
+        }
+
+        // Si cambió el generation_id, recargar imagen e historial
+        if (st.generation_id !== currentGenId) {
+          currentGenId = st.generation_id;
+          document.getElementById('latestImg').src = `/api/latest.png?v=${currentGenId}&t=${Date.now()}`;
+          refreshInputImg();
+          if (st.latest) {
+            document.getElementById('latestBackendLabel').textContent = st.latest.backend || '';
+          }
+          loadHistory();
+        }
+      } catch (e) {}
+    }
+
+    setInterval(pollStatus, 1200);
+    pollStatus();
+    loadHistory();
+  </script>
+</body>
+</html>
