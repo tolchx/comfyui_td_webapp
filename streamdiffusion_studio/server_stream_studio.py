@@ -265,7 +265,17 @@ class StreamStudioState:
         Construye el grafo para el nodo personalizado `jesenzhang/ComfyUI_StreamDiffusion`:
         `StreamDiffusion_Loader` -> `StreamDiffusion_Sampler` -> `SaveImage`.
         """
-        t_list = "32,40,45" if steps >= 3 else ("32,45" if steps == 2 else "40")
+        # En StreamDiffusion, el número de timesteps base del scheduler es 50,
+        # y t_list selecciona qué pasos de difusión se calculan realmente (1 a 4 pasos reales).
+        if steps <= 1:
+            t_list = "45"
+        elif steps == 2:
+            t_list = "32,45"
+        elif steps == 3:
+            t_list = "32,40,45"
+        else:
+            t_list = "24,32,40,45"
+
         wf: Dict[str, Any] = {
             "1": {
                 "class_type": "StreamDiffusion_Loader",
@@ -285,7 +295,7 @@ class StreamStudioState:
                     "positive": prompt,
                     "negative": negative_prompt,
                     "seed": int(seed if seed >= 0 else 424242),
-                    "steps": int(steps),
+                    "steps": 50,
                     "cfg": float(cfg if cfg > 0.1 else 1.2),
                     "delta": 1.0,
                     "width": int(width),
@@ -704,7 +714,9 @@ def main() -> None:
     args = parser.parse_args()
 
     STUDIO = StreamStudioState(port=args.port)
+    ThreadingHTTPServer.allow_reuse_address = True
     server = ThreadingHTTPServer(("127.0.0.1", args.port), StreamStudioHandler)
+    server.daemon_threads = True
     print(f"==================================================================")
     print(f" MÓDULO 2: StreamDiffusionV2 + ScreenDiffusion Studio Activo")
     print(f" URL WebApp : http://127.0.0.1:{args.port}")

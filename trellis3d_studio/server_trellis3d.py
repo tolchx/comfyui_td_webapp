@@ -1562,7 +1562,9 @@ def main() -> None:
     args = parser.parse_args()
 
     STUDIO3D = Trellis3DStudioState(port=args.port)
+    ThreadingHTTPServer.allow_reuse_address = True
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Trellis3DHandler)
+    server.daemon_threads = True
     print("==================================================================")
     print(" MÓDULO 3: TRELLIS v2 + Hunyuan 3D Local Studio Activo")
     print(f" URL WebApp : http://127.0.0.1:{args.port}")

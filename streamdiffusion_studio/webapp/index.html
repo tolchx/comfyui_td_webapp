@@ -364,12 +364,20 @@
         </div>
 
         <div class="engine-grid">
-          <div class="engine-card active" id="eng-sdv2_flux_hq" onclick="selectEngine('sdv2_flux_hq')">
+          <div class="engine-card active" id="eng-comfy_sd_node" onclick="selectEngine('comfy_sd_node')">
+            <div>
+              <strong>🧩 ComfyUI_StreamDiffusion Node (jesenzhang)</strong>
+              <small>Usa nodo nativo `StreamDiffusion_Sampler` + Similar Image Filter</small>
+            </div>
+            <span class="badge" style="color:var(--green);">ACTIVO (COMFY NATIVE)</span>
+          </div>
+
+          <div class="engine-card" id="eng-sdv2_flux_hq" onclick="selectEngine('sdv2_flux_hq')">
             <div>
               <strong>🔥 StreamDiffusionV2 Ultra-HQ (RTX 4090 / 12GB+)</strong>
               <small>Flux.2 Klein 4B + Full VAE + Motion-Aware Rolling Consistency</small>
             </div>
-            <span class="badge" style="color:var(--green);">MÁXIMA CALIDAD</span>
+            <span class="badge">MÁXIMA CALIDAD</span>
           </div>
 
           <div class="engine-card" id="eng-sdv2_sd15_hq" onclick="selectEngine('sdv2_sd15_hq')">
@@ -378,14 +386,6 @@
               <small>SD 1.5 + Hyper-SD LoRA (3–4 Pasos + Full VAE sin deformar rostros)</small>
             </div>
             <span class="badge">ALTO FPS + HQ</span>
-          </div>
-
-          <div class="engine-card" id="eng-comfy_sd_node" onclick="selectEngine('comfy_sd_node')">
-            <div>
-              <strong>🧩 ComfyUI_StreamDiffusion Node (jesenzhang)</strong>
-              <small>Usa nodo nativo `StreamDiffusion_Sampler` + Similar Image Filter</small>
-            </div>
-            <span class="badge">NODO COMFY</span>
           </div>
         </div>
 
@@ -570,7 +570,7 @@
   </main>
 
   <script>
-    let activeEngine = 'sdv2_flux_hq';
+    let activeEngine = 'comfy_sd_node';
     let sourceMode = 'screen_os'; // 'screen_os', 'screen_webrtc', 'webcam', 'canvas'
     let streamingActive = false;
     let requestInFlight = false;
