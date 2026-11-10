@@ -766,6 +766,10 @@ class BridgeHTTPHandler(BaseHTTPRequestHandler):
             self._send_file(WEBAPP_DIR / "index.html", "text/html; charset=utf-8")
             return
 
+        if route in ("/tutorial", "/tutorial.html"):
+            self._send_file(WEBAPP_DIR / "tutorial.html", "text/html; charset=utf-8")
+            return
+
         if route == "/api/td_poll":
             online, _ = STATE.check_comfy_online()
             latest = STATE.last_generated_meta or (STATE.history[0] if STATE.history else None)

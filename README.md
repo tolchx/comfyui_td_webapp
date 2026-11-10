@@ -1,12 +1,15 @@
 # 📘 Suite Modular TouchDesigner ↔ ComfyUI (Windows & macOS)
-## 6 Módulos Autónomos: Imágenes HQ + Realtime + 3D + Video + Alfa & Inpaint + Parallax 2.5D
+## 7 Módulos Autónomos: Imágenes HQ + Realtime + 3D + Video + Alfa & Inpaint + Parallax 2.5D + Poster Studio
+### 📖 Incluye Centro de Tutoriales y Guías Interactivas en la WebApp (`/tutorial.html`)
 
-Arquitectura **modular, standalone y multiplataforma (Windows & macOS)** diseñada para cátedras y talleres de Inteligencia Artificial Generativa. Separa el sistema en **seis módulos independientes y conectados** con **ComfyUI (`127.0.0.1:8188`)** y **TouchDesigner (`TD/v1.toe` & `TD/ComfyUI_StreamDiffusion_Studio.toe`)**:
+Arquitectura **modular, standalone y multiplataforma (Windows & macOS)** diseñada para cátedras y talleres de Inteligencia Artificial Generativa. Separa el sistema en **siete módulos independientes y conectados** con **ComfyUI (`127.0.0.1:8188`)** y **TouchDesigner (`TD/v1.toe` & `TD/ComfyUI_StreamDiffusion_Studio.toe`)**:
 
 1. **🎨 Módulo 1 — Generador de Imágenes de Alta Calidad (`bridge/` + `webapp/` • Puerto `8080`)**:
    - Dedicado exclusivamente a **Text-to-Image (`txt2img`)** e **Image-to-Image (`img2img`)** de máxima fidelidad visual.
+   - **Soporte P-H3-Image INT8 ConvRot**: Generación a **8 Megapixels en 8 pasos** y edición multi-referencia a 4MP con solo 6 GB de VRAM gracias a `VAEDecodeTiled` (512px) y offload dinámico.
    - **Auto-detección de Hardware Potente**: Al detectar GPUs de gama alta (ej. **NVIDIA GeForce RTX 4090 24 GB VRAM**), activa automáticamente el nivel **`AVANZADO`** con **Flux.2 Klein 4B / Flux.2 Dev / Qwen Image 2.1** a `1024×1024` y decodificador **Full VAE** (`flux2-vae.safetensors`).
    - **Galería + Lightbox Pantalla Completa (`⛶`) + Envío Directo a 3D (`🧊 a 3D`) y Video (`🎬 a Video`)**.
+   - **📖 Centro de Tutoriales Integrado**: Botón permanente en la barra superior para acceder al manual interactivo sin interrumpir las generaciones.
 
 2. **🎬 Módulo 2 — StreamDiffusion Realtime Studio + Pizarra Pro (`streamdiffusion_studio/` • Puerto `8081`)**:
    - Módulo en [`streamdiffusion_studio/`](streamdiffusion_studio/) para generación en tiempo real con latencia out-of-process sub-segundo:
@@ -284,4 +287,6 @@ comfyui_td_webapp/
 ├── parallax25d_studio/              # Módulo 6: 2.5D Parallax & Depth Maps para TouchDesigner (8085)
 ├── poster_studio/                   # Módulo 7: Poster Studio MOSS-Image Layout & Typography (8086)
 └── webapp/                          # WebApp Módulo 1 con galería, lightbox y selector P-H3-Image 8MP
+    ├── index.html                   # Interfaz Web principal con modal interactivo del tutorial
+    └── tutorial.html                # Centro de documentación completa, parámetros y repositorios
 ```

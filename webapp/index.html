@@ -683,6 +683,9 @@
     <a href="http://127.0.0.1:8084" style="padding:5px 12px; border-radius:6px; font-size:11.5px; font-weight:700; text-decoration:none; color:var(--muted); white-space:nowrap;">✂️ 5. Alfa &amp; Inpaint</a>
     <a href="http://127.0.0.1:8085" style="padding:5px 12px; border-radius:6px; font-size:11.5px; font-weight:700; text-decoration:none; color:var(--muted); white-space:nowrap;">🌌 6. Parallax 2.5D</a>
     <a href="http://127.0.0.1:8086" style="padding:5px 12px; border-radius:6px; font-size:11.5px; font-weight:700; text-decoration:none; color:var(--muted); white-space:nowrap;">🖼️ 7. Poster Studio</a>
+    <button onclick="openTutorialModal()" style="margin-left:auto; padding:5px 14px; border-radius:6px; font-size:11.5px; font-weight:800; background:linear-gradient(135deg, #38bdf8, #818cf8); color:#030712; border:none; cursor:pointer; display:flex; align-items:center; gap:6px; box-shadow:0 0 14px rgba(56,189,248,0.45); white-space:nowrap;">
+      📖 Guía &amp; Tutorial de Módulos
+    </button>
   </nav>
 
   <header>
@@ -727,7 +730,10 @@
       <section class="panel">
         <div class="panel-title">
           <span>1. Nivel de Hardware (Model Tier)</span>
-          <span id="recBadge" class="badge">Sugerido: AVANZADO</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <a href="javascript:void(0)" onclick="openTutorialModal('tab-m1')" style="font-size:11px; color:var(--accent); text-decoration:none; font-weight:600;">📖 Explicación Tiers</a>
+            <span id="recBadge" class="badge">Sugerido: AVANZADO</span>
+          </div>
         </div>
 
         <div class="tier-grid">
@@ -774,8 +780,11 @@
 
       <section class="panel">
         <div class="panel-title">
-          <span>2. Generador de Alta Calidad (Txt2Img & Img2Img)</span>
-          <span class="badge" id="modeBadge">TXT2IMG</span>
+          <span>2. Generador de Alta Calidad (Txt2Img &amp; Img2Img)</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <a href="javascript:void(0)" onclick="openTutorialModal('tab-ph3')" style="font-size:11px; color:#f59e0b; text-decoration:none; font-weight:600;">🚀 P-H3 8MP Guía</a>
+            <span class="badge" id="modeBadge">TXT2IMG</span>
+          </div>
         </div>
 
         <div>
@@ -941,6 +950,24 @@
     </div>
   </div>
 
+  <!-- MODAL TUTORIAL INTERACTIVO INTEGRADO -->
+  <div id="tutorialModal" style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(3, 5, 10, 0.88); backdrop-filter:blur(8px); flex-direction:column; align-items:center; justify-content:center; padding:16px;">
+    <div style="width:100%; max-width:1380px; height:92vh; background:#07090e; border:1px solid rgba(56,189,248,0.3); border-radius:16px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 24px 70px rgba(0,0,0,0.85);">
+      <div style="background:#0d111a; border-bottom:1px solid rgba(255,255,255,0.08); padding:12px 20px; display:flex; align-items:center; justify-content:space-between;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:20px;">📖</span>
+          <strong style="font-size:15px; color:#fff;">Guía &amp; Tutorial Interactivo de la Suite TouchDesigner ↔ ComfyUI AI</strong>
+          <span style="font-size:11px; padding:2px 8px; border-radius:999px; background:rgba(56,189,248,0.15); color:var(--accent); font-weight:700;">7 Módulos</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <a href="/tutorial.html" target="_blank" class="btn btn-secondary" style="padding:5px 12px; font-size:11.5px; text-decoration:none;">Abrir en pestaña nueva ↗</a>
+          <button class="lightbox-close" style="width:32px; height:32px;" onclick="closeTutorialModal()">✕</button>
+        </div>
+      </div>
+      <iframe id="tutorialIframe" src="/tutorial.html" style="width:100%; height:100%; border:none; background:#07090e;"></iframe>
+    </div>
+  </div>
+
   <script>
     let currentGenId = -1;
     let currentTier = 'avanzado';
@@ -1048,11 +1075,30 @@
     }
 
     window.addEventListener('keydown', (ev) => {
-      if (!lightboxOpen) return;
-      if (ev.key === 'Escape') closeLightbox();
-      else if (ev.key === 'ArrowLeft') stepLightbox(-1);
-      else if (ev.key === 'ArrowRight') stepLightbox(1);
+      if (ev.key === 'Escape') {
+        closeTutorialModal();
+        if (lightboxOpen) closeLightbox();
+      } else if (lightboxOpen) {
+        if (ev.key === 'ArrowLeft') stepLightbox(-1);
+        else if (ev.key === 'ArrowRight') stepLightbox(1);
+      }
     });
+
+    function openTutorialModal(tabId) {
+      const modal = document.getElementById('tutorialModal');
+      const iframe = document.getElementById('tutorialIframe');
+      if (tabId) {
+        iframe.src = `/tutorial.html#${tabId}`;
+      } else {
+        iframe.src = '/tutorial.html';
+      }
+      modal.style.display = 'flex';
+    }
+
+    function closeTutorialModal() {
+      const modal = document.getElementById('tutorialModal');
+      if (modal) modal.style.display = 'none';
+    }
 
     function updateModeBadge() {
       const m = document.getElementById('modeSelect').value;

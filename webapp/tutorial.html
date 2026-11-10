@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual y Tutorial Interactivo — Suite TouchDesigner ↔ ComfyUI AI</title>
+  <style>
+    :root {
+      --bg: #07090e;
+      --bg-panel: #0d111a;
+      --bg-card: #131926;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-accent: rgba(56, 189, 248, 0.3);
+      --accent: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.2);
+      --green: #10b981;
+      --purple: #a855f7;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.6;
+      padding-bottom: 60px;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* BARRA SUPERIOR DE LA SUITE */
+    .suite-nav {
+      background: #04060a;
+      border-bottom: 1px solid var(--border);
+      padding: 8px 24px;
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+    .suite-nav a {
+      padding: 6px 13px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--muted);
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .suite-nav a:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: #fff;
+      text-decoration: none;
+    }
+    .suite-nav a.active {
+      background: linear-gradient(135deg, #38bdf8, #818cf8);
+      color: #030712;
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.4);
+      text-decoration: none;
+    }
+
+    /* HEADER HERO */
+    .hero {
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 36px 24px 20px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      gap: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .hero-title h1 {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #fff 40%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .hero-title p {
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 6px;
+      max-width: 780px;
+    }
+    .badge-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      color: var(--accent);
+    }
+
+    /* CONTENEDOR PRINCIPAL CON TABS */
+    .container {
+      max-width: 1380px;
+      margin: 28px auto 0 auto;
+      padding: 0 24px;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 28px;
+    }
+    @media (max-width: 960px) {
+      .container { grid-template-columns: 1fr; }
+    }
+
+    /* MENU LATERAL DE MODULOS */
+    .tab-sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      position: sticky;
+      top: 64px;
+      height: fit-content;
+      background: var(--bg-panel);
+      padding: 12px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+    }
+    .tab-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 14px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.16s ease;
+    }
+    .tab-btn:hover {
+      background: rgba(255, 255, 255, 0.04);
+      color: #fff;
+    }
+    .tab-btn.active {
+      background: var(--bg-card);
+      border-color: var(--border-accent);
+      color: #fff;
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+    }
+    .tab-btn .tab-icon {
+      font-size: 16px;
+      width: 22px;
+      text-align: center;
+    }
+    .tab-btn .tab-badge {
+      margin-left: auto;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+    }
+    .tab-btn.active .tab-badge {
+      background: rgba(56, 189, 248, 0.2);
+      color: var(--accent);
+    }
+
+    /* CONTENIDO DEL TUTORIAL */
+    .tab-content {
+      display: none;
+      flex-direction: column;
+      gap: 24px;
+      animation: fadeIn 0.2s ease-out;
+    }
+    .tab-content.active { display: flex; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .doc-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+    }
+    .doc-card-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+    }
+
+    /* GRID DE ESPECIFICACIONES */
+    .specs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .spec-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+    .spec-item label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 4px;
+    }
+    .spec-item strong {
+      font-size: 14px;
+      color: #fff;
+    }
+
+    /* TABLA DE PARÁMETROS */
+    .param-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0;
+      font-size: 13px;
+    }
+    .param-table th, .param-table td {
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      text-align: left;
+    }
+    .param-table th {
+      background: var(--bg-card);
+      color: var(--accent);
+      font-weight: 700;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .param-table tr:nth-child(even) {
+      background: rgba(255, 255, 255, 0.015);
+    }
+    .param-code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      color: var(--accent);
+      background: rgba(56, 189, 248, 0.08);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    /* CAJAS DE ALERTA Y RECOMENDACIONES */
+    .alert-box {
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-size: 13px;
+      margin: 12px 0;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .alert-box.info {
+      background: rgba(56, 189, 248, 0.08);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      color: #bae6fd;
+    }
+    .alert-box.success {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      color: #a7f3d0;
+    }
+    .alert-box.warning {
+      background: rgba(245, 158, 11, 0.08);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      color: #fde68a;
+    }
+
+    /* REPO CHIPS / LINKS */
+    .repo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .repo-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+    .repo-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      text-decoration: none;
+    }
+    .repo-card strong {
+      color: #fff;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .repo-card span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    /* CODIGO EMBEBIDO */
+    pre {
+      background: #05070c;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      overflow-x: auto;
+      color: #e2e8f0;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAVEGACIÓN GLOBAL DE LA SUITE -->
+  <nav class="suite-nav">
+    <span style="font-size:11px; text-transform:uppercase; font-weight:800; letter-spacing:0.6px; color:var(--muted); margin-right:6px; white-space:nowrap;">Suite TD ↔ AI:</span>
+    <a href="http://127.0.0.1:8080">🎨 1. Imágenes HQ</a>
+    <a href="http://127.0.0.1:8081">⚡ 2. Realtime Studio</a>
+    <a href="http://127.0.0.1:8082">🧊 3. 3D Studio</a>
+    <a href="http://127.0.0.1:8083">🎬 4. Video Studio</a>
+    <a href="http://127.0.0.1:8084">✂️ 5. Alfa &amp; Inpaint</a>
+    <a href="http://127.0.0.1:8085">🌌 6. Parallax 2.5D</a>
+    <a href="http://127.0.0.1:8086">🖼️ 7. Poster Studio</a>
+    <a href="/tutorial.html" class="active" style="margin-left:auto;">📖 Guía &amp; Tutorial</a>
+  </nav>
+
+  <!-- HERO HEADER -->
+  <header class="hero">
+    <div class="hero-title">
+      <h1>📖 Manual &amp; Guía Interactiva de la Suite Modular</h1>
+      <p>
+        Documentación completa para usuarios intermedios y avanzados. Explicación de arquitectura, desglose de parámetros de la UI, recetas de conexión con TouchDesigner, optimización de VRAM y enlaces a los modelos y repositorios de investigación originales.
+      </p>
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <span class="badge-tag">🟢 7 Módulos Activos</span>
+      <span class="badge-tag">⚡ ComfyUI v0.44+</span>
+      <span class="badge-tag">🎛️ TouchDesigner 2025 Ready</span>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- BARRA LATERAL CON TABS -->
+    <aside class="tab-sidebar">
+      <button class="tab-btn active" onclick="showTab('tab-general')">
+        <span class="tab-icon">🧭</span>
+        <span>Flujo General y Red</span>
+        <span class="tab-badge">Intro</span>
+      </button>
+      <button class="tab-btn" onclick="showTab('tab-m1')">
+        <span class="tab-icon">🎨</span>
+        <span>Módulo 1: Imágenes HQ</span>
+        <span class="tab-badge">:8080</span>
+      </button>
+      <button class="tab-btn" onclick="showTab('tab-ph3')">
+        <span class="tab-icon">🚀</span>
+        <span>P-H3-Image (INT8)</span>
+        <span class="tab-badge">8MP</span>
+      </button>
+      <button class="tab-btn" onclick="showTab('tab-m2')">
+        <span class="tab-icon">⚡</span>
+        <span>Módulo 2: Realtime</span>
+        <span class="tab-badge">:8081</span>
+      </button>
+      <button class="tab-btn" onclick="showTab('tab-m3')">
+        <span class="tab-icon">🧊</span>
+        <span>Módulo 3: 3D Studio</span>
+        <span class="tab-badge">:8082</span>
+      </button>
+      <button class="tab-btn" onclick="showTab('tab-m4')">
+        <span class="tab-icon">🎬</span>
+        <span>Módulo 4: Video Studio</span>
+        <span class="tab-badge">:8083</span>
+      </button>
+      <button class="tab-btn" onclick="showTab('tab-m5')">
+        <span class="tab-icon">✂️</span>
+        <span>Módulo 5: Segmentación</span>
+        <span class="tab-badge">:8084</span>
+      </button>
+      <button class="tab-btn" onclick="showTab('tab-m6')">
+        <span class="tab-icon">🌌</span>
+        <span>Módulo 6: Parallax 2.5D</span>
+        <span class="tab-badge">:8085</span>
+      </button>
+      <button class="tab-btn" onclick="showTab('tab-m7')">
+        <span class="tab-icon">🖼️</span>
+        <span>Módulo 7: Poster Studio</span>
+        <span class="tab-badge">:8086</span>
+      </button>
+    </aside>
+
+    <!-- ÁREA DE CONTENIDO -->
+    <main>
+
+      <!-- TAB 0: FLUJO GENERAL -->
+      <section id="tab-general" class="tab-content active">
+        <div class="doc-card">
+          <div class="doc-card-title">🧭 Arquitectura de la Suite: TouchDesigner ↔ Servidores Puente ↔ ComfyUI</div>
+          <p>
+            Esta suite resuelve la limitación histórica de intentar correr modelos generativos pesados directamente en el proceso principal de TouchDesigner (lo que congelaba la interfaz y tiraba los FPS a cero).
+          </p>
+
+          <div class="specs-grid" style="margin-top:16px;">
+            <div class="spec-item">
+              <label>TouchDesigner</label>
+              <strong>60.0 FPS Constantes</strong>
+              <div style="font-size:12px; color:var(--muted); margin-top:2px;">Procesamiento visual local</div>
+            </div>
+            <div class="spec-item">
+              <label>Servidores Puente (Python)</label>
+              <strong>Puertos 8080 – 8086</strong>
+              <div style="font-size:12px; color:var(--muted); margin-top:2px;">Desacoplados en segundo plano</div>
+            </div>
+            <div class="spec-item">
+              <label>Motor de Inferencia</label>
+              <strong>ComfyUI :8188 / :8189</strong>
+              <div style="font-size:12px; color:var(--muted); margin-top:2px;">Gestión de VRAM y modelos</div>
+            </div>
+            <div class="spec-item">
+              <label>Sistemas Operativos</label>
+              <strong>Windows &amp; macOS</strong>
+              <div style="font-size:12px; color:var(--muted); margin-top:2px;">NVIDIA CUDA + Apple Silicon MPS</div>
+            </div>
+          </div>
+
+          <div class="alert-box info">
+            <div>💡</div>
+            <div>
+              <strong>Principio de Diseño Out-Of-Process:</strong> TouchDesigner nunca ejecuta PyTorch ni bloquea el hilo de renderizado. En su lugar, envía texturas o comandos HTTP/WebSocket al servidor puente correspondiente y recibe los resultados de forma asíncrona mediante un interpolador temporal a 60 FPS.
+            </div>
+          </div>
+
+          <h3 style="margin:20px 0 10px 0; font-size:15px; color:#fff;">Mapa de Puertos y Servicios</h3>
+          <table class="param-table">
+            <thead>
+              <tr>
+                <th>Puerto</th>
+                <th>Módulo</th>
+                <th>Propósito Principal</th>
+                <th>Salida para TouchDesigner</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="param-code">8080</span></td>
+                <td><strong>1. Imágenes HQ</strong></td>
+                <td>Text-to-Image / Image-to-Image fotorrealista (P-H3-Image, Flux.2, SDXL)</td>
+                <td><code>outputs/latest.png</code></td>
+              </tr>
+              <tr>
+                <td><span class="param-code">8081</span></td>
+                <td><strong>2. Realtime Studio</strong></td>
+                <td>Inferencia sub-segundo + Pizarra multicapa + Captura WebRTC</td>
+                <td><code>outputs/latest_stream.png</code></td>
+              </tr>
+              <tr>
+                <td><span class="param-code">8082</span></td>
+                <td><strong>3. 3D Studio</strong></td>
+                <td>Conversión de imágenes a objetos 3D (TRELLIS v2 / Hunyuan 3D)</td>
+                <td><code>outputs/latest_asset.obj</code></td>
+              </tr>
+              <tr>
+                <td><span class="param-code">8083</span></td>
+                <td><strong>4. Video Studio</strong></td>
+                <td>Generación temporal T2V &amp; I2V (Wan 2.2 / Parallax 3D)</td>
+                <td><code>outputs/latest_video.mp4</code></td>
+              </tr>
+              <tr>
+                <td><span class="param-code">8084</span></td>
+                <td><strong>5. Alfa &amp; Inpaint</strong></td>
+                <td>Segmentación SAM 2 + Desoclusión de fondo transparente</td>
+                <td><code>outputs/latest_subject_alpha.png</code></td>
+              </tr>
+              <tr>
+                <td><span class="param-code">8085</span></td>
+                <td><strong>6. Parallax 2.5D</strong></td>
+                <td>Estimación de mapas de profundidad y cuadrícula 3D deformada</td>
+                <td><code>outputs/latest_depth.png</code></td>
+              </tr>
+              <tr>
+                <td><span class="param-code">8086</span></td>
+                <td><strong>7. Poster Studio</strong></td>
+                <td>Composición editorial con texto legible y layout por cajas</td>
+                <td><code>outputs/latest_poster.png</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TAB 1: MODULO 1 -->
+      <section id="tab-m1" class="tab-content">
+        <div class="doc-card">
+          <div class="doc-card-title">🎨 Módulo 1 — Generador de Imágenes de Alta Calidad (Puerto 8080)</div>
+          <p>
+            Especializado en generar imágenes fijas con el máximo detalle fotográfico posible. Ofrece detección automática de hardware (seleccionando automáticamente entre Básico, Medio o Avanzado según la VRAM detectada) y soporte nativo para los modelos más recientes del estado del arte.
+          </p>
+
+          <h3 style="margin:20px 0 10px 0; font-size:15px; color:#fff;">Guía de Parámetros en la UI</h3>
+          <table class="param-table">
+            <thead>
+              <tr>
+                <th>Parámetro</th>
+                <th>Tipo / Rango</th>
+                <th>Recomendado</th>
+                <th>Explicación Técnica</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="param-code">Tier / Nivel</span></td>
+                <td>Básico / Medio / Avanzado / P-H3</td>
+                <td>Auto-detectado</td>
+                <td>Define qué arquitectura y UNET se enviará al pipeline de ComfyUI.</td>
+              </tr>
+              <tr>
+                <td><span class="param-code">Prompt</span></td>
+                <td>Texto en inglés</td>
+                <td>Detallado</td>
+                <td>Describe sujeto, iluminación, encuadre y estilo. Para P-H3-Image y Flux funciona mejor lenguaje descriptivo natural.</td>
+              </tr>
+              <tr>
+                <td><span class="param-code">Prompt Negativo</span></td>
+                <td>Texto</td>
+                <td>watermark, blur</td>
+                <td>Filtra artefactos en SD 1.5 y SDXL. <em>Nota: P-H3-Image no requiere negativo (usa CFG 1.0).</em></td>
+              </tr>
+              <tr>
+                <td><span class="param-code">Ancho / Alto</span></td>
+                <td>512 a 3872 px (múltiplo de 64)</td>
+                <td>1024×1024 / 2048</td>
+                <td>Resolución espacial. Botones de 8MP (3872×2176) activos para P-H3-Image.</td>
+              </tr>
+              <tr>
+                <td><span class="param-code">Pasos (Steps)</span></td>
+                <td>1 a 50</td>
+                <td>6 a 8 (Turbo/P-H3), 20 (SD1.5)</td>
+                <td>Iteraciones de denoising. Modelos destilados (P-H3 o Flux Schnell) logran la máxima fidelidad en 8 pasos.</td>
+              </tr>
+              <tr>
+                <td><span class="param-code">CFG Scale</span></td>
+                <td>1.0 a 12.0</td>
+                <td>1.0 (P-H3 / Flux), 6.5 (SD1.5)</td>
+                <td>Classifier-Free Guidance. En modelos distilled, 1.0 evita sobresaturación y reduce a la mitad el consumo de memoria.</td>
+              </tr>
+              <tr>
+                <td><span class="param-code">Denoise</span></td>
+                <td>0.05 a 1.0</td>
+                <td>0.55 – 0.65 (Img2Img)</td>
+                <td>En modo Img2Img: 0.1 apenas modifica la imagen de entrada de TD; 1.0 la ignora y genera desde cero.</td>
+              </tr>
+              <tr>
+                <td><span class="param-code">Semilla (Seed)</span></td>
+                <td>Entero o -1</td>
+                <td>-1 (Aleatorio)</td>
+                <td>Fija el ruido inicial para reproducir la misma composición exacta.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3 style="margin:20px 0 10px 0; font-size:15px; color:#fff;">Integración con TouchDesigner (`TD/v1.toe`)</h3>
+          <p style="font-size:13px; color:var(--muted); margin-bottom:8px;">
+            El proyecto TouchDesigner suministrado incluye el componente <code>/project1/comfy_studio</code>:
+          </p>
+          <pre># En TouchDesigner:
+1. Conectar cualquier textura visual al TOP "/project1/entrada_img2img"
+2. El script de TD envía el frame al puerto 8080 vía "/api/upload_input"
+3. Al recibir la respuesta, el TOP "/project1/SALIDA_COMFYUI" se actualiza al instante
+4. El operador "fb_smooth" realiza una mezcla temporal en GPU a 60 FPS sin congelamientos</pre>
+
+          <h3 style="margin:20px 0 10px 0; font-size:15px; color:#fff;">Enlaces Oficiales y Repositorios</h3>
+          <div class="repo-grid">
+            <a href="https://github.com/comfyanonymous/ComfyUI" target="_blank" class="repo-card">
+              <strong>📦 ComfyUI Core</strong>
+              <span>Motor modular nodal de ejecución para PyTorch</span>
+            </a>
+            <a href="https://github.com/black-forest-labs/flux" target="_blank" class="repo-card">
+              <strong>⚡ Black Forest Labs: Flux.1</strong>
+              <span>Modelos 12B DiT Flow Matching de máxima fidelidad</span>
+            </a>
+            <a href="https://huggingface.co/stabilityai/sdxl-turbo" target="_blank" class="repo-card">
+              <strong>🚀 Stability AI: SDXL Turbo</strong>
+              <span>Generación de 1 paso Adversarial Diffusion Distillation</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: P-H3-IMAGE -->
+      <section id="tab-ph3" class="tab-content">
+        <div class="doc-card">
+          <div class="doc-card-title">🚀 Modelo P-H3-Image: 8 Megapixels y Edición 4MP en solo 6 GB de VRAM</div>
+          <p>
+            <strong>P-H3-Image</strong> es una adaptación de última generación desarrollada por <strong>Pruna AI</strong> a partir del modelo fundacional <strong>MiniMax-H3</strong>. Combina un poder de resolución masivo con una velocidad de inferencia sin precedentes en ComfyUI.
+          </p>
+
+          <div class="specs-grid" style="margin-top:16px;">
+            <div class="spec-item">
+              <label>Resolución T2I</label>
+              <strong>8.4 Megapixels</strong>
+              <div style="font-size:12px; color:var(--muted);">Hasta 3872×2176 nativo</div>
+            </div>
+            <div class="spec-item">
+              <label>Pasos de Muestreo</label>
+              <strong>Solo 8 Pasos</strong>
+              <div style="font-size:12px; color:var(--muted);">MiniMax H3 Sigma Schedule</div>
+            </div>
+            <div class="spec-item">
+              <label>VRAM Mínima</label>
+              <strong>6 GB VRAM</strong>
+              <div style="font-size:12px; color:var(--muted);">RTX 2060 / 3050 / 3060 / Mac</div>
+            </div>
+            <div class="spec-item">
+              <label>Edición Multi-Ref</label>
+              <strong>Hasta 8 Imágenes</strong>
+              <div style="font-size:12px; color:var(--muted);">&lt;Picture 1&gt;, &lt;Picture 2&gt;</div>
+            </div>
+          </div>
+
+          <h3 style="margin:20px 0 10px 0; font-size:15px; color:#fff;">¿Cómo logra 8 Megapixels en GPUs de 6 GB?</h3>
+          <div class="alert-box success">
+            <div>🔬</div>
+            <div>
+              <strong>1. Formato INT8 ConvRot (Grouped Hadamard Rotation):</strong><br />
+              El modelo original en BF16 pesa más de 140 GB. La cuantización nativa INT8 de ComfyUI aplica rotaciones ortogonales Hadamard previas para suprimir los valores atípicos (*activation outliers*). El UNET se reduce de 40.5 GB a <strong>21.2 GB</strong> sin degradación de color o detalle.
+            </div>
+          </div>
+
+          <div class="alert-box info">
+            <div>🧩</div>
+            <div>
+              <strong>2. Tiled VAE (Mosaicos Espaciales de 512px):</strong><br />
+              Decodificar un latente de 8 Megapixels en una sola pasada requeriría más de 16 GB de memoria contigua en la GPU. Nuestro workflow integra el nodo <code>VAEDecodeTiled</code> con tamaño de bloque de 512px y solape de 64px, manteniendo el consumo pico de decodificación por debajo de <strong>1.8 GB de VRAM</strong>.
+            </div>
+          </div>
+
+          <div class="alert-box warning">
+            <div>⚡</div>
+            <div>
+              <strong>3. Sin Guidance Negativo (CFG = 1.0):</strong><br />
+              Al no requerir evaluar el condicional negativo, se procesa exactamente la mitad de tensores latentes por paso, reduciendo el consumo computacional y térmico de la placa.
+            </div>
+          </div>
+
+          <h3 style="margin:20px 0 10px 0; font-size:15px; color:#fff;">Descarga Rápida en 1 Clic</h3>
+          <p style="font-size:13px; color:var(--muted); margin-bottom:10px;">
+            Podés descargar automáticamente los pesos oficiales (con soporte para reanudar si se corta internet) ejecutando:
+          </p>
+          <pre># En Windows:
+Windows\6_Descargar_P-H3-Image.bat
+
+# En macOS:
+Mac/6_Descargar_P-H3-Image_Mac.command</pre>
+
+          <h3 style="margin:20px 0 10px 0; font-size:15px; color:#fff;">Repositorios de Investigación</h3>
+          <div class="repo-grid">
+            <a href="https://huggingface.co/PrunaAI/P-H3-Image-Comfy" target="_blank" class="repo-card">
+              <strong>🤗 PrunaAI/P-H3-Image-Comfy</strong>
+              <span>Repositorio oficial con pesos INT8 ConvRot y W4A8</span>
+            </a>
+            <a href="https://github.com/Comfy-Org/ComfyUI" target="_blank" class="repo-card">
+              <strong>📦 Comfy-Org / PH3ImageConditioning</strong>
+              <span>Soporte nativo incorporado a partir de ComfyUI v0.44.0</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: MODULO 2 -->
+      <section id="tab-m2" class="tab-content">
+        <div class="doc-card">
+          <div class="doc-card-title">⚡ Módulo 2 — StreamDiffusion Realtime Studio + Pizarra Pro (Puerto 8081)</div>
+          <p>
+            Diseñado para shows en vivo, performances interactivas y workshops. Integra una pizarra digital con dibujo libre multicapa y captura en tiempo real de pantallas, navegadores o ventanas del sistema operativo vía WebRTC.
+          </p>
+
+          <h3 style="margin:20px 0 10px 0; font-size:15px; color:#fff;">Herramientas de la Pizarra Pro</h3>
+          <table class="param-table">
+            <thead>
+              <tr>
+                <th>Herramienta</th>
+                <th>Acceso Rápido</th>
+                <th>Función</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="param-code">Pincel / Pluma</span></td>
+                <td><code>P</code> / Clic en icono</td>
+                <td>Trazo opaco o traslúcido para bocetar formas, siluetas y personajes.</td>
+              </tr>
+              <tr>
+                <td><span class="param-code">Aerógrafo (Spray)</span></td>
+                <td>Icono Spray</td>
+                <td>Difumina gradientes atmosféricos (niebla, fuego, cielo).</td>
+              </tr>
+              <tr>
+                <td><span class="param-code">Bote de Pintura</span></td>
+                <td>Icono Bote</td>
+                <td>Relleno instantáneo de fondos o zonas delimitadas con tolerancia de color.</td>
+              </tr>
+              <tr>
+                <td><span class="param-code">Plantillas Rápidas</span></td>
+                <td>Botones Cielo / Sol</td>
+                <td>Inserta gradientes de cielo con nubes y montañas en un clic para paisajes.</td>
+              </tr>
+              <tr>
+                <td><span class="param-code">Captura WebRTC</span></td>
+                <td><code>🪟 Capturar Ventana</code></td>
+                <td>Permite seleccionar la ventana de <strong>TouchDesigner</strong> o Photoshop para usar su salida visual como entrada realtime.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3 style="margin:20px 0 10px 0; font-size:15px; color:#fff;">Parámetros del Motor de Streaming</h3>
+          <table class="param-table">
+            <thead>
+              <tr>
+                <th>Parámetro</th>
+                <th>Valores Típicos</th>
+                <th>Impacto</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="param-code">Intervalo de Frame (ms)</span></td>
+                <td>600 – 1200 ms</td>
+                <td>Frecuencia con la que se solicita una nueva inferencia al servidor.</td>
+              </tr>
+              <tr>
+                <td><span class="param-code">Stochastic Filter (SSF)</span></td>
+                <td>0.01 – 0.08</td>
+                <td>Calcula la firma perceptual del frame. Si no hay cambios significativos en la pizarra o TouchDesigner, omite el cálculo GPU ahorrando temperatura.</td>
+              </tr>
+              <tr>
+                <td><span class="param-code">Temporal Blend</span></td>
+                <td>0.3 – 0.6</td>
+                <td>Mezcla ponderada entre el frame generado actual y el anterior para eliminar saltos bruscos.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3 style="margin:20px 0 10px 0; font-size:15px; color:#fff;">Repositorios Clave</h3>
+          <div class="repo-grid">
+            <a href="https://github.com/chenfengxu714/StreamDiffusionV2" target="_blank" class="repo-card">
+              <strong>🎬 StreamDiffusionV2</strong>
+              <span>Arquitectura modular de streaming de baja latencia</span>
+            </a>
+            <a href="https://github.com/jesenzhang/ComfyUI_StreamDiffusion" target="_blank" class="repo-card">
+              <strong>⚡ ComfyUI_StreamDiffusion</strong>
+              <span>Nodos StreamDiffusion_Loader y Sampler para ComfyUI</span>
+            </a>
+            <a href="https://github.com/rudyaa-sd/ScreenDiffusion" target="_blank" class="repo-card">
+              <strong>🖥️ ScreenDiffusion</strong>
+              <span>Captura de pantalla out-of-process de alto rendimiento</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: MODULO 3 -->
+      <section id="tab-m3" class="tab-content">
+        <div class="doc-card">
+          <div class="doc-card-title">🧊 Módulo 3 — TRELLIS v2 + Hunyuan 3D Studio (Puerto 8082)</div>
+          <p>
+            Convierte cualquier imagen (generada en el Módulo 1 o importada) en un modelo tridimensional con geometría cerrada 360°, normales suaves y mapas de texturas PBR.
+          </p>
+
+          <h3 style="margin:20px 0 10px 0; font-size:15px; color:#fff;">Motores Disponibles según Hardware</h3>
+          <table class="param-table">
+            <thead>
+              <tr>
+                <th>Motor</th>
+                <th>Hardware Recomendado</th>
+                <th>Características</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>TRELLIS.2 Local</strong></td>
+                <td>12 a 24 GB VRAM (RTX 3080/4090)</td>
+                <td>Sparse Voxel 4B + PBR Texture Stage. Máximo detalle de polígonos y sombreado metálico/rugosidad.</td>
+              </tr>
+              <tr>
+                <td><strong>Hunyuan 3D v2.1 Local</strong></td>
+                <td>8 a 11 GB VRAM (RTX 3060/4060)</td>
+                <td>DiT nativo de un solo archivo (6.86 GB). Reconstrucción geométrica rápida con topología regular.</td>
+              </tr>
+              <tr>
+                <td><strong>Escultor PBR Instantáneo</strong></td>
+                <td>Cualquier PC / Mac (0 GB VRAM extra)</td>
+                <td>Algoritmo Euclídeo Harmonic EDT Dome (&lt;1.5s). Genera un <code>.OBJ</code> y <code>.GLB</code> perfecto para usar de inmediato en clase sin descargar modelos pesados.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3 style="margin:20px 0 10px 0; font-size:15px; color:#fff;">Conexión Directa en TouchDesigner (`fileinSOP`)</h3>
+          <pre>1. Generar o convertir un asset en la WebApp 3D (puerto 8082)
+2. El archivo se exporta automáticamente en "outputs/latest_asset.obj"
+3. En TouchDesigner, el operador "/project1/SOP_ASSET_3D" lee el archivo con auto-reload
+4. Podés conectar materiales MAT PBR, luces, cámaras y deformadores SOP a 60 FPS</pre>
+
+          <h3 style="margin:20px 0 10px 0; font-size:15px; color:#fff;">Repositorios Oficiales</h3>
+          <div class="repo-grid">
+            <a href="https://github.com/microsoft/TRELLIS" target="_blank" class="repo-card">
+              <strong>🔬 Microsoft TRELLIS</strong>
+              <span>Structured 3D Latents for Fast 3D Asset Synthesis</span>
+            </a>
+            <a href="https://github.com/Tencent/Hunyuan3D-2" target="_blank" class="repo-card">
+              <strong>🧊 Tencent Hunyuan 3D 2.0 / 2.1</strong>
+              <span>High-Resolution 3D Generation Foundation Model</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 5: MODULO 4 -->
+      <section id="tab-m4" class="tab-content">
+        <div class="doc-card">
+          <div class="doc-card-title">🎬 Módulo 4 — AI Video Studio T2V &amp; I2V (Puerto 8083)</div>
+          <p>
+            Genera animación visual continua y transformaciones temporales a partir de texto o imágenes previas, exportando video MP4 sincronizado con TouchDesigner.
+          </p>
+
+          <h3 style="margin:20px 0 10px 0; font-size:15px; color:#fff;">Motores Disponibles</h3>
+          <ul style="margin:10px 0 16px 20px; font-size:13px; color:var(--muted);">
+            <li><strong>Wan 2.2 / 2.1 14B High Noise + 4-Step Lightning LoRA:</strong> Calidad cinemática HD en solo 4 pasos de inferencia.</li>
+            <li><strong>Wan 2.2 14B Q4_K_M GGUF:</strong> Cuantización optimizada para placas de 8 a 12 GB de VRAM.</li>
+            <li><strong>Camera Motion Synth 3D &amp; Parallax:</strong> Generador cinemático instantáneo (&lt;2s) a 60 FPS con movimientos de cámara (Zoom, Pan, Órbita 3D, Vórtice) sin costo de VRAM.</li>
+          </ul>
+
+          <h3 style="margin:20px 0 10px 0; font-size:15px; color:#fff;">Conexión TouchDesigner</h3>
+          <p style="font-size:13px; color:var(--muted);">
+            Se sincroniza con el operador <code>moviefileinTOP</code> apuntando a <code>outputs/latest_video.mp4</code> con reproducción en bucle continuo y suavizado temporal.
+          </p>
+
+          <h3 style="margin:20px 0 10px 0; font-size:15px; color:#fff;">Repositorio</h3>
+          <div class="repo-grid">
+            <a href="https://github.com/Wan-Video/Wan2.1" target="_blank" class="repo-card">
+              <strong>🎬 Wan 2.1 / Wan 2.2 (Wan-Video)</strong>
+              <span>Open-Source Video Foundation Model</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 6: MODULO 5 -->
+      <section id="tab-m5" class="tab-content">
+        <div class="doc-card">
+          <div class="doc-card-title">✂️ Módulo 5 — Segmentación Alfa &amp; Inpainting Studio (Puerto 8084)</div>
+          <p>
+            Permite recortar personas, objetos o productos en canal Alfa transparente mediante <strong>Segment Anything 2 (SAM 2)</strong> o <strong>BiRefNet</strong>, y desocluir el fondo detrás del sujeto para colocar tipografías o efectos intermedios.
+          </p>
+
+          <h3 style="margin:20px 0 10px 0; font-size:15px; color:#fff;">Modos de Operación</h3>
+          <table class="param-table">
+            <thead>
+              <tr>
+                <th>Modo</th>
+                <th>Interacción</th>
+                <th>Salida Generada</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>1-Click Auto</strong></td>
+                <td>Clic en "Detectar Sujeto"</td>
+                <td>Extrae la figura principal con bordes suavizados (Anti-Aliasing).</td>
+              </tr>
+              <tr>
+                <td><strong>Puntos Interactivos (SAM 2)</strong></td>
+                <td>Clic Izq (+) / Clic Der (-)</td>
+                <td>Permite añadir áreas específicas o restar zonas no deseadas.</td>
+              </tr>
+              <tr>
+                <td><strong>Desoclusión Inpainting</strong></td>
+                <td>Activar checkbox Inpainting</td>
+                <td>Rellena de forma creíble lo que estaba tapado detrás del sujeto.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3 style="margin:20px 0 10px 0; font-size:15px; color:#fff;">Uso en Composición TouchDesigner</h3>
+          <pre>1. "latest_subject_alpha.png" contiene el sujeto recortado en RGBA
+2. "latest_background_inpainted.png" contiene el fondo limpio
+3. En TouchDesigner se colocan partículas o textos 3D en el medio usando el operador "overTOP"</pre>
+
+          <h3 style="margin:20px 0 10px 0; font-size:15px; color:#fff;">Repositorios</h3>
+          <div class="repo-grid">
+            <a href="https://github.com/facebookresearch/segment-anything-2" target="_blank" class="repo-card">
+              <strong>✂️ SAM 2 (Meta AI)</strong>
+              <span>Segment Anything in Images and Videos</span>
+            </a>
+            <a href="https://github.com/ZhengPeng7/BiRefNet" target="_blank" class="repo-card">
+              <strong>🎯 BiRefNet</strong>
+              <span>Bilateral Reference Network for High-Resolution Matting</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 7: MODULO 6 -->
+      <section id="tab-m6" class="tab-content">
+        <div class="doc-card">
+          <div class="doc-card-title">🌌 Módulo 6 — 2.5D Parallax &amp; Depth Studio (Puerto 8085)</div>
+          <p>
+            Genera mapas de profundidad monocular ultra nítidos y reconstruye mallas tridimensionales con coordenadas UV para crear escenarios reactivos en TouchDesigner.
+          </p>
+
+          <h3 style="margin:20px 0 10px 0; font-size:15px; color:#fff;">Parámetros Clave</h3>
+          <table class="param-table">
+            <thead>
+              <tr>
+                <th>Parámetro</th>
+                <th>Efecto</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="param-code">Depth Intensity</span></td>
+                <td>Controla la amplitud de extrusión en el eje Z de la cuadrícula tridimensional.</td>
+              </tr>
+              <tr>
+                <td><span class="param-code">Bilateral Blur</span></td>
+                <td>Suaviza el ruido en los bordes de profundidad para evitar "dientes de sierra" en la malla.</td>
+              </tr>
+              <tr>
+                <td><span class="param-code">Mesh Subdivision</span></td>
+                <td>Densidad de vértices del archivo <code>.OBJ</code> exportado.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3 style="margin:20px 0 10px 0; font-size:15px; color:#fff;">Repositorio</h3>
+          <div class="repo-grid">
+            <a href="https://github.com/DepthAnything/Depth-Anything-V2" target="_blank" class="repo-card">
+              <strong>🌌 Depth Anything V2</strong>
+              <span>Monocular Depth Estimation with Unmatched Precision</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 8: MODULO 7 -->
+      <section id="tab-m7" class="tab-content">
+        <div class="doc-card">
+          <div class="doc-card-title">🖼️ Módulo 7 — Poster Studio · MOSS-Image (Puerto 8086)</div>
+          <p>
+            Genera piezas gráficas, afiches y portadas con <strong>texto 100% legible y ubicación exacta</strong> mediante composición vectorial y modelos orientados a layout.
+          </p>
+
+          <h3 style="margin:20px 0 10px 0; font-size:15px; color:#fff;">Doble Modo de Producción</h3>
+          <ul style="margin:10px 0 16px 20px; font-size:13px; color:var(--muted);">
+            <li><strong>Modo Híbrido (Recomendado):</strong> La IA genera la imagen de fondo de arte conceptual y la tipografía se renderiza con <strong>fuentes vectoriales reales del sistema</strong> (TrueType / OpenType). Permite editar titulares sin regenerar la imagen y ajustar interlínea, tracking y jerarquía.</li>
+            <li><strong>Modo IA Pura (MOSS-Image Layout):</strong> El modelo dibuja directamente los caracteres mediante anotaciones JSON de cajas delimitadoras (bounding boxes).</li>
+          </ul>
+
+          <h3 style="margin:20px 0 10px 0; font-size:15px; color:#fff;">Repositorio</h3>
+          <div class="repo-grid">
+            <a href="https://github.com/OpenLMLab/MOSS" target="_blank" class="repo-card">
+              <strong>🖼️ MOSS-Image (OpenLMLab)</strong>
+              <span>Multi-Modal Poster Layout and Text Generation</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    function showTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+      const target = document.getElementById(tabId);
+      if (target) target.classList.add('active');
+
+      const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick')?.includes(tabId));
+      if (activeBtn) activeBtn.classList.add('active');
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Permitir deep linking con hash (#tab-m1)
+    window.addEventListener('DOMContentLoaded', () => {
+      const hash = window.location.hash.replace('#', '');
+      if (hash && document.getElementById(hash)) {
+        showTab(hash);
+      }
+    });
+  </script>
+</body>
+</html>
