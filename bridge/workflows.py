@@ -33,14 +33,30 @@ def build_workflow(
     else:
         seed = int(seed)
 
-    width = max(256, min(2048, (int(width) // 8) * 8))
-    height = max(256, min(2048, (int(height) // 8) * 8))
+    width = max(256, min(4096, (int(width) // 8) * 8))
+    height = max(256, min(4096, (int(height) // 8) * 8))
     steps = max(1, min(50, int(steps)))
     cfg = float(cfg)
     denoise = max(0.05, min(1.0, float(denoise)))
 
     is_rt = realtime_mode or (tier_id == "realtime") or bool(tier_cfg.get("use_taesd"))
     ckpt = checkpoint_override or tier_cfg.get("checkpoint", "DreamShaper_8_pruned.safetensors")
+
+    # Caso especial 0: P-H3-Image INT8 ConvRot (8 Megapixels en 8 pasos con 6GB VRAM)
+    if "p-h3-image" in ckpt.lower() or "ph3" in ckpt.lower() or tier_id in ("p_h3_image", "ph3_image"):
+        return _build_ph3_image_workflow(
+            prompt=prompt,
+            width=width,
+            height=height,
+            steps=steps if steps in (4, 6, 8, 10, 12) else 8,
+            seed=seed,
+            denoise=denoise,
+            input_image_name=input_image_name,
+            unet_name="p-h3-image_int8_convrot.safetensors" if "w4a8" not in ckpt.lower() else "p-h3-image_w4a8.safetensors",
+            clip_name="p-h3-image_text_encoder_int8_convrot.safetensors",
+            vae_name="p-h3-image_vae_int8_convrot.safetensors",
+            use_tiled_vae=True,
+        )
 
     # Caso especial 1: Qwen Image 2.1 (instalado en E:\video_creator_minimax\models)
     if "qwen_image" in ckpt.lower():
@@ -450,5 +466,146 @@ def _build_flux2_workflow(
                 "batch_size": 1,
             },
         }
+
+    return wf
+
+
+def _build_ph3_image_workflow(
+    prompt: str,
+    width: int = 2048,
+    height: int = 2048,
+    steps: int = 8,
+    seed: int = 424242,
+    denoise: float = 1.0,
+    input_image_name: str | None = None,
+    unet_name: str = "p-h3-image_int8_convrot.safetensors",
+    clip_name: str = "p-h3-image_text_encoder_int8_convrot.safetensors",
+    vae_name: str = "p-h3-image_vae_int8_convrot.safetensors",
+    use_tiled_vae: bool = True,
+) -> dict:
+    """
+    Workflow nativo para P-H3-Image INT8 ConvRot (Pruna AI / MiniMax-H3):
+    =====================================================================
+    - 8 Megapixels de generación T2I (ej. 3872×2176 o 2880×2880) en 8 pasos con CFG = 1.0.
+    - 4 Megapixels de edición I2I con imágenes de referencia contextuales (<Picture 1>).
+    - Cuantización INT8 ConvRot (matrices de rotación Hadamard contra outliers) + VAEDecodeTiled (512px).
+    - Memoria VRAM requerida: Solo 6 GB a 8 GB VRAM gracias al offload dinámico y tiling VAE.
+    """
+    wf: dict = {
+        # 1. Cargar el Diffusion Transformer (INT8 ConvRot o W4A8)
+        "1": {
+            "class_type": "UNETLoader",
+            "inputs": {
+                "unet_name": unet_name,
+                "weight_dtype": "default",
+            },
+        },
+        # 2. Cargar Text Encoder (INT8 ConvRot)
+        "2": {
+            "class_type": "CLIPLoader",
+            "inputs": {
+                "clip_name": clip_name,
+                "type": "default",
+                "device": "default",
+            },
+        },
+        # 3. Cargar VAE (INT8 ConvRot o BF16)
+        "3": {
+            "class_type": "VAELoader",
+            "inputs": {
+                "vae_name": vae_name,
+            },
+        },
+        # 4. Patch de Sigma Shift MiniMax-H3 para muestreo distilled en 8 pasos
+        "4": {
+            "class_type": "MiniMaxH3SigmaShift",
+            "inputs": {
+                "model": ["1", 0],
+                "shift_video": 1.0,
+                "shift_audio": 1.0,
+            },
+        },
+    }
+
+    cond_text = prompt
+    cond_inputs = {
+        "clip": ["2", 0],
+        "vae": ["3", 0],
+        "text": cond_text,
+        "width": width,
+        "height": height,
+    }
+
+    if input_image_name:
+        # Modo Edición 4MP / Referencia
+        wf["10"] = {
+            "class_type": "LoadImage",
+            "inputs": {"image": input_image_name},
+        }
+        wf["11"] = {
+            "class_type": "ImageScale",
+            "inputs": {
+                "image": ["10", 0],
+                "upscale_method": "bilinear",
+                "width": min(width, 2560),
+                "height": min(height, 2560),
+                "crop": "center",
+            },
+        }
+        cond_inputs["image_1"] = ["11", 0]
+        if "<Picture 1>" not in cond_text and "<Picture" not in cond_text:
+            cond_inputs["text"] = f"<Picture 1> {cond_text}"
+
+    # 5. Condicionamiento nativo PH3ImageConditioning (ComfyUI v0.44+)
+    wf["5"] = {
+        "class_type": "PH3ImageConditioning",
+        "inputs": cond_inputs,
+    }
+
+    # 6. Sampler en 8 pasos con CFG = 1.0 (sin Negative Prompt duplicando memoria)
+    wf["6"] = {
+        "class_type": "KSampler",
+        "inputs": {
+            "seed": seed,
+            "steps": max(4, min(12, steps)),
+            "cfg": 1.0,
+            "sampler_name": "euler",
+            "scheduler": "simple",
+            "denoise": denoise if input_image_name else 1.0,
+            "model": ["4", 0],
+            "positive": ["5", 0],
+            "negative": ["5", 0],
+            "latent_image": ["5", 1],
+        },
+    }
+
+    # 7. Decodificación VAE Tiled (512px) para garantizar 0 OOM en 6GB VRAM a 8 Megapixels
+    if use_tiled_vae:
+        wf["7"] = {
+            "class_type": "VAEDecodeTiled",
+            "inputs": {
+                "samples": ["6", 0],
+                "vae": ["3", 0],
+                "tile_size": 512,
+                "overlap": 64,
+            },
+        }
+    else:
+        wf["7"] = {
+            "class_type": "VAEDecode",
+            "inputs": {
+                "samples": ["6", 0],
+                "vae": ["3", 0],
+            },
+        }
+
+    # 8. Guardar Imagen HD / 8 Megapixels
+    wf["8"] = {
+        "class_type": "SaveImage",
+        "inputs": {
+            "filename_prefix": "TD_PH3_Image",
+            "images": ["7", 0],
+        },
+    }
 
     return wf

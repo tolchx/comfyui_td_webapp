@@ -134,8 +134,11 @@
 
     .tier-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 8px;
+    }
+    @media (max-width: 680px) {
+      .tier-grid { grid-template-columns: repeat(2, 1fr); }
     }
     .tier-card {
       background: var(--bg-2);
@@ -679,6 +682,7 @@
     <a href="http://127.0.0.1:8083" style="padding:5px 12px; border-radius:6px; font-size:11.5px; font-weight:700; text-decoration:none; color:var(--muted); white-space:nowrap;">🎬 4. Video Studio</a>
     <a href="http://127.0.0.1:8084" style="padding:5px 12px; border-radius:6px; font-size:11.5px; font-weight:700; text-decoration:none; color:var(--muted); white-space:nowrap;">✂️ 5. Alfa &amp; Inpaint</a>
     <a href="http://127.0.0.1:8085" style="padding:5px 12px; border-radius:6px; font-size:11.5px; font-weight:700; text-decoration:none; color:var(--muted); white-space:nowrap;">🌌 6. Parallax 2.5D</a>
+    <a href="http://127.0.0.1:8086" style="padding:5px 12px; border-radius:6px; font-size:11.5px; font-weight:700; text-decoration:none; color:var(--muted); white-space:nowrap;">🖼️ 7. Poster Studio</a>
   </nav>
 
   <header>
@@ -742,6 +746,11 @@
             <small>12–24+ GB VRAM</small>
             <small style="color:var(--green);margin-top:2px;">Flux.2 Klein / Dev / Qwen</small>
           </div>
+          <div class="tier-card" id="tier-p_h3_image" onclick="selectTier('p_h3_image')">
+            <strong>🚀 P-H3-Image</strong>
+            <small>6GB+ VRAM (INT8)</small>
+            <small style="color:#f59e0b;margin-top:2px;">8MP / 8 Pasos / 4MP Edit</small>
+          </div>
         </div>
 
         <div>
@@ -785,6 +794,17 @@
         <div>
           <label for="negInput">Prompt Negativo</label>
           <input id="negInput" type="text" value="low quality, blurry, watermark, text, deformed, ugly, bad anatomy" />
+        </div>
+
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:2px; flex-wrap:wrap; gap:4px;">
+          <span style="font-size:11px; color:var(--muted); font-weight:600;">Resolución Rápida:</span>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button type="button" class="btn btn-secondary" style="padding:2px 7px; font-size:10px;" onclick="setResolution(3872, 2176)" title="8.4 Megapixels Panorama 16:9 (P-H3-Image)">8MP 16:9</button>
+            <button type="button" class="btn btn-secondary" style="padding:2px 7px; font-size:10px;" onclick="setResolution(2880, 2880)" title="8.3 Megapixels Cuadrado 1:1 (P-H3-Image)">8MP 1:1</button>
+            <button type="button" class="btn btn-secondary" style="padding:2px 7px; font-size:10px;" onclick="setResolution(2048, 2048)" title="4.2 Megapixels Ultra 1:1">4MP 1:1</button>
+            <button type="button" class="btn btn-secondary" style="padding:2px 7px; font-size:10px;" onclick="setResolution(1024, 1024)" title="1.0 Megapixels Estándar">1MP 1:1</button>
+            <button type="button" class="btn btn-secondary" style="padding:2px 7px; font-size:10px;" onclick="setResolution(512, 512)" title="0.26 Megapixels Rápido">512</button>
+          </div>
         </div>
 
         <div class="row-2">
@@ -1037,6 +1057,11 @@
     function updateModeBadge() {
       const m = document.getElementById('modeSelect').value;
       document.getElementById('modeBadge').textContent = m.toUpperCase();
+    }
+
+    function setResolution(w, h) {
+      document.getElementById('widthInput').value = w;
+      document.getElementById('heightInput').value = h;
     }
 
     async function selectTier(tierId) {

@@ -126,6 +126,45 @@
           "url": "https://huggingface.co/Comfy-Org/flux1-schnell/resolve/main/flux1-schnell-fp8.safetensors"
         }
       ]
+    },
+    "p_h3_image": {
+      "id": "p_h3_image",
+      "label": "P-H3-Image INT8 ConvRot (8 Megapixels • 8 Pasos • 4MP Edit • 6GB+ VRAM)",
+      "min_vram_gb": 6,
+      "comfy_flags": [
+        "--lowvram"
+      ],
+      "mac_flags": [
+        "--force-fp16"
+      ],
+      "default_width": 2048,
+      "default_height": 2048,
+      "default_steps": 8,
+      "default_cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "checkpoint": "p-h3-image_int8_convrot.safetensors",
+      "lora": null,
+      "files": [
+        {
+          "filename": "p-h3-image_int8_convrot.safetensors",
+          "subdir": "diffusion_models",
+          "size_mb": 21200,
+          "url": "https://huggingface.co/PrunaAI/P-H3-Image-Comfy/resolve/main/diffusion_models/p-h3-image_int8_convrot.safetensors"
+        },
+        {
+          "filename": "p-h3-image_text_encoder_int8_convrot.safetensors",
+          "subdir": "text_encoders",
+          "size_mb": 5100,
+          "url": "https://huggingface.co/PrunaAI/P-H3-Image-Comfy/resolve/main/text_encoders/p-h3-image_text_encoder_int8_convrot.safetensors"
+        },
+        {
+          "filename": "p-h3-image_vae_int8_convrot.safetensors",
+          "subdir": "vae",
+          "size_mb": 3100,
+          "url": "https://huggingface.co/PrunaAI/P-H3-Image-Comfy/resolve/main/vae/p-h3-image_vae_int8_convrot.safetensors"
+        }
+      ]
     }
   }
 }

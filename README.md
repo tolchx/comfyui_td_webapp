@@ -41,6 +41,13 @@ Arquitectura **modular, standalone y multiplataforma (Windows & macOS)** diseña
      - **Visor 3D WebGL con Parallax**: Mové el mouse en el navegador para ver la perspectiva en tiempo real.
      - **Malla 3D Desplazada (`.OBJ` y `.GLB`)**: Cuadrícula deformable con UVs lista para `fileinSOP` o `displaceTOP` a 60 FPS en TouchDesigner.
 
+7. **🖼️ Módulo 7 — Poster Studio · MOSS-Image (`poster_studio/` • Puerto `8086`)**:
+   - Pósters con **texto legible y ubicación exacta**: escribís los textos, los arrastrás en un canvas y el sistema genera la pieza.
+   - **Modo Híbrido (default)**: MOSS-Image genera el arte y la tipografía se compone con **fuentes reales del sistema** (Pillow). Texto exacto, editable sin regenerar, control de cuerpo, tracking, interlínea y alineación.
+   - **Modo IA pura**: el modelo dibuja también el texto usando **layout JSON por cajas** (`MOSSImageLayoutPrompt`). Efecto demo, sin control de fuente: revisar letra por letra.
+   - **Requiere una instancia ComfyUI aparte** en `127.0.0.1:8189` con MOSS-Image (ComfyUI ≥ 0.44 + `nodes_moss_image`), porque el ComfyUI de la suite (8188) no trae esos nodos. Configurable en `poster_studio/config.json`.
+   - Entrega `outputs/latest_poster.png` (y `latest.png`) para levantarlo en TD con `moviefileinTOP`.
+
 Repositorio oficial: **[https://github.com/tolchx/comfyui_td_webapp](https://github.com/tolchx/comfyui_td_webapp)**
 
 ---
@@ -91,6 +98,32 @@ En lugar de depender de un motor TensorRT rígido, implementamos las optimizacio
 | **1. Básico** | **NVIDIA 4–6 GB VRAM** (GTX 1650, RTX 3050)<br>**Mac Apple Silicon 8–16 GB RAM** (M1/M2/M3) | **DreamShaper 8 (SD 1.5) + LCM LoRA + TAESD** | ~2.1 GB | Windows `<6GB`: `--lowvram`<br>Mac: `--force-fp16` |
 | **2. Medio** | **NVIDIA 8–10 GB VRAM** (RTX 3060, 3070, 4060)<br>**Mac Apple Silicon 16–24 GB RAM** (M1 Pro/Max, M2/M3/M4) | **SDXL Turbo FP16** | ~6.6 GB | Windows: Normal VRAM<br>Mac: `--force-fp16` |
 | **3. Avanzado** | **NVIDIA 12 GB+ VRAM** (RTX 3080, 4070, 4080, 4090)<br>**Mac Apple Silicon 32 GB+ RAM** | **Flux.1 Schnell FP8** *(+ soporte nativo para Flux.2 Klein 4B / Dev con TAEF2 y Qwen Image 2.1)* | ~16.4 GB | Windows `>=14GB`: `--highvram`<br>Mac: `--force-fp16` |
+| **4. 🚀 P-H3-Image** | **NVIDIA 6 GB+ VRAM** (RTX 2060, 3050, 3060, 4060, 4090)<br>**Mac Apple Silicon 16 GB+ RAM** | **P-H3-Image INT8 ConvRot** (8 Megapixels en 8 pasos + 4MP Edición Multi-Ref) | ~29.4 GB | `--lowvram`<br>`VAEDecodeTiled` (512px) |
+
+---
+
+## 🚀 Modelo P-H3-Image INT8 ConvRot: 8 Megapixels y Edición 4MP con solo 6 GB de VRAM
+
+**P-H3-Image** (desarrollado por **Pruna AI** a partir de la arquitectura **MiniMax-H3**) representa un salto generacional en síntesis y edición de imágenes en ComfyUI:
+
+### 🌟 Capacidades Clave
+1. **Generación a 8 Megapixels en 8 Pasos**: Genera imágenes a resoluciones panorámicas de hasta `3872×2176` (16:9) o `2880×2880` (1:1) en tan solo **8 pasos de inferencia**.
+2. **Edición Contextual a 4 Megapixels (`4MP`)**: Permite conectar hasta 8 imágenes de referencia utilizando el nodo nativo `PH3ImageConditioning`. En el prompt se pueden referenciar dinámicamente como `<Picture 1>`, `<Picture 2>`, logrando transformaciones estilísticas y de personajes con coherencia fotográfica.
+3. **Inferencia Sin Classifier-Free Guidance (`CFG = 1.0`)**: A diferencia de SD/SDXL que requieren evaluar dos veces la red (positivo + negativo) saturando la memoria, P-H3-Image utiliza un único forward pass por paso (`CFG = 1.0` / `BasicGuider`), reduciendo el uso de memoria a la mitad.
+
+### 🔬 ¿Por qué la versión INT8 ConvRot corre en solo 6 GB de VRAM?
+El modelo original en `BF16` pesa más de **140 GB** combinados y exige estaciones de trabajo de 80 GB VRAM. La versión **`INT8 ConvRot`** resuelve este problema mediante tres pilares:
+1. **Cuantización INT8 con Rotación Hadamard (`ConvRot`)**: Almacena escalas por fila y rota las matrices de pesos para dispersar los valores atípicos (*activation outliers*). El UNET se reduce de 40.5 GB a **21.2 GB** con fidelidad indistinguible de BF16 (superando a FP8 en rango dinámico y velocidad).
+2. **Descarga Dinámica de Bloques de ComfyUI (`--lowvram`)**: ComfyUI mantiene en RAM del sistema los bloques no activos y transfiere a la GPU únicamente las capas que se están calculando en cada instante, permitiendo ejecutar el modelo completo en tarjetas con **6 GB de VRAM** (RTX 2060, RTX 3050, RTX 3060, Apple Silicon).
+3. **Decodificación por Mosaicos (`VAEDecodeTiled` a 512px)**: Decodificar una imagen de 8 Megapixels en un solo bloque VAE consumiría >14 GB de VRAM contigua de activación, disparando un error CUDA OOM. Con `VAEDecodeTiled` (`tile_size = 512`, `overlap = 64`), la decodificación se procesa en pequeños fragmentos con solapamiento suave, manteniendo el consumo pico de VRAM por debajo de los **2 GB** durante todo el renderizado.
+
+### 📥 Cómo Descargar P-H3-Image
+Hacé doble clic en **`Windows/6_Descargar_P-H3-Image.bat`** (o en **`Mac/6_Descargar_P-H3-Image_Mac.command`** en macOS):
+- Descargará con barra de progreso y reanudación automática (`.part`):
+  - `models/diffusion_models/p-h3-image_int8_convrot.safetensors` (~21.2 GB)
+  - `models/text_encoders/p-h3-image_text_encoder_int8_convrot.safetensors` (~5.1 GB)
+  - `models/vae/p-h3-image_vae_int8_convrot.safetensors` (~3.1 GB)
+- *(Opcional)*: También incluye la opción para descargar la variante ultra-comprimida **W4A8** (~13.4 GB).
 
 ---
 
@@ -216,19 +249,24 @@ comfyui_td_webapp/
 │   ├── 2_Iniciar_Sistema_TD_Comfy.bat # Lanzador en 1 clic para Módulo 1 (Imágenes HQ en 8080)
 │   ├── 3_Iniciar_StreamDiffusion_V2_Studio.bat # Lanzador en 1 clic para Módulo 2 (StreamDiffusionV2 en 8081)
 │   ├── 4_Iniciar_Trellis3D_Studio.bat # Lanzador en 1 clic para Módulo 3 (Trellis v2 + Hunyuan 3D en 8082)
-│   └── 5_Descargar_Modelos_3D.bat   # Descargador oficial de pesos 3D (Hunyuan 3D v2.1 y TRELLIS.2)
+│   ├── 5_Descargar_Modelos_3D.bat   # Descargador oficial de pesos 3D (Hunyuan 3D v2.1 y TRELLIS.2)
+│   └── 6_Descargar_P-H3-Image.bat   # Descargador oficial P-H3-Image INT8 ConvRot (8MP / 8 Pasos)
 ├── Mac/                             # Lanzadores y scripts para macOS (.command)
 │   ├── 1_Instalar_Mac.command       # Instalador interactivo para macOS (Apple Silicon / Intel)
 │   ├── 2_Iniciar_Sistema_Mac.command # Lanzador Módulo 1 para macOS
 │   ├── 3_Iniciar_StreamDiffusion_Mac.command # Lanzador Módulo 2 para macOS
 │   ├── 4_Iniciar_Trellis3D_Mac.command # Lanzador Módulo 3 para macOS
-│   └── 5_Descargar_Modelos_3D_Mac.command # Descargador de pesos 3D para macOS
+│   ├── 5_Descargar_Modelos_3D_Mac.command # Descargador de pesos 3D para macOS
+│   └── 6_Descargar_P-H3-Image_Mac.command # Descargador P-H3-Image para macOS
 ├── README.md                        # Documentación completa + Arquitectura StreamDiffusion + Guía LLM
 ├── TD/
 │   ├── ComfyUI_StreamDiffusion_Studio.toe # Proyecto TouchDesigner optimizado para ComfyUI + StreamDiffusion
 │   ├── v1.toe                       # Proyecto TouchDesigner configurado a 60 FPS con SOP_ASSET_3D y StreamDiffusion RT
 │   └── ComfyUI_Studio_Bridge.tox    # Componente .tox portable con interpolador GPU 60 FPS
 ├── bridge/                          # Módulo 1: Generador de Imágenes HQ (8080)
+│   ├── download_ph3_image.py        # Descargador CLI oficial de P-H3-Image INT8 ConvRot / W4A8
+│   ├── workflows.py                 # Constructores de flujos ComfyUI (P-H3-Image, Flux.2, SDXL, SD1.5)
+│   └── server.py                    # Servidor API Módulo 1 con auto-detección y endpoints TouchDesigner
 ├── streamdiffusion_studio/          # Módulo 2: StreamDiffusion Realtime + Pizarra Pro + Captura Ventana (8081)
 ├── trellis3d_studio/                # Módulo 3: TRELLIS v2 + Hunyuan 3D Local Studio (8082)
 │   ├── download_3d_models.py        # Descargador CLI con resume (.part) y cálculo de velocidad

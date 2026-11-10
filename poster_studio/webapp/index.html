@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Módulo 7 · Poster Studio (MOSS-Image)</title>
+<style>
+:root{
+  --bg:#0a0a0f; --panel:rgba(255,255,255,.045); --panel-2:rgba(255,255,255,.07);
+  --border:rgba(255,255,255,.10); --accent:#38bdf8; --accent-2:#a78bfa;
+  --fg:#e8eaf2; --muted:#8b90a6; --ok:#34d399; --warn:#fbbf24; --err:#f87171;
+  --radius:14px;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:
+    radial-gradient(1100px 700px at 12% -10%, rgba(56,189,248,.10), transparent 60%),
+    radial-gradient(900px 600px at 105% 10%, rgba(167,139,250,.10), transparent 60%),
+    var(--bg);
+  color:var(--fg); font:14px/1.45 "Segoe UI",system-ui,-apple-system,sans-serif;
+  display:flex; flex-direction:column; overflow:hidden;
+}
+header{
+  display:flex; align-items:center; gap:14px; padding:12px 18px;
+  border-bottom:1px solid var(--border); background:rgba(10,10,15,.72);
+  backdrop-filter:blur(14px); flex:0 0 auto;
+}
+header h1{font-size:15px; margin:0; letter-spacing:.2px; font-weight:650}
+header h1 span{color:var(--accent)}
+.badge{
+  font-size:11px; padding:4px 9px; border-radius:999px; border:1px solid var(--border);
+  color:var(--muted); white-space:nowrap;
+}
+.badge.ok{color:var(--ok); border-color:rgba(52,211,153,.35); background:rgba(52,211,153,.08)}
+.badge.err{color:var(--err); border-color:rgba(248,113,113,.35); background:rgba(248,113,113,.08)}
+.spacer{flex:1}
+.ghost{
+  background:transparent; color:var(--muted); border:1px solid var(--border);
+  padding:7px 12px; border-radius:10px; font-size:12px; cursor:pointer; transition:.15s;
+}
+.ghost:hover{color:var(--fg); border-color:rgba(255,255,255,.22)}
+main{flex:1; display:grid; grid-template-columns:1fr 360px; min-height:0}
+#stage{
+  position:relative; display:flex; align-items:center; justify-content:center;
+  padding:20px; min-height:0; overflow:hidden;
+}
+#frame{
+  position:relative; background:repeating-conic-gradient(#15161f 0 25%, #101120 0 50%) 0 0/24px 24px;
+  box-shadow:0 24px 70px rgba(0,0,0,.55), 0 0 0 1px var(--border); border-radius:6px;
+  background-size:24px 24px; overflow:hidden; touch-action:none;
+}
+#frame img#art{position:absolute; inset:0; width:100%; height:100%; object-fit:fill; opacity:.55}
+.box{
+  position:absolute; border:1px dashed rgba(255,255,255,.35); border-radius:3px;
+  cursor:move; user-select:none; overflow:hidden; background:rgba(56,189,248,.06);
+}
+.box.text{background:rgba(56,189,248,.05)}
+.box.object{background:rgba(167,139,250,.07); border-color:rgba(167,139,250,.45)}
+.box.sel{border:1px solid var(--accent); box-shadow:0 0 0 1px rgba(56,189,248,.4), 0 0 22px rgba(56,189,248,.18)}
+.box .tag{
+  position:absolute; top:2px; left:auto; right:2px; font-size:9px; letter-spacing:.4px;
+  text-transform:uppercase; background:rgba(8,9,14,.72); border-radius:999px; padding:0 5px;
+  color:var(--muted); pointer-events:none; max-width:70%; overflow:hidden; white-space:nowrap;
+}
+.box.sel .tag{color:var(--accent); border-color:rgba(56,189,248,.5)}
+.box .content{
+  padding:4px 6px; white-space:pre-wrap; overflow:hidden; word-break:break-word;
+  text-shadow:0 1px 3px rgba(0,0,0,.65); pointer-events:none;
+}
+.handle{
+  position:absolute; right:-5px; bottom:-5px; width:12px; height:12px; border-radius:3px;
+  background:var(--accent); cursor:nwse-resize; box-shadow:0 0 0 2px #0a0a0f;
+}
+aside{
+  border-left:1px solid var(--border); background:rgba(12,13,20,.66); backdrop-filter:blur(16px);
+  padding:14px; overflow-y:auto; display:flex; flex-direction:column; gap:12px;
+}
+.card{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:12px}
+.card h2{
+  margin:0 0 9px; font-size:11px; letter-spacing:.9px; text-transform:uppercase; color:var(--muted);
+  font-weight:700;
+}
+label.row{display:flex; align-items:center; justify-content:space-between; gap:8px; margin:7px 0; font-size:12px; color:var(--muted)}
+label.row > span{flex:0 0 auto}
+input[type=text],input[type=number],select,textarea{
+  width:100%; background:#0d0e16; color:var(--fg); border:1px solid var(--border);
+  border-radius:9px; padding:8px 10px; font:12.5px/1.4 inherit; outline:none;
+}
+input:focus,select:focus,textarea:focus{border-color:rgba(56,189,248,.55); box-shadow:0 0 0 3px rgba(56,189,248,.10)}
+textarea{resize:vertical; min-height:64px}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+.pills{display:flex; gap:6px; flex-wrap:wrap}
+.pill{
+  flex:1; text-align:center; padding:8px 6px; border-radius:10px; border:1px solid var(--border);
+  background:transparent; color:var(--muted); font-size:12px; cursor:pointer; transition:.15s;
+}
+.pill.on{background:rgba(56,189,248,.14); color:var(--accent); border-color:rgba(56,189,248,.45)}
+.pill small{display:block; font-size:10px; opacity:.75; margin-top:2px}
+button.primary{
+  width:100%; padding:12px; border-radius:12px; border:0; cursor:pointer; font-weight:700; font-size:13.5px;
+  background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:#05070d;
+  box-shadow:0 10px 26px rgba(56,189,248,.22); transition:.15s;
+}
+button.primary:disabled{opacity:.45; cursor:not-allowed; box-shadow:none}
+button.primary:not(:disabled):hover{transform:translateY(-1px)}
+.hint{font-size:11px; color:var(--muted); line-height:1.35}
+#status{
+  font-size:11.5px; padding:9px 11px; border-radius:10px; border:1px solid var(--border);
+  background:rgba(255,255,255,.03); color:var(--muted); min-height:36px; white-space:pre-wrap;
+}
+#status.run{color:var(--accent); border-color:rgba(56,189,248,.35)}
+#status.ok{color:var(--ok); border-color:rgba(52,211,153,.35)}
+#status.err{color:var(--err); border-color:rgba(248,113,113,.35)}
+#result{display:none}
+#result img{width:100%; border-radius:10px; border:1px solid var(--border); display:block}
+.hist{display:grid; grid-template-columns:repeat(4,1fr); gap:6px}
+.hist img{width:100%; aspect-ratio:1; object-fit:cover; border-radius:7px; border:1px solid var(--border); cursor:pointer}
+details summary{cursor:pointer; font-size:11px; color:var(--muted); letter-spacing:.6px; text-transform:uppercase}
+pre{
+  background:#0b0c13; border:1px solid var(--border); border-radius:9px; padding:9px;
+  font-size:10.5px; max-height:170px; overflow:auto; color:#b9c0d8; white-space:pre-wrap; margin:8px 0 0;
+}
+.chip{
+  display:inline-block; font-size:10.5px; color:var(--muted); border:1px solid var(--border);
+  border-radius:999px; padding:3px 8px; margin:0 4px 4px 0; cursor:pointer;
+}
+.chip:hover{color:var(--accent); border-color:rgba(56,189,248,.45)}
+#lightbox{
+  position:fixed; inset:0; background:rgba(5,6,10,.9); display:none; align-items:center;
+  justify-content:center; padding:4vh; z-index:50; backdrop-filter:blur(6px);
+}
+#lightbox img{max-width:100%; max-height:92vh; border-radius:10px; box-shadow:0 30px 90px rgba(0,0,0,.7)}
+@media (max-width:1100px){
+  main{grid-template-columns:1fr; grid-template-rows:minmax(0,1fr) minmax(0,44vh)}
+  aside{border-left:0; border-top:1px solid var(--border); max-height:44vh}
+  header h1{font-size:13px}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Módulo 7 · <span>Poster Studio</span> · MOSS-Image</h1>
+  <span class="badge" id="engineBadge">motor…</span>
+  <span class="badge" id="vramBadge">VRAM…</span>
+  <div class="spacer"></div>
+  <button class="ghost" id="btnFolder">📂 Carpeta</button>
+  <a class="ghost" href="http://127.0.0.1:8080" target="_blank" style="text-decoration:none">← Suite</a>
+</header>
+
+<main>
+  <div id="stage">
+    <div id="frame">
+      <img id="art" alt="" style="display:none">
+    </div>
+  </div>
+
+  <aside>
+    <div class="card">
+      <h2>Modo</h2>
+      <div class="pills">
+        <button class="pill on" data-mode="hybrid">Híbrido<small>texto real</small></button>
+        <button class="pill" data-mode="ia">IA pura<small>demo</small></button>
+      </div>
+      <p class="hint" id="modeHint" style="margin:9px 0 0">
+        MOSS hace el arte; el texto se compone con la fuente elegida. Podés reescribir sin regenerar.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>Formato</h2>
+      <div class="pills" id="ratios"></div>
+    </div>
+
+    <div class="card">
+      <h2>Arte</h2>
+      <textarea id="caption" placeholder="Qué es el póster: escena, materiales, luz, estilo…"></textarea>
+      <div class="grid2" style="margin-top:8px">
+        <select id="style">
+          <option>tipografía suiza, minimal, mucho aire</option>
+          <option>editorial de alto contraste, papel</option>
+          <option>collage analógico, textura de impresión</option>
+          <option>gradiente suave, glow, cyber</option>
+          <option>ilustración plana, dos tintas</option>
+          <option>foto cinematográfica, luz dura</option>
+        </select>
+        <input type="text" id="palette" placeholder="paleta: negro, cian">
+      </div>
+      <div class="grid2" style="margin-top:8px">
+        <select id="profile"></select>
+        <input type="number" id="seed" placeholder="semilla (vacío = azar)">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Cajas</h2>
+      <div class="pills" style="margin-bottom:8px">
+        <button class="pill" id="addText">+ Texto</button>
+        <button class="pill" id="addObject">+ Objeto</button>
+      </div>
+      <div id="inspector" class="hint">Seleccioná una caja en el canvas para editarla.</div>
+    </div>
+
+    <button class="primary" id="btnGenerate">Generar póster</button>
+    <div id="status">Listo.</div>
+
+    <div class="card" id="result">
+      <h2>Resultado</h2>
+      <img id="resultImg" alt="póster">
+      <div class="grid2" style="margin-top:8px">
+        <a class="ghost" id="btnDownload" download style="text-align:center;text-decoration:none;padding:9px">⬇ Descargar</a>
+        <button class="ghost" id="btnReuse">Usar de fondo</button>
+      </div>
+    </div>
+
+    <details class="card">
+      <summary>Prompt que se va a mandar</summary>
+      <pre id="promptPreview">—</pre>
+      <button class="ghost" id="btnPreview" style="margin-top:8px">Actualizar</button>
+    </details>
+
+    <div class="card">
+      <h2>Historial</h2>
+      <div class="hist" id="hist"></div>
+    </div>
+  </aside>
+</main>
+
+<div id="lightbox"><img id="lightboxImg" alt=""></div>
+
+<script>
+const S = {
+  width:1024, height:1024, mode:'hybrid', boxes:[], selected:null,
+  fonts:[], profiles:{}, ratios:{}, jobId:null, polling:null, artUrl:null,
+};
+const $ = (s) => document.querySelector(s);
+const frame = $('#frame');
+const uid = () => Math.random().toString(36).slice(2,9);
+
+const DEFAULT_BOX = {label:'text', text:'TITULAR', x:.08, y:.10, w:.84, h:.16,
+  font:null, size:96, color:'#ffffff', align:'left', valign:'top',
+  line_height:1.08, tracking:0, uppercase:true, fit:true, shadow:true, pad:0};
+
+/* ---------- canvas ---------- */
+function fitFrame(){
+  const stage = $('#stage');
+  const availW = Math.max(80, stage.clientWidth - 40);
+  const availH = Math.max(80, stage.clientHeight - 40);
+  const scale = Math.max(0.05, Math.min(availW / S.width, availH / S.height));
+  frame.style.width = Math.round(S.width * scale) + 'px';
+  frame.style.height = Math.round(S.height * scale) + 'px';
+}
+
+function refit(){
+  requestAnimationFrame(() => {
+    fitFrame();
+    renderBoxes();
+  });
+}
+
+function fitContent(el, content, box){
+  const maxH = el.clientHeight, maxW = el.clientWidth;
+  let fs = Math.max(5, box.size * frame.clientWidth / S.width);
+  content.style.fontSize = fs + 'px';
+  if (!box.fit) return;
+  let guard = 0;
+  while ((content.scrollHeight > maxH + 1 || content.scrollWidth > maxW + 1)
+         && fs > 5 && guard++ < 48){
+    fs *= 0.94;
+    content.style.fontSize = fs + 'px';
+  }
+}
+
+function renderBoxes(){
+  [...frame.querySelectorAll('.box')].forEach(el => el.remove());
+  S.boxes.forEach(box => {
+    const el = document.createElement('div');
+    el.className = `box ${box.label}` + (box === S.selected ? ' sel' : '');
+    el.dataset.id = box.id;
+    el.style.left = (box.x*100)+'%'; el.style.top = (box.y*100)+'%';
+    el.style.width = (box.w*100)+'%'; el.style.height = (box.h*100)+'%';
+    if (box.label === 'text'){
+      const content = document.createElement('div');
+      content.className = 'content';
+      content.style.fontFamily = box.font ? `"${fontLabel(box.font)}", sans-serif` : 'Segoe UI, sans-serif';
+      content.style.fontSize = Math.max(5, box.size * frame.clientWidth / S.width) + 'px';
+      content.style.lineHeight = box.line_height;
+      content.style.color = box.color;
+      content.style.textAlign = box.align;
+      content.style.letterSpacing = (box.tracking * frame.clientWidth / S.width) + 'px';
+      content.textContent = box.uppercase ? box.text.toUpperCase() : box.text;
+      el.appendChild(content);
+      fitContent(el, content, box);
+    }
+    const tag = document.createElement('div');
+    tag.className = 'tag';
+    tag.textContent = box.label === 'text' ? (box.uppercase ? box.text.toUpperCase() : box.text).slice(0,14) || 'texto' : (box.caption||'objeto').slice(0,14);
+    el.appendChild(tag);
+    if (box === S.selected){
+      const h = document.createElement('div');
+      h.className = 'handle'; h.dataset.handle = '1';
+      el.appendChild(h);
+    }
+    frame.appendChild(el);
+  });
+}
+
+const fontLabel = (path) => (S.fonts.find(f => f.path === path) || {}).label || 'Segoe UI';
+
+/* ---------- drag & resize ---------- */
+let drag = null;
+frame.addEventListener('pointerdown', (ev) => {
+  const boxEl = ev.target.closest('.box');
+  if (!boxEl) { S.selected = null; renderBoxes(); renderInspector(); return; }
+  const box = S.boxes.find(b => b.id === boxEl.dataset.id);
+  S.selected = box;
+  const rect = frame.getBoundingClientRect();
+  drag = {
+    box, mode: ev.target.dataset.handle ? 'resize' : 'move',
+    startX: ev.clientX, startY: ev.clientY, ox: box.x, oy: box.y, ow: box.w, oh: box.h,
+    rect
+  };
+  frame.setPointerCapture(ev.pointerId);
+  renderBoxes(); renderInspector();
+});
+frame.addEventListener('pointermove', (ev) => {
+  if (!drag) return;
+  const dx = (ev.clientX - drag.startX) / drag.rect.width;
+  const dy = (ev.clientY - drag.startY) / drag.rect.height;
+  if (drag.mode === 'move'){
+    drag.box.x = Math.min(1 - drag.box.w, Math.max(0, drag.ox + dx));
+    drag.box.y = Math.min(1 - drag.box.h, Math.max(0, drag.oy + dy));
+  } else {
+    drag.box.w = Math.min(1 - drag.box.x, Math.max(0.02, drag.ow + dx));
+    drag.box.h = Math.min(1 - drag.box.y, Math.max(0.02, drag.oh + dy));
+  }
+  renderBoxes();
+});
+frame.addEventListener('pointerup', () => { drag = null; });
+
+/* ---------- inspector ---------- */
+function renderInspector(){
+  const host = $('#inspector');
+  const box = S.selected;
+  if (!box){
+    host.innerHTML = 'Seleccioná una caja en el canvas para editarla.';
+    return;
+  }
+  const isText = box.label === 'text';
+  host.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:7px">
+      ${isText ? `
+        <textarea id="iText" style="min-height:52px">${box.text.replace(/</g,'&lt;')}</textarea>
+        <div class="grid2">
+          <select id="iFont">${S.fonts.map(f => `<option value="${f.path}" ${f.path===box.font?'selected':''}>${f.label}</option>`).join('')}</select>
+          <input type="number" id="iSize" value="${box.size}" title="cuerpo en px">
+        </div>
+        <div class="grid2">
+          <input type="color" id="iColor" value="${box.color}" style="height:34px">
+          <select id="iAlign">
+            ${['left','center','right'].map(a=>`<option ${a===box.align?'selected':''}>${a}</option>`).join('')}
+          </select>
+        </div>
+        <div class="grid2">
+          <select id="iValign">${['top','middle','bottom'].map(v=>`<option ${v===box.valign?'selected':''}>${v}</option>`).join('')}</select>
+          <input type="number" id="iTracking" value="${box.tracking}" step="0.5" title="tracking">
+        </div>
+        <div class="grid2">
+          <input type="number" id="iLine" value="${box.line_height}" step="0.02" title="interlínea">
+          <label class="row" style="margin:0"><span>MAY</span><input type="checkbox" id="iUpper" ${box.uppercase?'checked':''}></label>
+        </div>
+        <label class="row" style="margin:0"><span>ajustar al cuadro</span><input type="checkbox" id="iFit" ${box.fit?'checked':''}></label>
+      ` : `
+        <input type="text" id="iCaption" value="${(box.caption||'').replace(/"/g,'&quot;')}" placeholder="qué es: torres de parlantes, silueta…">
+        <p class="hint">En híbrido, el objeto se le pide al modelo; en IA pura también.</p>
+      `}
+      <button class="ghost" id="iDelete">Eliminar caja</button>
+    </div>`;
+
+  const bind = (id, key, cast = v => v) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', () => { box[key] = cast(el.value); renderBoxes(); });
+  };
+  if (isText){
+    bind('iText','text'); bind('iFont','font'); bind('iSize','size',Number);
+    bind('iColor','color'); bind('iAlign','align'); bind('iValign','valign');
+    bind('iTracking','tracking',Number); bind('iLine','line_height',Number);
+    bind('iUpper','uppercase',v => v.target ? v.target.checked : !!v);
+    bind('iFit','fit',v => v.target ? v.target.checked : !!v);
+  } else {
+    bind('iCaption','caption');
+  }
+  document.getElementById('iDelete').onclick = () => {
+    S.boxes = S.boxes.filter(b => b !== box);
+    S.selected = null; renderBoxes(); renderInspector();
+  };
+}
+
+/* ---------- spec ---------- */
+function buildSpec(){
+  return {
+    mode: S.mode, width: S.width, height: S.height,
+    profile: $('#profile').value || 'quality25',
+    seed: $('#seed').value === '' ? -1 : Number($('#seed').value),
+    art: {caption: $('#caption').value, style: $('#style').value, palette: $('#palette').value},
+    boxes: S.boxes.map(b => ({...b})),
+  };
+}
+
+async function previewPrompt(){
+  try{
+    const res = await fetch('/api/preview_prompt', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(buildSpec())
+    });
+    const data = await res.json();
+    $('#promptPreview').textContent = data.prompt || data.error || '—';
+  } catch(e){ $('#promptPreview').textContent = 'sin respuesta del server'; }
+}
+
+/* ---------- generar ---------- */
+function setStatus(text, cls=''){ const el = $('#status'); el.textContent = text; el.className = cls; }
+
+async function generate(){
+  if (!S.boxes.some(b => b.label === 'text' && b.text.trim())){
+    setStatus('Agregá al menos una caja de texto.', 'err'); return;
+  }
+  $('#btnGenerate').disabled = true;
+  setStatus('Encolando…', 'run');
+  try{
+    const res = await fetch('/api/generate', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(buildSpec())
+    });
+    const data = await res.json();
+    if (!data.job_id) throw new Error(data.error || 'no se pudo encolar');
+    S.jobId = data.job_id;
+    poll();
+  } catch(e){
+    setStatus('Error: ' + e.message, 'err');
+    $('#btnGenerate').disabled = false;
+  }
+}
+
+function poll(){
+  clearInterval(S.polling);
+  S.polling = setInterval(async () => {
+    try{
+      const res = await fetch('/api/job/' + S.jobId);
+      const job = await res.json();
+      if (job.status === 'error'){
+        clearInterval(S.polling);
+        setStatus('Error del motor: ' + job.message, 'err');
+        $('#btnGenerate').disabled = false;
+        return;
+      }
+      if (job.status === 'done'){
+        clearInterval(S.polling);
+        const r = job.result;
+        setStatus(`Listo · ${r.seconds}s (motor ${r.engine_seconds}s) · ${r.width}×${r.height} · ${r.mode}`, 'ok');
+        showResult(r);
+        $('#btnGenerate').disabled = false;
+        loadHistory();
+        return;
+      }
+      setStatus(`${job.status} · ${job.message || ''}`, 'run');
+    } catch(e){ /* sigue */ }
+  }, 1200);
+}
+
+function showResult(r){
+  const url = r.url + '?t=' + Date.now();
+  const img = $('#resultImg');
+  img.src = url;
+  $('#result').style.display = 'block';
+  $('#btnDownload').href = url;
+  $('#btnDownload').setAttribute('download', r.file);
+  img.onclick = () => { $('#lightboxImg').src = url; $('#lightbox').style.display = 'flex'; };
+  S.artUrl = url;
+  const art = $('#art');
+  art.src = url; art.style.display = 'block';
+}
+
+async function loadHistory(){
+  const res = await fetch('/api/history');
+  const data = await res.json();
+  const host = $('#hist');
+  host.innerHTML = '';
+  (data.history || []).forEach(h => {
+    const a = document.createElement('a');
+    a.href = h.url; a.target = '_blank';
+    const img = document.createElement('img');
+    img.src = h.url; img.title = `${h.created} · ${h.mode} · ${h.seconds}s`;
+    a.appendChild(img); host.appendChild(a);
+  });
+}
+
+/* ---------- arranque ---------- */
+async function boot(){
+  const [fonts, status] = await Promise.all([
+    fetch('/api/fonts').then(r => r.json()).catch(() => ({})),
+    fetch('/api/status').then(r => r.json()).catch(() => ({}))
+  ]);
+  S.fonts = fonts.fonts || [];
+  S.profiles = fonts.profiles || {};
+  S.ratios = fonts.ratios || {};
+
+  const profSel = $('#profile');
+  profSel.innerHTML = Object.entries(S.profiles)
+    .map(([k,v]) => `<option value="${k}" ${k==='quality25'?'selected':''}>${k} · ${v.steps} pasos${v.text_safe?'':' · sin texto'}</option>`)
+    .join('');
+
+  const ratios = $('#ratios');
+  Object.entries(S.ratios).forEach(([label, [w,h]]) => {
+    const b = document.createElement('button');
+    b.className = 'pill' + (label === '1:1' ? ' on' : '');
+    b.textContent = label;
+    b.onclick = () => {
+      [...ratios.children].forEach(c => c.classList.remove('on'));
+      b.classList.add('on');
+      S.width = w; S.height = h; refit(); previewPrompt();
+    };
+    ratios.appendChild(b);
+  });
+
+  const engine = status.engine || {};
+  const badge = $('#engineBadge');
+  if (engine.online && engine.mode_moss){
+    badge.textContent = `motor OK · ${engine.version}`; badge.className = 'badge ok';
+  } else if (engine.online){
+    badge.textContent = 'motor sin MOSS'; badge.className = 'badge err';
+  } else {
+    badge.textContent = 'motor offline · 8189'; badge.className = 'badge err';
+  }
+  const vram = status.vram;
+  if (vram) $('#vramBadge').textContent = `VRAM ${(vram.used_mb/1024).toFixed(1)} / ${(vram.total_mb/1024).toFixed(0)} GB`;
+
+  // cajas iniciales
+  S.boxes = [
+    {...DEFAULT_BOX, id:uid(), text:'NOCTURNO', x:.08, y:.10, w:.84, h:.16, size:112},
+    {...DEFAULT_BOX, id:uid(), text:'Música electrónica · Puerto · Sábado 22', x:.08, y:.30, w:.84, h:.07,
+     size:26, uppercase:false, tracking:1.2},
+    {id:uid(), label:'object', caption:'torres de parlantes en silueta con halo cian', x:.28, y:.55, w:.44, h:.36},
+  ];
+  fitFrame(); renderBoxes(); renderInspector(); loadHistory(); previewPrompt();
+
+  if (status.latest) showResult({...status.latest, url: status.latest.url});
+  new ResizeObserver(refit).observe($('#stage'));
+}
+
+/* ---------- eventos ---------- */
+document.querySelectorAll('[data-mode]').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('[data-mode]').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    S.mode = btn.dataset.mode;
+    $('#modeHint').textContent = S.mode === 'hybrid'
+      ? 'MOSS hace el arte; el texto se compone con la fuente elegida. Podés reescribir sin regenerar.'
+      : 'MOSS dibuja también el texto: más "IA", sin control de fuente ni kerning, y hay que revisar cada letra.';
+    previewPrompt();
+  };
+});
+$('#addText').onclick = () => {
+  const box = {...DEFAULT_BOX, id:uid(), text:'Nuevo texto', x:.1, y:.5, w:.5, h:.09, size:42};
+  S.boxes.push(box); S.selected = box; renderBoxes(); renderInspector();
+};
+$('#addObject').onclick = () => {
+  const box = {id:uid(), label:'object', caption:'objeto', x:.3, y:.55, w:.4, h:.3};
+  S.boxes.push(box); S.selected = box; renderBoxes(); renderInspector();
+};
+$('#btnGenerate').onclick = generate;
+$('#btnPreview').onclick = previewPrompt;
+$('#btnFolder').onclick = () => fetch('/api/open_folder', {method:'POST'});
+$('#btnReuse').onclick = () => { if (S.artUrl){ $('#art').src = S.artUrl; $('#art').style.display = 'block'; } };
+$('#lightbox').onclick = () => { $('#lightbox').style.display = 'none'; };
+['#caption','#style','#palette','#profile','#seed'].forEach(sel => {
+  document.querySelector(sel).addEventListener('change', previewPrompt);
+});
+boot();
+</script>
+</body>
+</html>

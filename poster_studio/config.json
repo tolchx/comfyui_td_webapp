@@ -1,0 +1,20 @@
+{
+  "port": 8086,
+  "comfy_host": "127.0.0.1",
+  "comfy_port": 8189,
+  "unet": "moss_image_sft_int8_convrot.safetensors",
+  "clip": "qwen3.5_9b_int8_convrot.safetensors",
+  "vae": "flux2-vae_small.safetensors",
+  "default_profile": "quality25",
+  "outputs_dir": "outputs",
+  "fonts": [
+    { "label": "Segoe UI", "path": "C:/Windows/Fonts/segoeui.ttf" },
+    { "label": "Segoe UI Bold", "path": "C:/Windows/Fonts/segoeuib.ttf" },
+    { "label": "Arial Bold", "path": "C:/Windows/Fonts/arialbd.ttf" },
+    { "label": "Georgia Bold", "path": "C:/Windows/Fonts/georgiab.ttf" },
+    { "label": "Impact", "path": "C:/Windows/Fonts/impact.ttf" },
+    { "label": "Calibri Bold", "path": "C:/Windows/Fonts/calibrib.ttf" },
+    { "label": "Consolas Bold", "path": "C:/Windows/Fonts/consolab.ttf" },
+    { "label": "Bahnschrift (DIN)", "path": "C:/Windows/Fonts/bahnschrift.ttf" }
+  ]
+}
