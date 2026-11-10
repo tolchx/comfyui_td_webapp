@@ -250,27 +250,38 @@ comfyui_td_webapp/
 │   ├── 3_Iniciar_StreamDiffusion_V2_Studio.bat # Lanzador en 1 clic para Módulo 2 (StreamDiffusionV2 en 8081)
 │   ├── 4_Iniciar_Trellis3D_Studio.bat # Lanzador en 1 clic para Módulo 3 (Trellis v2 + Hunyuan 3D en 8082)
 │   ├── 5_Descargar_Modelos_3D.bat   # Descargador oficial de pesos 3D (Hunyuan 3D v2.1 y TRELLIS.2)
-│   └── 6_Descargar_P-H3-Image.bat   # Descargador oficial P-H3-Image INT8 ConvRot (8MP / 8 Pasos)
+│   ├── 6_Descargar_P-H3-Image.bat   # Descargador oficial P-H3-Image INT8 ConvRot (8MP / 8 Pasos)
+│   ├── 7_Iniciar_Video_Studio.bat   # Lanzador en 1 clic para Módulo 4 (Video Studio en 8083)
+│   ├── 8_Iniciar_Segmentacion_Studio.bat # Lanzador en 1 clic para Módulo 5 (Segmentación Alfa & Inpaint en 8084)
+│   ├── 9_Iniciar_Parallax_Studio.bat # Lanzador en 1 clic para Módulo 6 (Parallax 2.5D en 8085)
+│   ├── 10_Iniciar_Poster_Studio.bat # Lanzador en 1 clic para Módulo 7 (Poster Studio MOSS-Image en 8086)
+│   └── Iniciar_Suite_Completa.bat   # Inicia los 6 módulos principales simultáneamente
 ├── Mac/                             # Lanzadores y scripts para macOS (.command)
 │   ├── 1_Instalar_Mac.command       # Instalador interactivo para macOS (Apple Silicon / Intel)
 │   ├── 2_Iniciar_Sistema_Mac.command # Lanzador Módulo 1 para macOS
 │   ├── 3_Iniciar_StreamDiffusion_Mac.command # Lanzador Módulo 2 para macOS
 │   ├── 4_Iniciar_Trellis3D_Mac.command # Lanzador Módulo 3 para macOS
 │   ├── 5_Descargar_Modelos_3D_Mac.command # Descargador de pesos 3D para macOS
-│   └── 6_Descargar_P-H3-Image_Mac.command # Descargador P-H3-Image para macOS
+│   ├── 6_Descargar_P-H3-Image_Mac.command # Descargador P-H3-Image para macOS
+│   ├── 7_Iniciar_Video_Mac.command  # Lanzador Módulo 4 para macOS
+│   ├── 8_Iniciar_Segmentacion_Mac.command # Lanzador Módulo 5 para macOS
+│   ├── 9_Iniciar_Parallax_Mac.command # Lanzador Módulo 6 para macOS
+│   ├── 10_Iniciar_Poster_Mac.command # Lanzador Módulo 7 para macOS
+│   └── Iniciar_Suite_Completa_Mac.command # Inicia la suite completa en macOS
 ├── README.md                        # Documentación completa + Arquitectura StreamDiffusion + Guía LLM
 ├── TD/
 │   ├── ComfyUI_StreamDiffusion_Studio.toe # Proyecto TouchDesigner optimizado para ComfyUI + StreamDiffusion
 │   ├── v1.toe                       # Proyecto TouchDesigner configurado a 60 FPS con SOP_ASSET_3D y StreamDiffusion RT
 │   └── ComfyUI_Studio_Bridge.tox    # Componente .tox portable con interpolador GPU 60 FPS
-├── bridge/                          # Módulo 1: Generador de Imágenes HQ (8080)
+├── bridge/                          # Módulo 1: Generador de Imágenes HQ + P-H3-Image INT8 (8080)
 │   ├── download_ph3_image.py        # Descargador CLI oficial de P-H3-Image INT8 ConvRot / W4A8
 │   ├── workflows.py                 # Constructores de flujos ComfyUI (P-H3-Image, Flux.2, SDXL, SD1.5)
 │   └── server.py                    # Servidor API Módulo 1 con auto-detección y endpoints TouchDesigner
 ├── streamdiffusion_studio/          # Módulo 2: StreamDiffusion Realtime + Pizarra Pro + Captura Ventana (8081)
 ├── trellis3d_studio/                # Módulo 3: TRELLIS v2 + Hunyuan 3D Local Studio (8082)
-│   ├── download_3d_models.py        # Descargador CLI con resume (.part) y cálculo de velocidad
-│   ├── server_trellis3d.py          # Servidor 3D (Hunyuan 3D DiT + Trellis2 + Escultor EDT suave)
-│   └── webapp/index.html            # WebApp 3D con visor orbital WebGL y gestor de descargas en vivo
-└── webapp/                          # WebApp Módulo 1 con galería, lightbox y botón "🧊 Enviar a 3D"
+├── video_studio/                    # Módulo 4: AI Video Studio T2V & I2V Wan 2.2 / Parallax (8083)
+├── segmentation_studio/             # Módulo 5: Segmentación Alfa & Inpainting Studio (8084)
+├── parallax25d_studio/              # Módulo 6: 2.5D Parallax & Depth Maps para TouchDesigner (8085)
+├── poster_studio/                   # Módulo 7: Poster Studio MOSS-Image Layout & Typography (8086)
+└── webapp/                          # WebApp Módulo 1 con galería, lightbox y selector P-H3-Image 8MP
 ```

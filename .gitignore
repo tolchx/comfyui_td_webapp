@@ -15,6 +15,7 @@ __pycache__/
 .venv/
 venv/
 .DS_Store
+*.log
 
 # Backups automaticos de TouchDesigner (.1.toe, .2.toe, etc.)
 TD/*.1.toe
@@ -44,3 +45,12 @@ trellis3d_studio/outputs/*.obj
 trellis3d_studio/outputs/*.glb
 trellis3d_studio/outputs/*.mtl
 trellis3d_studio/inputs/*.png
+video_studio/outputs/*.mp4
+video_studio/inputs/
+segmentation_studio/outputs/
+segmentation_studio/inputs/
+parallax25d_studio/outputs/
+parallax25d_studio/inputs/
+poster_studio/outputs/poster_*.png
+poster_studio/outputs/_typography_test.png
+poster_studio/*.log
