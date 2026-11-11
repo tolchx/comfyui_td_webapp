@@ -163,7 +163,7 @@ def diagnose_hardware_compatibility(gpu: dict, active_tier: str, comfy_inst: dic
     """
     vendor = gpu.get("vendor", "cpu_integrated")
     vram_gb = float(gpu.get("vram_gb", 0.0))
-    tier_min = {"realtime": 3.0, "basico": 4.0, "p_h3_image": 6.0, "medio": 8.0, "avanzado": 12.0}.get(active_tier, 4.0)
+    tier_min = {"realtime": 3.0, "basico": 4.0, "minimax_h3_image": 6.0, "p_h3_image": 6.0, "medio": 8.0, "avanzado": 12.0}.get(active_tier, 4.0)
 
     issues = []
     solutions = []
@@ -537,13 +537,13 @@ def interactive_wizard() -> None:
     print("  [1] BASICO   (4-6GB VRAM / Mac 8-16GB) -> DreamShaper 8 (SD 1.5) + LCM LoRA + TAESD (2.1 GB, ultra rápido)")
     print("  [2] MEDIO    (8-10GB VRAM / Mac 16GB+) -> SDXL Turbo FP16 (6.6 GB, 4 pasos en alta velocidad)")
     print("  [3] AVANZADO (12GB+ VRAM NVIDIA)       -> Flux.1 Schnell FP8 (16.4 GB, máxima calidad)")
-    print("  [4] P-H3-IMAGE (6GB+ VRAM / INT8)      -> P-H3-Image INT8 ConvRot (8MP en 8 Pasos + 4MP Edición, ~29.4 GB)")
+    print("  [4] MINIMAX-H3-IMAGE (6GB+ VRAM / INT8) -> MiniMax-H3-Image Nativo ComfyUI (6 Pasos • 4MP-16MP • Multi-Ref Edit)")
     print("  [5] Saltar descarga de modelos por ahora (usar modelos ya instalados o Modo Práctica)")
 
-    default_opt = {"realtime": "0", "basico": "1", "medio": "2", "avanzado": "3", "p_h3_image": "4"}.get(rec_tier, "0")
+    default_opt = {"realtime": "0", "basico": "1", "medio": "2", "avanzado": "3", "minimax_h3_image": "4", "p_h3_image": "4"}.get(rec_tier, "0")
     sel = input(f"\nOpción [Enter para sugerido = {default_opt}]: ").strip() or default_opt
 
-    tier_map = {"0": "realtime", "1": "basico", "2": "medio", "3": "avanzado", "4": "p_h3_image"}
+    tier_map = {"0": "realtime", "1": "basico", "2": "medio", "3": "avanzado", "4": "minimax_h3_image"}
     if sel in tier_map:
         chosen_tier = tier_map[sel]
         cfg["active_tier"] = chosen_tier

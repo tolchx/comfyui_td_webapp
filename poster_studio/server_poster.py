@@ -158,6 +158,9 @@ def _font_fields(raw: dict) -> dict:
         "fit": bool(raw.get("fit", True)),
         "shadow": bool(raw.get("shadow", True)),
         "pad": float(raw.get("pad", 0)),
+        "bg": raw.get("bg"),
+        "bg_pad": float(raw.get("bg_pad", 10)),
+        "bg_radius": float(raw.get("bg_radius", 8)),
     }
 
 
@@ -203,28 +206,51 @@ def run_job(job_id: str, spec: dict) -> None:
 
         with GPU_LOCK:
             job.update(status="running", message="verificando VRAM")
-            vram_info = free_engine_vram()
-            job["vram"] = vram_info
-            after = vram_info.get("after") or {}
-            if after and after.get("free_mb", 0) < 14000:
-                raise RuntimeError(
-                    "VRAM insuficiente para MOSS: quedan "
-                    f"{after['free_mb']} MB libres y necesita ~15 GB. "
-                    "Cerrá el otro ComfyUI (8188), juegos o apps con GPU y reintentá."
-                )
-            job["message"] = (f"generando arte con MOSS-Image · "
-                              f"VRAM libre {after.get('free_mb', '?')} MB")
+            is_minimax = (profile == "minimax_h3") or ("minimax" in str(profile).lower())
+            comfy_target_client = CLIENT
+            if is_minimax:
+                # MiniMax H3 Image es nativo en ComfyUI (puerto 8188 de la suite o 8189)
+                try:
+                    if not comfy_target_client.ping():
+                        alt = ComfyClient(CFG.get("comfy_host", "127.0.0.1"), 8188)
+                        if alt.ping():
+                            comfy_target_client = alt
+                except Exception:
+                    comfy_target_client = ComfyClient(CFG.get("comfy_host", "127.0.0.1"), 8188)
+                job["message"] = "generando arte con MiniMax-H3-Image (Nativo ComfyUI · 6 pasos)"
+            else:
+                vram_info = free_engine_vram()
+                job["vram"] = vram_info
+                after = vram_info.get("after") or {}
+                if after and after.get("free_mb", 0) < 14000:
+                    raise RuntimeError(
+                        "VRAM insuficiente para MOSS: quedan "
+                        f"{after['free_mb']} MB libres y necesita ~15 GB. "
+                        "Cerrá el otro ComfyUI (8188), juegos o apps con GPU y reintentá."
+                    )
+                job["message"] = (f"generando arte con MOSS-Image · "
+                                  f"VRAM libre {after.get('free_mb', '?')} MB")
+
             prompt = make_prompt(spec, width, height, mode)
             job["prompt_chars"] = len(prompt)
             g = graph.t2i(prompt, profile, width=width, height=height, seed=seed,
-                          prefix="poster_moss")
-            pid = CLIENT.submit(g)
-            info = CLIENT.wait(pid, timeout=1200)
-            raw = CLIENT.fetch(info["files"][0])
+                          prefix="poster_minimax" if is_minimax else "poster_moss")
+            pid = comfy_target_client.submit(g)
+            info = comfy_target_client.wait(pid, timeout=1200)
+            raw = comfy_target_client.fetch(info["files"][0])
 
         tmp = OUTPUTS / f"_raw_{job_id}.png"
         tmp.write_bytes(raw)
         art = Image.open(tmp).convert("RGB")
+
+        # El motor decodea de forma estable hasta ~1 MP; para entregas más grandes se
+        # genera a 1 MP y se reescala antes de tipografiar (el arte es fondo, no detalle fino).
+        target = spec.get("upscale_to") or {}
+        tw = int(target.get("width") or art.width)
+        th = int(target.get("height") or art.height)
+        if (tw, th) != art.size:
+            art = art.resize((tw, th), Image.LANCZOS)
+            job["message"] = f"reescalado a {tw}×{th}"
 
         if mode == "hybrid":
             text_boxes, _ = normalize_boxes(spec, art.width, art.height)
@@ -314,6 +340,12 @@ class Handler(BaseHTTPRequestHandler):
 
         if path in ("/", "/index.html"):
             self._file(WEBAPP / "index.html", "text/html; charset=utf-8")
+        elif path in ("/tutorial", "/tutorial.html"):
+            tut_file = ROOT.parent / "webapp" / "tutorial.html"
+            if tut_file.exists():
+                self._file(tut_file, "text/html; charset=utf-8")
+            else:
+                self._json({"error": "Tutorial no encontrado"}, 404)
         elif path == "/api/status":
             self._json(self._status())
         elif path == "/api/fonts":

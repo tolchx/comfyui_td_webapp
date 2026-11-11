@@ -1416,6 +1416,14 @@ class Trellis3DHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": "WebApp 3D no encontrada"}, 404)
             return
 
+        if path in ("/tutorial", "/tutorial.html"):
+            tut_file = ROOT_DIR / "webapp" / "tutorial.html"
+            if tut_file.exists():
+                self._send_bytes(tut_file.read_bytes(), "text/html; charset=utf-8")
+            else:
+                self._send_json({"error": "Tutorial no encontrado"}, 404)
+            return
+
         if path == "/api/status" or path == "/api/download_status":
             installed = STUDIO3D.check_installed_3d_models()
             compat = STUDIO3D.get_hardware_3d_compatibility(installed)

@@ -43,8 +43,29 @@ def _finish(g, samples, prefix):
     return g
 
 
+def _t2i_minimax_h3(prompt, prof, width, height, seed, prefix):
+    g = {
+        "1": {"class_type": "UNETLoader", "inputs": {"unet_name": "minimax_h3_image_pruned_int8_convrot.safetensors", "weight_dtype": "default"}},
+        "2": {"class_type": "CLIPLoader", "inputs": {"clip_name": "qwen3vl_32b_minimax_h3_int8_convrot.safetensors", "type": "minimax", "device": "default"}},
+        "3": {"class_type": "VAELoader", "inputs": {"vae_name": "minimax_h3_image_vae_fp16.safetensors"}},
+        "4": {"class_type": "MiniMaxH3ImageConditioning", "inputs": {"clip": ["2", 0], "vae": ["3", 0], "prompt": prompt, "width": int(width), "height": int(height)}},
+        "5": {"class_type": "ConditioningZeroOut", "inputs": {"conditioning": ["4", 0]}},
+        "6": {"class_type": "KSampler", "inputs": {
+            "model": ["1", 0], "positive": ["4", 0], "negative": ["5", 0], "latent_image": ["4", 1],
+            "seed": int(seed), "steps": prof.get("steps", 6), "cfg": 1.0,
+            "sampler_name": prof.get("sampler", "euler"), "scheduler": prof.get("scheduler", "simple"),
+            "denoise": 1.0
+        }},
+        "7": {"class_type": "VAEDecodeTiled", "inputs": {"samples": ["6", 0], "vae": ["3", 0], "tile_size": 512, "overlap": 64}},
+        "8": {"class_type": "SaveImage", "inputs": {"images": ["7", 0], "filename_prefix": prefix}}
+    }
+    return g
+
+
 def t2i(prompt, profile, width=1024, height=1024, seed=42, negative="", prefix="mosskit_t2i"):
     prof = P.get(profile) if isinstance(profile, str) else profile
+    if prof.get("backend") == "minimax_h3" or "minimax" in str(profile).lower():
+        return _t2i_minimax_h3(prompt, prof, width, height, seed, prefix)
     g, model = _base(lora=prof.get("lora"))
     g["4"] = {"class_type": "CLIPTextEncode", "inputs": {"clip": ["2", 0], "text": prompt}}
     g["5"] = {"class_type": "CLIPTextEncode", "inputs": {"clip": ["2", 0], "text": negative}}

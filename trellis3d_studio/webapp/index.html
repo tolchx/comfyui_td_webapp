@@ -331,7 +331,7 @@
 </head>
 <body>
 
-  <!-- BARRA DE NAVEGACIÓN GLOBAL ENTRE LOS 6 MÓDULOS -->
+  <!-- BARRA DE NAVEGACIÓN GLOBAL ENTRE LOS 7 MÓDULOS -->
   <nav style="background:#04060a; border-bottom:1px solid rgba(255,255,255,0.08); padding:6px 20px; display:flex; gap:8px; overflow-x:auto; align-items:center;">
     <span style="font-size:11px; text-transform:uppercase; font-weight:800; letter-spacing:0.6px; color:var(--muted); margin-right:6px; white-space:nowrap;">Suite TD ↔ AI:</span>
     <a href="http://127.0.0.1:8080" style="padding:5px 12px; border-radius:6px; font-size:11.5px; font-weight:700; text-decoration:none; color:var(--muted); white-space:nowrap;">🎨 1. Imágenes HQ</a>
@@ -340,6 +340,10 @@
     <a href="http://127.0.0.1:8083" style="padding:5px 12px; border-radius:6px; font-size:11.5px; font-weight:700; text-decoration:none; color:var(--muted); white-space:nowrap;">🎬 4. Video Studio</a>
     <a href="http://127.0.0.1:8084" style="padding:5px 12px; border-radius:6px; font-size:11.5px; font-weight:700; text-decoration:none; color:var(--muted); white-space:nowrap;">✂️ 5. Alfa &amp; Inpaint</a>
     <a href="http://127.0.0.1:8085" style="padding:5px 12px; border-radius:6px; font-size:11.5px; font-weight:700; text-decoration:none; color:var(--muted); white-space:nowrap;">🌌 6. Parallax 2.5D</a>
+    <a href="http://127.0.0.1:8086" style="padding:5px 12px; border-radius:6px; font-size:11.5px; font-weight:700; text-decoration:none; color:var(--muted); white-space:nowrap;">🖼️ 7. Poster Studio</a>
+    <button type="button" onclick="openTutorialModal('tab-m3')" style="margin-left:auto; padding:5px 14px; border-radius:6px; font-size:11.5px; font-weight:800; background:linear-gradient(135deg, #10b981, #38bdf8); color:#030712; border:none; cursor:pointer; display:flex; align-items:center; gap:6px; box-shadow:0 0 14px rgba(16,185,129,0.45); white-space:nowrap; transition:all 0.15s ease;">
+      📖 Guía del Módulo 3
+    </button>
   </nav>
 
   <header>
@@ -347,7 +351,10 @@
       <div class="brand-logo">3D</div>
       <div>
         <h1>Módulo 3: TRELLIS v2 + Hunyuan 3D Local Studio (Imagen a Objeto 3D)</h1>
-        <span>Conversión Local de Assets a `.GLB` (PBR) y `.OBJ` (TouchDesigner SOP) • Detección Automática de Hardware</span>
+        <div style="display:flex; align-items:center; gap:8px; margin-top:3px;">
+          <span>Conversión Local de Assets a `.GLB` (PBR) y `.OBJ` (TouchDesigner SOP) • Detección Automática de Hardware</span>
+          <a href="javascript:void(0)" onclick="openTutorialModal('tab-m3')" style="font-size:11px; color:#10b981; text-decoration:none; font-weight:700; display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:6px; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.25);">💡 ¿Cómo funciona? Guía</a>
+        </div>
       </div>
     </div>
 
@@ -1161,5 +1168,45 @@
       setInterval(pollStatus, 2500);
     });
   </script>
+
+  <!-- MODAL GUIA Y TUTORIAL INTERACTIVO INTEGRADO -->
+  <div id="tutorialModal" style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(3, 5, 10, 0.88); backdrop-filter:blur(8px); flex-direction:column; align-items:center; justify-content:center; padding:16px;">
+    <div style="width:100%; max-width:1380px; height:92vh; background:#07090e; border:1px solid rgba(56,189,248,0.3); border-radius:16px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 24px 70px rgba(0,0,0,0.85);">
+      <div style="background:#0d111a; border-bottom:1px solid rgba(255,255,255,0.08); padding:12px 20px; display:flex; align-items:center; justify-content:space-between;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:20px;">📖</span>
+          <strong style="font-size:15px; color:#fff;">Guía &amp; Tutorial Interactivo de la Suite TouchDesigner ↔ ComfyUI AI</strong>
+          <span style="font-size:11px; padding:2px 8px; border-radius:999px; background:rgba(56,189,248,0.15); color:#38bdf8; font-weight:700;">7 Módulos</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <a id="tutorialExternalLink" href="/tutorial.html#tab-m3" target="_blank" style="padding:5px 12px; font-size:11.5px; text-decoration:none; color:#cbd5e1; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:6px;">Abrir en pestaña nueva ↗</a>
+          <button type="button" style="width:32px; height:32px; border-radius:8px; border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.08); color:#fff; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center;" onclick="closeTutorialModal()">✕</button>
+        </div>
+      </div>
+      <iframe id="tutorialIframe" src="/tutorial.html#tab-m3" style="width:100%; height:100%; border:none; background:#07090e;"></iframe>
+    </div>
+  </div>
+
+  <script>
+    function openTutorialModal(tabId) {
+      const modal = document.getElementById('tutorialModal');
+      const iframe = document.getElementById('tutorialIframe');
+      const extLink = document.getElementById('tutorialExternalLink');
+      const targetTab = tabId || 'tab-m3';
+      if (iframe) iframe.src = '/tutorial.html#' + targetTab;
+      if (extLink) extLink.href = '/tutorial.html#' + targetTab;
+      if (modal) modal.style.display = 'flex';
+    }
+
+    function closeTutorialModal() {
+      const modal = document.getElementById('tutorialModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    window.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape') closeTutorialModal();
+    });
+  </script>
+
 </body>
 </html>

@@ -628,6 +628,14 @@ class StreamStudioHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": "WebApp no encontrada"}, 404)
             return
 
+        if path in ("/tutorial", "/tutorial.html"):
+            tut_file = ROOT_DIR / "webapp" / "tutorial.html"
+            if tut_file.exists():
+                self._send_bytes(tut_file.read_bytes(), "text/html; charset=utf-8")
+            else:
+                self._send_json({"error": "Tutorial no encontrado"}, 404)
+            return
+
         if path == "/api/status":
             models = STUDIO.check_comfy_models()
             self._send_json({

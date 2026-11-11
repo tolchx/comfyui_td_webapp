@@ -129,7 +129,7 @@
     },
     "p_h3_image": {
       "id": "p_h3_image",
-      "label": "P-H3-Image INT8 ConvRot (8 Megapixels • 8 Pasos • 4MP Edit • 6GB+ VRAM)",
+      "label": "MiniMax-H3 / P-H3-Image INT8 ConvRot (6-8 Pasos • 4MP-16MP • 6GB+ VRAM)",
       "min_vram_gb": 6,
       "comfy_flags": [
         "--lowvram"
@@ -139,7 +139,7 @@
       ],
       "default_width": 2048,
       "default_height": 2048,
-      "default_steps": 8,
+      "default_steps": 6,
       "default_cfg": 1.0,
       "sampler_name": "euler",
       "scheduler": "simple",
@@ -163,6 +163,45 @@
           "subdir": "vae",
           "size_mb": 3100,
           "url": "https://huggingface.co/PrunaAI/P-H3-Image-Comfy/resolve/main/vae/p-h3-image_vae_int8_convrot.safetensors"
+        }
+      ]
+    },
+    "minimax_h3_image": {
+      "id": "minimax_h3_image",
+      "label": "MiniMax-H3-Image Nativo ComfyUI (6 Pasos • 4MP-16MP • DiT INT8/BF16 • 6GB+ VRAM)",
+      "min_vram_gb": 6,
+      "comfy_flags": [
+        "--lowvram"
+      ],
+      "mac_flags": [
+        "--force-fp16"
+      ],
+      "default_width": 2048,
+      "default_height": 2048,
+      "default_steps": 6,
+      "default_cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "checkpoint": "minimax_h3_image_pruned_int8_convrot.safetensors",
+      "lora": null,
+      "files": [
+        {
+          "filename": "minimax_h3_image_pruned_int8_convrot.safetensors",
+          "subdir": "diffusion_models",
+          "size_mb": 20007,
+          "url": "https://huggingface.co/Comfy-Org/MiniMax-H3-Image/resolve/main/diffusion_models/minimax_h3_image_pruned_int8_convrot.safetensors"
+        },
+        {
+          "filename": "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+          "subdir": "text_encoders",
+          "size_mb": 25883,
+          "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors"
+        },
+        {
+          "filename": "minimax_h3_image_vae_fp16.safetensors",
+          "subdir": "vae",
+          "size_mb": 1114,
+          "url": "https://huggingface.co/Comfy-Org/MiniMax-H3-Image/resolve/main/vae/minimax_h3_image_vae_fp16.safetensors"
         }
       ]
     }

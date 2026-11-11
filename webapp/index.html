@@ -752,10 +752,10 @@
             <small>12–24+ GB VRAM</small>
             <small style="color:var(--green);margin-top:2px;">Flux.2 Klein / Dev / Qwen</small>
           </div>
-          <div class="tier-card" id="tier-p_h3_image" onclick="selectTier('p_h3_image')">
-            <strong>🚀 P-H3-Image</strong>
-            <small>6GB+ VRAM (INT8)</small>
-            <small style="color:#f59e0b;margin-top:2px;">8MP / 8 Pasos / 4MP Edit</small>
+          <div class="tier-card" id="tier-minimax_h3_image" onclick="selectTier('minimax_h3_image')">
+            <strong>🚀 MiniMax H3</strong>
+            <small>Nativo ComfyUI • 6 Pasos</small>
+            <small style="color:#f59e0b;margin-top:2px;">4MP–16MP • Multi-Ref</small>
           </div>
         </div>
 
@@ -782,7 +782,7 @@
         <div class="panel-title">
           <span>2. Generador de Alta Calidad (Txt2Img &amp; Img2Img)</span>
           <div style="display:flex; align-items:center; gap:8px;">
-            <a href="javascript:void(0)" onclick="openTutorialModal('tab-ph3')" style="font-size:11px; color:#f59e0b; text-decoration:none; font-weight:600;">🚀 P-H3 8MP Guía</a>
+            <a href="javascript:void(0)" onclick="openTutorialModal('tab-ph3')" style="font-size:11px; color:#f59e0b; text-decoration:none; font-weight:600;">🚀 MiniMax H3 Guía</a>
             <span class="badge" id="modeBadge">TXT2IMG</span>
           </div>
         </div>
@@ -808,9 +808,12 @@
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:2px; flex-wrap:wrap; gap:4px;">
           <span style="font-size:11px; color:var(--muted); font-weight:600;">Resolución Rápida:</span>
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <button type="button" class="btn btn-secondary" style="padding:2px 7px; font-size:10px;" onclick="setResolution(3872, 2176)" title="8.4 Megapixels Panorama 16:9 (P-H3-Image)">8MP 16:9</button>
-            <button type="button" class="btn btn-secondary" style="padding:2px 7px; font-size:10px;" onclick="setResolution(2880, 2880)" title="8.3 Megapixels Cuadrado 1:1 (P-H3-Image)">8MP 1:1</button>
-            <button type="button" class="btn btn-secondary" style="padding:2px 7px; font-size:10px;" onclick="setResolution(2048, 2048)" title="4.2 Megapixels Ultra 1:1">4MP 1:1</button>
+            <button type="button" class="btn btn-secondary" style="padding:2px 7px; font-size:10px;" onclick="setResolution(5472, 3072)" title="16.8 Megapixels 16:9 Nativo (MiniMax-H3)">16MP 16:9</button>
+            <button type="button" class="btn btn-secondary" style="padding:2px 7px; font-size:10px;" onclick="setResolution(4096, 4096)" title="16.8 Megapixels 1:1 Nativo (MiniMax-H3)">16MP 1:1</button>
+            <button type="button" class="btn btn-secondary" style="padding:2px 7px; font-size:10px;" onclick="setResolution(6272, 2688)" title="16.8 Megapixels 21:9 Ultra-Panorámico (MiniMax-H3)">16MP 21:9</button>
+            <button type="button" class="btn btn-secondary" style="padding:2px 7px; font-size:10px;" onclick="setResolution(3872, 2176)" title="8.4 Megapixels Panorama 16:9">8MP 16:9</button>
+            <button type="button" class="btn btn-secondary" style="padding:2px 7px; font-size:10px;" onclick="setResolution(2880, 2880)" title="8.3 Megapixels Cuadrado 1:1">8MP 1:1</button>
+            <button type="button" class="btn btn-secondary" style="padding:2px 7px; font-size:10px;" onclick="setResolution(2048, 2048)" title="4.2 Megapixels Ultra 1:1 (Rápido)">4MP 1:1</button>
             <button type="button" class="btn btn-secondary" style="padding:2px 7px; font-size:10px;" onclick="setResolution(1024, 1024)" title="1.0 Megapixels Estándar">1MP 1:1</button>
             <button type="button" class="btn btn-secondary" style="padding:2px 7px; font-size:10px;" onclick="setResolution(512, 512)" title="0.26 Megapixels Rápido">512</button>
           </div>
@@ -1113,10 +1116,13 @@
     async function selectTier(tierId) {
       currentTier = tierId;
       document.querySelectorAll('.tier-card').forEach(el => el.classList.remove('active'));
-      const activeEl = document.getElementById(`tier-${tierId}`);
+      let activeEl = document.getElementById(`tier-${tierId}`);
+      if (!activeEl && (tierId === 'minimax_h3_image' || tierId === 'p_h3_image')) {
+        activeEl = document.getElementById('tier-minimax_h3_image') || document.getElementById('tier-p_h3_image');
+      }
       if (activeEl) activeEl.classList.add('active');
 
-      const tCfg = tiersMeta[tierId];
+      const tCfg = tiersMeta[tierId] || tiersMeta['minimax_h3_image'] || tiersMeta['p_h3_image'];
       if (tCfg) {
         document.getElementById('widthInput').value = tCfg.default_width || 1024;
         document.getElementById('heightInput').value = tCfg.default_height || 1024;

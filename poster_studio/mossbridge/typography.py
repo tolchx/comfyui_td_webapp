@@ -119,6 +119,22 @@ def render_box(img: Image.Image, box: dict, width: int, height: int) -> None:
     shadow = box.get("shadow", True)
     draw = ImageDraw.Draw(img, "RGBA")
 
+    # Placa de contraste opcional (#rrggbb o #rrggbbaa) detrás del bloque de texto.
+    bg = box.get("bg")
+    if bg:
+        from PIL import ImageColor
+        try:
+            fill = ImageColor.getrgb(bg) if len(str(bg)) <= 7 else ImageColor.getrgb(str(bg)[:7]) + (
+                int(str(bg)[7:9], 16),)
+        except Exception:
+            fill = None
+        if fill:
+            pad_bg = int(box.get("bg_pad", 10))
+            top = cursor_y - pad_bg
+            bottom = cursor_y + total_h + pad_bg
+            draw.rounded_rectangle([x0, top, x1, bottom], radius=int(box.get("bg_radius", 8)),
+                                   fill=fill)
+
     for line in lines:
         lw = line_width(font, line, tracking)
         if align == "center":
@@ -129,8 +145,9 @@ def render_box(img: Image.Image, box: dict, width: int, height: int) -> None:
             cursor_x = x0 + pad
         cursor_x = max(0.0, cursor_x)
         if shadow:
-            _draw_tracked(draw, (cursor_x + max(1, size * 0.03), cursor_y + max(1, size * 0.03)),
-                          line, font, (0, 0, 0, 120), tracking)
+            offset = max(1.0, size * 0.02)
+            _draw_tracked(draw, (cursor_x + offset, cursor_y + offset),
+                          line, font, (0, 0, 0, 110), tracking)
         _draw_tracked(draw, (cursor_x, cursor_y), line, font, color, tracking)
         cursor_y += size * line_height
 

@@ -477,6 +477,18 @@ class VideoStudioHTTPHandler(BaseHTTPRequestHandler):
             else:
                 self._send_json({"error": "webapp/index.html no encontrado"}, 404)
 
+        elif path in ("/tutorial", "/tutorial.html"):
+            tut_file = ROOT_DIR / "webapp" / "tutorial.html"
+            if tut_file.exists():
+                content = tut_file.read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(content)))
+                self.end_headers()
+                self.wfile.write(content)
+            else:
+                self._send_json({"error": "Tutorial no encontrado"}, 404)
+
         elif path == "/api/status":
             comfy_ok = video_state.check_comfyui_online()
             rec = video_state.recommend_engine()

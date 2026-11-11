@@ -1,10 +1,11 @@
 #!/bin/bash
-# Descargador Oficial P-H3-Image INT8 ConvRot para macOS
+# Descargador Oficial MiniMax-H3-Image Nativo ComfyUI para macOS
 cd "$(dirname "$0")/.."
 
 echo "===================================================================="
-echo "  DESCARGADOR OFICIAL P-H3-IMAGE (Pruna AI / MiniMax-H3) - macOS"
-echo "  8 Megapixels • 8 Pasos • 4MP Edición • INT8 ConvRot • 6GB+ VRAM"
+echo "  DESCARGADOR OFICIAL MINIMAX-H3-IMAGE (Nativo ComfyUI) - macOS"
+echo "  4MP-16MP • 6 Pasos • Multi-Ref Edit • INT8 ConvRot • 6GB+ VRAM"
+echo "  Referencia: https://blog.comfy.org/p/minimax-h3-image-is-now-available"
 echo "===================================================================="
 echo ""
 

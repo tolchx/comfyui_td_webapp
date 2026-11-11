@@ -1,28 +1,29 @@
 # 📘 Suite Modular TouchDesigner ↔ ComfyUI (Windows & macOS)
 ## 7 Módulos Autónomos: Imágenes HQ + Realtime + 3D + Video + Alfa & Inpaint + Parallax 2.5D + Poster Studio
-### 📖 Incluye Centro de Tutoriales y Guías Interactivas en la WebApp (`/tutorial.html`)
+### 📖 Incluye Sistema de Guías y Tutoriales In-App en los 7 Módulos (`/tutorial.html`)
 
 Arquitectura **modular, standalone y multiplataforma (Windows & macOS)** diseñada para cátedras y talleres de Inteligencia Artificial Generativa. Separa el sistema en **siete módulos independientes y conectados** con **ComfyUI (`127.0.0.1:8188`)** y **TouchDesigner (`TD/v1.toe` & `TD/ComfyUI_StreamDiffusion_Studio.toe`)**:
 
 1. **🎨 Módulo 1 — Generador de Imágenes de Alta Calidad (`bridge/` + `webapp/` • Puerto `8080`)**:
-   - Dedicado exclusivamente a **Text-to-Image (`txt2img`)** e **Image-to-Image (`img2img`)** de máxima fidelidad visual.
-   - **Soporte P-H3-Image INT8 ConvRot**: Generación a **8 Megapixels en 8 pasos** y edición multi-referencia a 4MP con solo 6 GB de VRAM gracias a `VAEDecodeTiled` (512px) y offload dinámico.
+   - Dedicado a **Text-to-Image (`txt2img`)** e **Image-to-Image (`img2img`)** de máxima fidelidad visual.
+   - **Soporte Nativo MiniMax H3 Image & P-H3-Image**: Integración nativa oficial de ComfyUI ([blog.comfy.org](https://blog.comfy.org/p/minimax-h3-image-is-now-available)). Checkpoint unificado para **Text-to-Image** y **edición multi-referencia** (hasta 16 imágenes con sintaxis `<Picture 1>`) a resoluciones de **4MP hasta 16–20 Megapixels en solo 6 pasos** (CFG=1.0) y compatible con GPUs desde 6 GB de VRAM con `VAEDecodeTiled`.
    - **Auto-detección de Hardware Potente**: Al detectar GPUs de gama alta (ej. **NVIDIA GeForce RTX 4090 24 GB VRAM**), activa automáticamente el nivel **`AVANZADO`** con **Flux.2 Klein 4B / Flux.2 Dev / Qwen Image 2.1** a `1024×1024` y decodificador **Full VAE** (`flux2-vae.safetensors`).
    - **Galería + Lightbox Pantalla Completa (`⛶`) + Envío Directo a 3D (`🧊 a 3D`) y Video (`🎬 a Video`)**.
-   - **📖 Centro de Tutoriales Integrado**: Botón permanente en la barra superior para acceder al manual interactivo sin interrumpir las generaciones.
+   - **📖 Guía Integrada In-App**: Botón permanente en la barra superior y chip contextual para consultar parámetros, resoluciones y conexión TouchDesigner sin salir de la página.
 
 2. **🎬 Módulo 2 — StreamDiffusion Realtime Studio + Pizarra Pro (`streamdiffusion_studio/` • Puerto `8081`)**:
    - Módulo en [`streamdiffusion_studio/`](streamdiffusion_studio/) para generación en tiempo real con latencia out-of-process sub-segundo:
      - **[ComfyUI_StreamDiffusion (`jesenzhang/ComfyUI_StreamDiffusion`)](https://github.com/jesenzhang/ComfyUI_StreamDiffusion)**: Nodos nativos `StreamDiffusion_Loader` y `StreamDiffusion_Sampler` (700 ms – 1.2 s en SD1.5/DreamShaper 8 en RTX 4090 con cero cuelgues de GPU).
      - **🎨 Pizarra Pro Multicapa**: Herramientas profesionales de pluma, pincel suave, marcador, spray, borrador, bote de pintura, gotero, selector de tamaño/opacidad, capas reordenables, plantillas de cielo/paisaje y sol, y herramienta mover capa (`M`).
      - **🪟 Captura Directa de Ventana / Aplicación (WebRTC)**: Captura con 1 clic la ventana de **TouchDesigner**, Photoshop o navegador.
+     - **📖 Botón de Guía M2**: Acceso directo al tutorial interactivo sobre latencia, parámetros y configuración TouchDesigner.
 
 3. **🧊 Módulo 3 — TRELLIS v2 + Hunyuan 3D Local Studio (`trellis3d_studio/` • Puerto `8082`)**:
    - Convierte cualquier imagen en un **objeto 3D local (`.GLB` PBR y `.OBJ`)**:
      - **Nivel Avanzado**: TRELLIS v2 Local (Microsoft / Comfy-Org 4B Sparse Voxel + PBR Texture Stage).
      - **Nivel Medio**: Hunyuan 3D v2.1 Local DiT.
      - **Nivel Universal Instantáneo**: Escultor PBR 3D Instantáneo (<1.5s sin requerir VRAM extra).
-   - Incluye **Visor 3D Orbital WebGL integrado**.
+   - Incluye **Visor 3D Orbital WebGL integrado** y **botón de Guía M3** con explicaciones de formatos PBR y `fileinSOP`.
 
 4. **🎬 Módulo 4 — AI Video Studio T2V & I2V (`video_studio/` • Puerto `8083`)**:
    - Generación de animación temporal e Image-to-Video conectada a TouchDesigner:
@@ -30,6 +31,7 @@ Arquitectura **modular, standalone y multiplataforma (Windows & macOS)** diseña
      - **Motor Wan 2.2 14B Q4_K_M GGUF**: Optimizado para GPUs de 8 a 12 GB VRAM.
      - **Camera Motion Synth 3D & Parallax**: Animación instantánea (<2s) a 60 FPS con zoom, pan, órbita 3D y vórtice (0 VRAM extra).
    - Sincroniza automáticamente `outputs/latest_video.mp4` para reproducción continua en loop con `moviefileinTOP` en TouchDesigner.
+   - **📖 Botón de Guía M4**: Documentación sobre Wan 2.2, prompts de cámara y sincronización de frames.
 
 5. **✂️ Módulo 5 — Segmentación Alfa & Inpainting Studio (`segmentation_studio/` • Puerto `8084`)**:
    - Aislamiento de sujetos y reconstrucción de fondos:
@@ -37,19 +39,22 @@ Arquitectura **modular, standalone y multiplataforma (Windows & macOS)** diseña
      - **Modo Puntos Interactivos (SAM 2)**: Clic izquierdo (verde +) para incluir y clic derecho (rojo -) para excluir.
      - **Desoclusión e Inpainting de Fondo**: Rellena el fondo detrás del sujeto para colocar textos o partículas intermedias.
    - Entrega `latest_subject_alpha.png` (RGBA transparente) y `latest_background_inpainted.png` listos para `overTOP` en TD.
+   - **📖 Botón de Guía M5**: Explicación detallada de segmentación SAM 2 y composición en capas en TouchDesigner.
 
 6. **🌌 Módulo 6 — 2.5D Parallax & Depth Studio (`parallax25d_studio/` • Puerto `8085`)**:
    - Convierte imágenes 2D en escenarios tridimensionales interactivos:
      - **Estimación de Profundidad**: Depth maps suaves y continuos de 8/16-bit.
      - **Visor 3D WebGL con Parallax**: Mové el mouse en el navegador para ver la perspectiva en tiempo real.
      - **Malla 3D Desplazada (`.OBJ` y `.GLB`)**: Cuadrícula deformable con UVs lista para `fileinSOP` o `displaceTOP` a 60 FPS en TouchDesigner.
+   - **📖 Botón de Guía M6**: Guía de integración de mapas de profundidad y shaders de desplazamiento.
 
-7. **🖼️ Módulo 7 — Poster Studio · MOSS-Image (`poster_studio/` • Puerto `8086`)**:
+7. **🖼️ Módulo 7 — Poster Studio · MOSS-Image & MiniMax H3 (`poster_studio/` • Puerto `8086`)**:
    - Pósters con **texto legible y ubicación exacta**: escribís los textos, los arrastrás en un canvas y el sistema genera la pieza.
    - **Modo Híbrido (default)**: MOSS-Image genera el arte y la tipografía se compone con **fuentes reales del sistema** (Pillow). Texto exacto, editable sin regenerar, control de cuerpo, tracking, interlínea y alineación.
    - **Modo IA pura**: el modelo dibuja también el texto usando **layout JSON por cajas** (`MOSSImageLayoutPrompt`). Efecto demo, sin control de fuente: revisar letra por letra.
-   - **Requiere una instancia ComfyUI aparte** en `127.0.0.1:8189` con MOSS-Image (ComfyUI ≥ 0.44 + `nodes_moss_image`), porque el ComfyUI de la suite (8188) no trae esos nodos. Configurable en `poster_studio/config.json`.
+   - **Generador de Arte Dual**: Soporta tanto **MOSS-Image** (instancia 8189) como el nuevo **MiniMax H3 Image Nativo** (`profile="minimax_h3"` en solo 6 pasos) compatible directamente con el ComfyUI estándar de la suite (8188).
    - Entrega `outputs/latest_poster.png` (y `latest.png`) para levantarlo en TD con `moviefileinTOP`.
+   - **📖 Botón de Guía M7**: Manual de tipografía, layouts JSON, cajas y exportación.
 
 Repositorio oficial: **[https://github.com/tolchx/comfyui_td_webapp](https://github.com/tolchx/comfyui_td_webapp)**
 
@@ -105,14 +110,19 @@ En lugar de depender de un motor TensorRT rígido, implementamos las optimizacio
 
 ---
 
-## 🚀 Modelo P-H3-Image INT8 ConvRot: 8 Megapixels y Edición 4MP con solo 6 GB de VRAM
+## 🚀 MiniMax-H3-Image Nativo ComfyUI & P-H3-Image: Hasta 16-20 Megapixels en 6 Pasos
 
-**P-H3-Image** (desarrollado por **Pruna AI** a partir de la arquitectura **MiniMax-H3**) representa un salto generacional en síntesis y edición de imágenes en ComfyUI:
+Basado en la integración oficial nativa de **ComfyUI** ([ComfyUI Blog Announcement](https://blog.comfy.org/p/minimax-h3-image-is-now-available)), **MiniMax-H3-Image** representa un salto generacional en síntesis y edición fotográfica de ultra-alta resolución:
 
 ### 🌟 Capacidades Clave
-1. **Generación a 8 Megapixels en 8 Pasos**: Genera imágenes a resoluciones panorámicas de hasta `3872×2176` (16:9) o `2880×2880` (1:1) en tan solo **8 pasos de inferencia**.
-2. **Edición Contextual a 4 Megapixels (`4MP`)**: Permite conectar hasta 8 imágenes de referencia utilizando el nodo nativo `PH3ImageConditioning`. En el prompt se pueden referenciar dinámicamente como `<Picture 1>`, `<Picture 2>`, logrando transformaciones estilísticas y de personajes con coherencia fotográfica.
-3. **Inferencia Sin Classifier-Free Guidance (`CFG = 1.0`)**: A diferencia de SD/SDXL que requieren evaluar dos veces la red (positivo + negativo) saturando la memoria, P-H3-Image utiliza un único forward pass por paso (`CFG = 1.0` / `BasicGuider`), reduciendo el uso de memoria a la mitad.
+1. **Checkpoint Unificado (T2I & Image Edit)**: Un solo modelo maneja tanto la generación desde texto como la edición con múltiples imágenes de referencia.
+2. **Muestreo Distilled Ultrarrápido en 6 Pasos (`CFG = 1.0`)**: No requiere negative prompt ni sintonización compleja; evalúa un solo forward pass por paso (`euler / simple`), reduciendo el consumo de cómputo y memoria a la mitad.
+3. **Resolución Nativa de 4MP a 16–20 Megapixels en Una Pasada**:
+   - `1:1`: 4096×4096 (~16.8 MP) y 2048×2048 (4.2 MP)
+   - `16:9`: 5472×3072 (~16.8 MP) y 3872×2176 (8.4 MP)
+   - `4:3`: 4736×3552 (~16.8 MP)
+   - `21:9`: 6272×2688 (~16.8 MP Ultra-Panorámico)
+4. **Edición Contextual Multi-Referencia (hasta 16 imágenes)**: Permite conectar referencias visuales y referenciarlas directamente en el prompt como `<Picture 1>`, `<Picture 2>`, logrando transformaciones estilísticas y consistencia de personajes.
 
 ### 🔬 ¿Por qué la versión INT8 ConvRot corre en solo 6 GB de VRAM?
 El modelo original en `BF16` pesa más de **140 GB** combinados y exige estaciones de trabajo de 80 GB VRAM. La versión **`INT8 ConvRot`** resuelve este problema mediante tres pilares:

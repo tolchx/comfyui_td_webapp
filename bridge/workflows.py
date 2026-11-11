@@ -42,19 +42,42 @@ def build_workflow(
     is_rt = realtime_mode or (tier_id == "realtime") or bool(tier_cfg.get("use_taesd"))
     ckpt = checkpoint_override or tier_cfg.get("checkpoint", "DreamShaper_8_pruned.safetensors")
 
-    # Caso especial 0: P-H3-Image INT8 ConvRot (8 Megapixels en 8 pasos con 6GB VRAM)
-    if "p-h3-image" in ckpt.lower() or "ph3" in ckpt.lower() or tier_id in ("p_h3_image", "ph3_image"):
-        return _build_ph3_image_workflow(
+    # Caso especial 0: MiniMax-H3-Image / P-H3-Image INT8 ConvRot (Nativo ComfyUI)
+    if (
+        "minimax_h3" in ckpt.lower()
+        or "minimax-h3" in ckpt.lower()
+        or "minimax" in ckpt.lower()
+        or "p-h3-image" in ckpt.lower()
+        or "ph3" in ckpt.lower()
+        or "h3-image" in ckpt.lower()
+        or tier_id in ("minimax_h3_image", "minimax_h3", "p_h3_image", "ph3_image")
+    ):
+        unet_target = "minimax_h3_image_pruned_int8_convrot.safetensors"
+        clip_target = "qwen3vl_32b_minimax_h3_int8_convrot.safetensors"
+        vae_target = "minimax_h3_image_vae_fp16.safetensors"
+
+        if "w4a8" in ckpt.lower():
+            unet_target = "minimax_h3_image_w4a8.safetensors" if "minimax" in ckpt.lower() else "p-h3-image_w4a8.safetensors"
+            clip_target = "p-h3-image_text_encoder_int8_convrot.safetensors"
+            vae_target = "p-h3-image_vae_int8_convrot.safetensors"
+        elif "p-h3" in ckpt.lower() or "ph3" in ckpt.lower():
+            unet_target = "p-h3-image_int8_convrot.safetensors"
+            clip_target = "p-h3-image_text_encoder_int8_convrot.safetensors"
+            vae_target = "p-h3-image_vae_int8_convrot.safetensors"
+        elif "bf16" in ckpt.lower():
+            unet_target = "minimax_h3_image_bf16.safetensors"
+
+        return _build_minimax_h3_image_workflow(
             prompt=prompt,
             width=width,
             height=height,
-            steps=steps if steps in (4, 6, 8, 10, 12) else 8,
+            steps=steps if steps in (4, 6, 8, 10, 12) else 6,
             seed=seed,
             denoise=denoise,
             input_image_name=input_image_name,
-            unet_name="p-h3-image_int8_convrot.safetensors" if "w4a8" not in ckpt.lower() else "p-h3-image_w4a8.safetensors",
-            clip_name="p-h3-image_text_encoder_int8_convrot.safetensors",
-            vae_name="p-h3-image_vae_int8_convrot.safetensors",
+            unet_name=ckpt if any(x in ckpt.lower() for x in ("safetensors", "gguf")) else unet_target,
+            clip_name=clip_target,
+            vae_name=vae_target,
             use_tiled_vae=True,
         )
 
@@ -470,29 +493,31 @@ def _build_flux2_workflow(
     return wf
 
 
-def _build_ph3_image_workflow(
+def _build_minimax_h3_image_workflow(
     prompt: str,
     width: int = 2048,
     height: int = 2048,
-    steps: int = 8,
+    steps: int = 6,
     seed: int = 424242,
     denoise: float = 1.0,
     input_image_name: str | None = None,
-    unet_name: str = "p-h3-image_int8_convrot.safetensors",
-    clip_name: str = "p-h3-image_text_encoder_int8_convrot.safetensors",
-    vae_name: str = "p-h3-image_vae_int8_convrot.safetensors",
+    unet_name: str = "minimax_h3_image_pruned_int8_convrot.safetensors",
+    clip_name: str = "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+    vae_name: str = "minimax_h3_image_vae_fp16.safetensors",
     use_tiled_vae: bool = True,
 ) -> dict:
     """
-    Workflow nativo para P-H3-Image INT8 ConvRot (Pruna AI / MiniMax-H3):
-    =====================================================================
-    - 8 Megapixels de generación T2I (ej. 3872×2176 o 2880×2880) en 8 pasos con CFG = 1.0.
-    - 4 Megapixels de edición I2I con imágenes de referencia contextuales (<Picture 1>).
-    - Cuantización INT8 ConvRot (matrices de rotación Hadamard contra outliers) + VAEDecodeTiled (512px).
-    - Memoria VRAM requerida: Solo 6 GB a 8 GB VRAM gracias al offload dinámico y tiling VAE.
+    Workflow nativo para MiniMax H3 Image (Comfy-Org / Pruna AI P-H3-Image):
+    ========================================================================
+    - Modelo unificado nativo en ComfyUI v0.45+ (blog.comfy.org/p/minimax-h3-image-is-now-available)
+    - Maneja Text-to-Image y Multi-Reference Image Editing con un único checkpoint.
+    - Muestreo CFG-distilled rápido en 6 pasos (Euler / simple / CFG=1.0).
+    - Resoluciones nativas de 4MP a 16MP (4096x4096, 4736x3552, 5472x3072, 6272x2688).
+    - Edición multi-referencia conectando image_1 y usando sintaxis <Picture 1> en el prompt.
+    - Cuantización INT8 ConvRot + VAEDecodeTiled (512px) para funcionar en GPUs desde 6 GB VRAM.
     """
     wf: dict = {
-        # 1. Cargar el Diffusion Transformer (INT8 ConvRot o W4A8)
+        # 1. Cargar DiT (INT8 ConvRot o BF16)
         "1": {
             "class_type": "UNETLoader",
             "inputs": {
@@ -500,29 +525,20 @@ def _build_ph3_image_workflow(
                 "weight_dtype": "default",
             },
         },
-        # 2. Cargar Text Encoder (INT8 ConvRot)
+        # 2. Cargar Text Encoder Qwen3-VL nativo de MiniMax (tipo 'minimax')
         "2": {
             "class_type": "CLIPLoader",
             "inputs": {
                 "clip_name": clip_name,
-                "type": "default",
+                "type": "minimax",
                 "device": "default",
             },
         },
-        # 3. Cargar VAE (INT8 ConvRot o BF16)
+        # 3. Cargar VAE MiniMax H3 Image
         "3": {
             "class_type": "VAELoader",
             "inputs": {
                 "vae_name": vae_name,
-            },
-        },
-        # 4. Patch de Sigma Shift MiniMax-H3 para muestreo distilled en 8 pasos
-        "4": {
-            "class_type": "MiniMaxH3SigmaShift",
-            "inputs": {
-                "model": ["1", 0],
-                "shift_video": 1.0,
-                "shift_audio": 1.0,
             },
         },
     }
@@ -531,13 +547,13 @@ def _build_ph3_image_workflow(
     cond_inputs = {
         "clip": ["2", 0],
         "vae": ["3", 0],
-        "text": cond_text,
+        "prompt": cond_text,
         "width": width,
         "height": height,
     }
 
     if input_image_name:
-        # Modo Edición 4MP / Referencia
+        # Modo Edición Multi-Referencia Nativo
         wf["10"] = {
             "class_type": "LoadImage",
             "inputs": {"image": input_image_name},
@@ -547,39 +563,47 @@ def _build_ph3_image_workflow(
             "inputs": {
                 "image": ["10", 0],
                 "upscale_method": "bilinear",
-                "width": min(width, 2560),
-                "height": min(height, 2560),
+                "width": min(width, 4096),
+                "height": min(height, 4096),
                 "crop": "center",
             },
         }
         cond_inputs["image_1"] = ["11", 0]
         if "<Picture 1>" not in cond_text and "<Picture" not in cond_text:
-            cond_inputs["text"] = f"<Picture 1> {cond_text}"
+            cond_inputs["prompt"] = f"<Picture 1> {cond_text}"
 
-    # 5. Condicionamiento nativo PH3ImageConditioning (ComfyUI v0.44+)
-    wf["5"] = {
-        "class_type": "PH3ImageConditioning",
+    # 4. Condicionamiento nativo MiniMaxH3ImageConditioning (ComfyUI v0.45+)
+    wf["4"] = {
+        "class_type": "MiniMaxH3ImageConditioning",
         "inputs": cond_inputs,
     }
 
-    # 6. Sampler en 8 pasos con CFG = 1.0 (sin Negative Prompt duplicando memoria)
+    # 5. Condicionamiento negativo ConditioningZeroOut (CFG = 1.0)
+    wf["5"] = {
+        "class_type": "ConditioningZeroOut",
+        "inputs": {
+            "conditioning": ["4", 0],
+        },
+    }
+
+    # 6. Sampler distilled en 6 pasos (euler / simple / CFG=1.0)
     wf["6"] = {
         "class_type": "KSampler",
         "inputs": {
             "seed": seed,
-            "steps": max(4, min(12, steps)),
+            "steps": max(4, min(16, steps)),
             "cfg": 1.0,
             "sampler_name": "euler",
             "scheduler": "simple",
             "denoise": denoise if input_image_name else 1.0,
-            "model": ["4", 0],
-            "positive": ["5", 0],
+            "model": ["1", 0],
+            "positive": ["4", 0],
             "negative": ["5", 0],
-            "latent_image": ["5", 1],
+            "latent_image": ["4", 1],
         },
     }
 
-    # 7. Decodificación VAE Tiled (512px) para garantizar 0 OOM en 6GB VRAM a 8 Megapixels
+    # 7. Decodificación VAE (Tiled a 512px para evitar OOM a 8MP-16MP)
     if use_tiled_vae:
         wf["7"] = {
             "class_type": "VAEDecodeTiled",
@@ -599,13 +623,16 @@ def _build_ph3_image_workflow(
             },
         }
 
-    # 8. Guardar Imagen HD / 8 Megapixels
+    # 8. Guardar Imagen HD / 16 Megapixels
     wf["8"] = {
         "class_type": "SaveImage",
         "inputs": {
-            "filename_prefix": "TD_PH3_Image",
+            "filename_prefix": "TD_MiniMax_H3",
             "images": ["7", 0],
         },
     }
 
     return wf
+
+
+_build_ph3_image_workflow = _build_minimax_h3_image_workflow

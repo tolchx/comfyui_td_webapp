@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 """
-Descargador Oficial de P-H3-Image INT8 ConvRot / W4A8 para ComfyUI
-===================================================================
-Descarga los pesos oficiales de Pruna AI (MiniMax-H3) directamente a ComfyUI:
-  - models/diffusion_models/p-h3-image_int8_convrot.safetensors (~21.2 GB)
-  - models/text_encoders/p-h3-image_text_encoder_int8_convrot.safetensors (~5.1 GB)
-  - models/vae/p-h3-image_vae_int8_convrot.safetensors (~3.1 GB)
+Descargador Oficial de MiniMax H3 Image / P-H3-Image INT8 para ComfyUI
+======================================================================
+Descarga los pesos nativos oficiales de Comfy-Org y Pruna AI:
+  - Oficial Comfy-Org (blog.comfy.org/p/minimax-h3-image-is-now-available):
+      * models/diffusion_models/minimax_h3_image_pruned_int8_convrot.safetensors (~21.0 GB)
+      * models/text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors (~25.28 GB)
+      * models/vae/minimax_h3_image_vae_fp16.safetensors (~1.17 GB)
+  - Pruna AI (P-H3-Image INT8 ConvRot con Text Encoder compacto de 5.1 GB):
+      * models/diffusion_models/p-h3-image_int8_convrot.safetensors (~21.2 GB)
+      * models/text_encoders/p-h3-image_text_encoder_int8_convrot.safetensors (~5.1 GB)
+      * models/vae/p-h3-image_vae_int8_convrot.safetensors (~3.1 GB)
 
-Permite generar a 8 Megapixels y editar a 4 Megapixels en 8 pasos con solo 6 GB de VRAM.
+Permite generar a 4MP-16MP y editar con múltiples referencias en 6 pasos en GPUs desde 6 GB VRAM.
 Incluye soporte de reanudación automática (.part), cálculo de MB/s y tiempo restante.
 """
 
@@ -24,14 +29,37 @@ sys.path.insert(0, str(ROOT_DIR))
 from bridge.installer import load_config, resolve_comfy_installation, detect_gpu
 
 PH3_VARIANTS = {
-    "int8": {
-        "name": "P-H3-Image INT8 ConvRot (Recomendado • Calidad casi BF16 • ~29.4 GB)",
+    "comfy_org": {
+        "name": "MiniMax-H3-Image Oficial Comfy-Org (Nativo ComfyUI • blog.comfy.org • ~47.4 GB)",
         "files": [
             {
-                "name": "p-h3-image_int8_convrot.safetensors",
+                "name": "minimax_h3_image_pruned_int8_convrot.safetensors",
                 "subdir": "diffusion_models",
-                "url": "https://huggingface.co/PrunaAI/P-H3-Image-Comfy/resolve/main/diffusion_models/p-h3-image_int8_convrot.safetensors",
-                "size_gb": 21.2,
+                "url": "https://huggingface.co/Comfy-Org/MiniMax-H3-Image/resolve/main/diffusion_models/minimax_h3_image_pruned_int8_convrot.safetensors",
+                "size_gb": 21.0,
+            },
+            {
+                "name": "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+                "subdir": "text_encoders",
+                "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+                "size_gb": 25.28,
+            },
+            {
+                "name": "minimax_h3_image_vae_fp16.safetensors",
+                "subdir": "vae",
+                "url": "https://huggingface.co/Comfy-Org/MiniMax-H3-Image/resolve/main/vae/minimax_h3_image_vae_fp16.safetensors",
+                "size_gb": 1.17,
+            },
+        ],
+    },
+    "int8": {
+        "name": "MiniMax-H3 / P-H3-Image INT8 (Text Encoder Compacto 5.1GB • Ahorro de Disco • ~29.4 GB)",
+        "files": [
+            {
+                "name": "minimax_h3_image_pruned_int8_convrot.safetensors",
+                "subdir": "diffusion_models",
+                "url": "https://huggingface.co/Comfy-Org/MiniMax-H3-Image/resolve/main/diffusion_models/minimax_h3_image_pruned_int8_convrot.safetensors",
+                "size_gb": 21.0,
             },
             {
                 "name": "p-h3-image_text_encoder_int8_convrot.safetensors",
@@ -40,15 +68,15 @@ PH3_VARIANTS = {
                 "size_gb": 5.1,
             },
             {
-                "name": "p-h3-image_vae_int8_convrot.safetensors",
+                "name": "minimax_h3_image_vae_fp16.safetensors",
                 "subdir": "vae",
-                "url": "https://huggingface.co/PrunaAI/P-H3-Image-Comfy/resolve/main/vae/p-h3-image_vae_int8_convrot.safetensors",
-                "size_gb": 3.1,
+                "url": "https://huggingface.co/Comfy-Org/MiniMax-H3-Image/resolve/main/vae/minimax_h3_image_vae_fp16.safetensors",
+                "size_gb": 1.17,
             },
         ],
     },
     "w4a8": {
-        "name": "P-H3-Image W4A8 Ultra-Comprimido (Bajo Espacio • ~21.6 GB)",
+        "name": "MiniMax-H3 / P-H3 W4A8 Ultra-Comprimido (Máximo Ahorro • ~19.7 GB)",
         "files": [
             {
                 "name": "p-h3-image_w4a8.safetensors",
@@ -63,10 +91,10 @@ PH3_VARIANTS = {
                 "size_gb": 5.1,
             },
             {
-                "name": "p-h3-image_vae_int8_convrot.safetensors",
+                "name": "minimax_h3_image_vae_fp16.safetensors",
                 "subdir": "vae",
-                "url": "https://huggingface.co/PrunaAI/P-H3-Image-Comfy/resolve/main/vae/p-h3-image_vae_int8_convrot.safetensors",
-                "size_gb": 3.1,
+                "url": "https://huggingface.co/Comfy-Org/MiniMax-H3-Image/resolve/main/vae/minimax_h3_image_vae_fp16.safetensors",
+                "size_gb": 1.17,
             },
         ],
     },
@@ -117,7 +145,6 @@ def download_with_resume(url: str, dest_path: Path, label: str = "") -> bool:
                     if now - last_t >= 0.5:
                         last_t = now
                         elapsed = max(0.001, now - start_t)
-                        speed_mb = (len(chunk) / (1024**2)) / max(0.001, now - (last_t - 0.5))
                         avg_speed_mb = (downloaded / (1024**2)) / elapsed
                         if total_bytes:
                             pct = (downloaded / total_bytes) * 100.0
@@ -151,14 +178,15 @@ def download_with_resume(url: str, dest_path: Path, label: str = "") -> bool:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Descargador de P-H3-Image INT8 ConvRot")
-    parser.add_argument("--variant", choices=["int8", "w4a8", "all"], default=None)
-    parser.add_argument("--auto", action="store_true", help="Descargar variante INT8 recomendada sin preguntar")
+    parser = argparse.ArgumentParser(description="Descargador de MiniMax-H3-Image para ComfyUI")
+    parser.add_argument("--variant", choices=["comfy_org", "int8", "w4a8"], default=None)
+    parser.add_argument("--auto", action="store_true", help="Descargar variante recomendada sin preguntar")
     args = parser.parse_args()
 
     print("====================================================================")
-    print("  DESCARGADOR OFICIAL P-H3-IMAGE (Pruna AI / MiniMax-H3)")
-    print("  8 Megapixels • 8 Pasos • 4MP Edición • INT8 ConvRot • 6GB+ VRAM")
+    print("  DESCARGADOR OFICIAL MINIMAX-H3-IMAGE (Nativo ComfyUI)")
+    print("  4MP-16MP • 6 Pasos • Multi-Ref Edit • INT8 ConvRot • 6GB+ VRAM")
+    print("  Referencia: https://blog.comfy.org/p/minimax-h3-image-is-now-available")
     print("====================================================================")
 
     gpu = detect_gpu()
@@ -176,25 +204,28 @@ def main() -> None:
 
     choice = args.variant
     if not choice and not args.auto:
-        print("\nSeleccioná la variante de P-H3-Image a descargar:")
-        print("  [1] INT8 ConvRot (Recomendado: 8MP / 8 Pasos, ~29.4 GB total, máxima fidelidad)")
-        print("  [2] W4A8 Ultra-Comprimido (Ahorro de disco: 8MP / 8 Pasos, ~21.6 GB total)")
+        print("\nSeleccioná la variante de MiniMax-H3-Image a descargar:")
+        print("  [1] MiniMax-H3-Image Oficial Comfy-Org (Recomendado oficial: ~47.4 GB total)")
+        print("  [2] MiniMax-H3 / P-H3 INT8 Ahorro de Disco (Text Encoder Compacto 5.1GB, ~29.4 GB total)")
+        print("  [3] MiniMax-H3 / P-H3 W4A8 Ultra-Comprimido (~19.7 GB total)")
         print("  [0] Salir")
         try:
             val = input("\nOpción [1]: ").strip() or "1"
         except (EOFError, KeyboardInterrupt):
             val = "0"
         if val == "1":
-            choice = "int8"
+            choice = "comfy_org"
         elif val == "2":
+            choice = "int8"
+        elif val == "3":
             choice = "w4a8"
         else:
             print("Operación cancelada.")
             sys.exit(0)
     elif not choice:
-        choice = "int8"
+        choice = "comfy_org"
 
-    variant_info = PH3_VARIANTS.get(choice, PH3_VARIANTS["int8"])
+    variant_info = PH3_VARIANTS.get(choice, PH3_VARIANTS["comfy_org"])
     print(f"\nVariante seleccionada: {variant_info['name']}")
 
     for file_spec in variant_info["files"]:
@@ -213,9 +244,9 @@ def main() -> None:
             print(f"\n[WARN] No se completó la descarga de {file_spec['name']}. Podés volver a ejecutar el script para reanudar.")
 
     print("\n====================================================================")
-    print("  [LISTO] Archivos de P-H3-Image configurados en ComfyUI.")
+    print("  [LISTO] Archivos de MiniMax-H3-Image configurados en ComfyUI.")
     print("  Ya podés iniciar el Módulo 1 en http://127.0.0.1:8080 o TouchDesigner")
-    print("  y seleccionar el modelo 'P-H3-Image (8MP INT8 ConvRot)'.")
+    print("  y seleccionar el modelo 'MiniMax-H3-Image Nativo ComfyUI'.")
     print("====================================================================")
 
 

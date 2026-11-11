@@ -539,13 +539,22 @@ def _execute_generation_worker(job: dict):
 
             # Determinar qué checkpoint usar según el nivel de hardware (ej. Avanzado en RTX 4090 -> Flux.2 Klein 4B / Dev / Qwen 2.1)
             chosen_ckpt = job.get("checkpoint") or tier_cfg.get("checkpoint")
-            if tier_id == "p_h3_image" or "ph3" in str(chosen_ckpt).lower() or "p-h3" in str(chosen_ckpt).lower():
-                if "p-h3-image_int8_convrot.safetensors" in all_ckpts:
+            if (
+                tier_id in ("minimax_h3_image", "minimax_h3", "p_h3_image", "ph3_image")
+                or any(x in str(chosen_ckpt).lower() for x in ("minimax", "ph3", "p-h3", "h3-image"))
+            ):
+                if "minimax_h3_image_pruned_int8_convrot.safetensors" in all_ckpts:
+                    chosen_ckpt = "minimax_h3_image_pruned_int8_convrot.safetensors"
+                elif "p-h3-image_int8_convrot.safetensors" in all_ckpts:
                     chosen_ckpt = "p-h3-image_int8_convrot.safetensors"
+                elif "minimax_h3_image_bf16.safetensors" in all_ckpts:
+                    chosen_ckpt = "minimax_h3_image_bf16.safetensors"
+                elif "minimax_h3_image_w4a8.safetensors" in all_ckpts:
+                    chosen_ckpt = "minimax_h3_image_w4a8.safetensors"
                 elif "p-h3-image_w4a8.safetensors" in all_ckpts:
                     chosen_ckpt = "p-h3-image_w4a8.safetensors"
                 else:
-                    chosen_ckpt = "p-h3-image_int8_convrot.safetensors"
+                    chosen_ckpt = "minimax_h3_image_pruned_int8_convrot.safetensors"
             elif chosen_ckpt not in all_ckpts:
                 # Si tiene Flux.2 Klein 4B o Qwen Image 2.1 o Flux.2 Dev instalados localmente, usarlos automáticamente
                 if "flux-2-klein-4b.safetensors" in all_ckpts:

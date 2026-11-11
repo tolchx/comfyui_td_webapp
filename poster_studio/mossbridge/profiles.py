@@ -5,6 +5,12 @@ Origen de los números: repo MOSS-Image-Colab (configs/profiles) + plantilla ofi
 """
 
 PROFILES = {
+    # MiniMax H3 Image (Nativo ComfyUI • 6 Pasos • blog.comfy.org)
+    "minimax_h3": {
+        "steps": 6, "cfg": 1.0, "sampler": "euler", "scheduler": "simple",
+        "slg": None, "lora": None, "denoise": 1.0, "text_safe": True, "backend": "minimax_h3",
+        "note": "MiniMax H3 Image (Nativo ComfyUI • 6 pasos • 4MP-16MP)",
+    },
     # Plantilla oficial "MOSS-Image: Text to Image"
     "quality25": {
         "steps": 25, "cfg": 2.5, "sampler": "er_sde", "scheduler": "simple",

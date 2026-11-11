@@ -385,8 +385,8 @@
       </button>
       <button class="tab-btn" onclick="showTab('tab-ph3')">
         <span class="tab-icon">🚀</span>
-        <span>P-H3-Image (INT8)</span>
-        <span class="tab-badge">8MP</span>
+        <span>MiniMax H3 Image</span>
+        <span class="tab-badge">16MP / 6 Pasos</span>
       </button>
       <button class="tab-btn" onclick="showTab('tab-m2')">
         <span class="tab-icon">⚡</span>
@@ -620,21 +620,21 @@
       <!-- TAB 2: P-H3-IMAGE -->
       <section id="tab-ph3" class="tab-content">
         <div class="doc-card">
-          <div class="doc-card-title">🚀 Modelo P-H3-Image: 8 Megapixels y Edición 4MP en solo 6 GB de VRAM</div>
+          <div class="doc-card-title">🚀 MiniMax-H3-Image Nativo ComfyUI: Hasta 16-20 Megapixels en 6 Pasos (Unificado T2I &amp; Multi-Ref)</div>
           <p>
-            <strong>P-H3-Image</strong> es una adaptación de última generación desarrollada por <strong>Pruna AI</strong> a partir del modelo fundacional <strong>MiniMax-H3</strong>. Combina un poder de resolución masivo con una velocidad de inferencia sin precedentes en ComfyUI.
+            <strong>MiniMax-H3-Image</strong> es el nuevo modelo nativo open-weights integrado en ComfyUI (oficialmente anunciado en <a href="https://blog.comfy.org/p/minimax-h3-image-is-now-available" target="_blank" style="color:var(--accent);">blog.comfy.org</a>). Ofrece un <strong>checkpoint unificado</strong> para generación Text-to-Image y edición de imágenes con hasta 16 referencias en solo <strong>6 pasos de inferencia</strong> y resoluciones de hasta <strong>16 a 20 Megapixels</strong> en una sola pasada.
           </p>
 
           <div class="specs-grid" style="margin-top:16px;">
             <div class="spec-item">
               <label>Resolución T2I</label>
-              <strong>8.4 Megapixels</strong>
-              <div style="font-size:12px; color:var(--muted);">Hasta 3872×2176 nativo</div>
+              <strong>16.8 Megapixels</strong>
+              <div style="font-size:12px; color:var(--muted);">Hasta 5472×3072 / 4096×4096</div>
             </div>
             <div class="spec-item">
               <label>Pasos de Muestreo</label>
-              <strong>Solo 8 Pasos</strong>
-              <div style="font-size:12px; color:var(--muted);">MiniMax H3 Sigma Schedule</div>
+              <strong>Solo 6 Pasos</strong>
+              <div style="font-size:12px; color:var(--muted);">CFG-distilled (Euler simple)</div>
             </div>
             <div class="spec-item">
               <label>VRAM Mínima</label>
@@ -643,8 +643,8 @@
             </div>
             <div class="spec-item">
               <label>Edición Multi-Ref</label>
-              <strong>Hasta 8 Imágenes</strong>
-              <div style="font-size:12px; color:var(--muted);">&lt;Picture 1&gt;, &lt;Picture 2&gt;</div>
+              <strong>Hasta 16 Imágenes</strong>
+              <div style="font-size:12px; color:var(--muted);">&lt;Picture 1&gt; ... &lt;Picture 16&gt;</div>
             </div>
           </div>
 
@@ -1014,12 +1014,14 @@ Mac/6_Descargar_P-H3-Image_Mac.command</pre>
     }
 
     // Permitir deep linking con hash (#tab-m1)
-    window.addEventListener('DOMContentLoaded', () => {
+    function handleHash() {
       const hash = window.location.hash.replace('#', '');
       if (hash && document.getElementById(hash)) {
         showTab(hash);
       }
-    });
+    }
+    window.addEventListener('DOMContentLoaded', handleHash);
+    window.addEventListener('hashchange', handleHash);
   </script>
 </body>
 </html>
